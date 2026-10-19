@@ -157,9 +157,9 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Groom Card */}
           <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-lg p-4 flex flex-col items-center text-center">
-            <div className="w-20 h-20 rounded-full bg-[#fffdf9] border border-[#d4b48c] flex items-center justify-center mb-3 shadow-sm">
+            <div className="w-28 h-28 rounded-full bg-[#fffdf9] border border-[#d4b48c] flex items-center justify-center mb-3 shadow-sm overflow-hidden">
               <GroomSprite
-                size={58}
+                size={108}
                 primaryColor={config.groom.suitColor}
                 hairColor={config.groom.hairColor}
                 bounce
@@ -181,9 +181,9 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
 
           {/* Bride Card */}
           <div className="bg-[#fcf5f5] border border-[#ebd2d4] rounded-lg p-4 flex flex-col items-center text-center">
-            <div className="w-20 h-20 rounded-full bg-[#fffdf9] border border-[#e2a3a9] flex items-center justify-center mb-3 shadow-sm">
+            <div className="w-28 h-28 rounded-full bg-[#fffdf9] border border-[#e2a3a9] flex items-center justify-center mb-3 shadow-sm overflow-hidden">
               <BrideSprite
-                size={58}
+                size={108}
                 primaryColor={config.bride.dressColor}
                 hairColor={config.bride.hairColor}
                 bounce
@@ -207,7 +207,7 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
         {/* Little Pet Companion Note */}
         <div className="mt-4 bg-[#faf5ec] border border-[#e6d5b8] rounded-lg p-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <PetCatSprite size={36} />
+            <PetCatSprite size={56} />
             <div className="text-left">
               <div className="text-xs font-bold text-[#3b2f2f]">
                 반려묘 {config.pet.name} · {config.pet.title}

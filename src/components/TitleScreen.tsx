@@ -38,25 +38,25 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#2b211e]/65 via-transparent to-transparent" />
 
-          {/* Delicate Pastel Pixel Couple Badge at Bottom of Arch */}
-          <div className="absolute bottom-3 inset-x-3 bg-[#fffdf9]/92 backdrop-blur-sm border border-[#e6d5b8] rounded-xl py-2.5 px-3 flex items-center justify-center gap-3 shadow-sm">
+          {/* High-Res 144x144 Pastel Pixel Couple Badge at Bottom of Arch */}
+          <div className="absolute bottom-3 inset-x-3 bg-[#fffdf9]/94 backdrop-blur-sm border border-[#e6d5b8] rounded-xl py-2 px-3 flex items-center justify-center gap-2 shadow-sm">
             <GroomSprite
-              size={44}
+              size={82}
               primaryColor={config.groom.suitColor}
               hairColor={config.groom.hairColor}
               bounce
             />
             <div className="flex flex-col items-center">
-              <PixelRing size={18} />
-              <PixelHeart size={12} color="#d97b84" className="mt-0.5" />
+              <PixelRing size={22} />
+              <PixelHeart size={14} color="#d97b84" className="mt-1" />
             </div>
             <BrideSprite
-              size={44}
+              size={82}
               primaryColor={config.bride.dressColor}
               hairColor={config.bride.hairColor}
               bounce
             />
-            <PetCatSprite size={28} className="hidden xs:block" />
+            <PetCatSprite size={48} className="hidden xs:block -ml-1" />
           </div>
         </div>
       </div>

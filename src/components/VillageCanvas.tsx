@@ -4,7 +4,14 @@ import {
   QuestBuildingId,
   WeddingConfig,
   GuestbookEntry,
+  AvatarClassId,
 } from '../data/weddingConfig';
+import {
+  getHighResGroomCanvas,
+  getHighResBrideCanvas,
+  getHighResCatCanvas,
+  getHighResGuestCanvas,
+} from '../utils/highResPixelArt';
 import { soundEngine } from '../utils/soundEngine';
 
 interface VillageCanvasProps {
@@ -130,123 +137,24 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const W = 380;
-    const H = 360;
+    // High-Resolution 760x720 Canvas so 144x144 pixel sprites render with full crisp detail!
+    const W = 760;
+    const H = 720;
     canvas.width = W;
     canvas.height = H;
+    ctx.imageSmoothingEnabled = false;
 
-    // Soft floating cherry blossom petals & sunlight dust
-    const petals: Petal[] = Array.from({ length: 28 }, () => ({
+    const petals: Petal[] = Array.from({ length: 34 }, () => ({
       x: Math.random() * W,
       y: Math.random() * H,
-      vx: -0.2 - Math.random() * 0.3,
-      vy: 0.28 + Math.random() * 0.38,
-      size: Math.random() > 0.5 ? 3 : 2,
+      vx: -0.35 - Math.random() * 0.45,
+      vy: 0.45 + Math.random() * 0.65,
+      size: Math.random() > 0.4 ? 5 : 4,
       color: Math.random() > 0.35 ? '#ffd6e0' : '#fffdf9',
     }));
 
     let animId: number;
     let tick = 0;
-
-    const drawPixelSpriteChar = (
-      cx: number,
-      cy: number,
-      role: 'groom' | 'bride' | 'cat' | 'npc',
-      walkFrame: number,
-      npcColor = '#84a98c'
-    ) => {
-      const bob = walkFrame % 2 === 1 ? -1.5 : 0;
-      const x = Math.round(cx);
-      const y = Math.round(cy + bob);
-
-      // Soft warm shadow
-      ctx.fillStyle = 'rgba(74, 58, 42, 0.2)';
-      ctx.fillRect(x - 6, Math.round(cy) + 8, 12, 3);
-
-      if (role === 'cat') {
-        ctx.fillStyle = '#e6a15c';
-        ctx.fillRect(x - 4, y - 2, 8, 6);
-        ctx.fillRect(x - 4, y - 4, 2, 2);
-        ctx.fillRect(x + 2, y - 4, 2, 2);
-        ctx.fillStyle = '#3b2f2f';
-        ctx.fillRect(x - 3, y, 1, 1);
-        ctx.fillRect(x + 2, y, 1, 1);
-        ctx.fillStyle = '#d97b84';
-        ctx.fillRect(x - 2, y + 3, 4, 1);
-        ctx.fillStyle = '#fff8ee';
-        ctx.fillRect(x - 3, y + 4, 6, 4);
-        return;
-      }
-
-      if (role === 'groom') {
-        // Hair
-        ctx.fillStyle = config.groom.hairColor || '#2c1e18';
-        ctx.fillRect(x - 5, y - 10, 10, 3);
-        // Face
-        ctx.fillStyle = '#ffead6';
-        ctx.fillRect(x - 4, y - 7, 8, 5);
-        // Eyes
-        ctx.fillStyle = '#3b2f2f';
-        ctx.fillRect(x - 3, y - 5, 1.5, 2);
-        ctx.fillRect(x + 1.5, y - 5, 1.5, 2);
-        // Tuxedo
-        ctx.fillStyle = config.groom.suitColor || '#34495e';
-        ctx.fillRect(x - 5, y - 2, 10, 7);
-        // Shirt & Champagne Bowtie
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x - 2, y - 2, 4, 4);
-        ctx.fillStyle = '#c59b6d';
-        ctx.fillRect(x - 1, y - 2, 2, 1.5);
-        // Rose Boutonniere
-        ctx.fillStyle = '#e899a0';
-        ctx.fillRect(x - 4, y - 1, 1.5, 1.5);
-        // Shoes
-        ctx.fillStyle = '#2b211e';
-        ctx.fillRect(x - 4, y + 5 + (walkFrame % 2), 3, 2);
-        ctx.fillRect(x + 1, y + 5 + ((walkFrame + 1) % 2), 3, 2);
-      } else if (role === 'bride') {
-        // Flowing White Veil
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
-        ctx.fillRect(x - 7, y - 9, 14, 12);
-        // Pearl & Champagne Tiara
-        ctx.fillStyle = '#d4af7a';
-        ctx.fillRect(x - 3, y - 12, 6, 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x - 1, y - 13, 2, 1);
-        // Hair
-        ctx.fillStyle = config.bride.hairColor || '#3b2314';
-        ctx.fillRect(x - 5, y - 10, 10, 3);
-        // Face
-        ctx.fillStyle = '#ffefe0';
-        ctx.fillRect(x - 4, y - 7, 8, 5);
-        // Eyes
-        ctx.fillStyle = '#3b2f2f';
-        ctx.fillRect(x - 3, y - 5, 1.5, 2);
-        ctx.fillRect(x + 1.5, y - 5, 1.5, 2);
-        // White Silk Gown
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x - 5, y - 2, 10, 4);
-        ctx.fillRect(x - 7, y + 2, 14, 5);
-        // Pastel Rose Bouquet
-        ctx.fillStyle = '#84a98c';
-        ctx.fillRect(x - 2, y, 4, 3);
-        ctx.fillStyle = '#e899a0';
-        ctx.fillRect(x - 2, y, 2, 2);
-        ctx.fillStyle = '#fffdf9';
-        ctx.fillRect(x, y + 1, 2, 2);
-      } else {
-        // Pastel Guest NPC
-        ctx.fillStyle = '#4a3525';
-        ctx.fillRect(x - 4, y - 10, 8, 3);
-        ctx.fillStyle = '#ffead6';
-        ctx.fillRect(x - 4, y - 7, 8, 5);
-        ctx.fillStyle = '#3b2f2f';
-        ctx.fillRect(x - 2, y - 5, 1, 2);
-        ctx.fillRect(x + 1, y - 5, 1, 2);
-        ctx.fillStyle = npcColor;
-        ctx.fillRect(x - 4, y - 2, 8, 7);
-      }
-    };
 
     const drawGardenPavilion = (
       b: (typeof QUEST_BUILDINGS)[0],
@@ -258,126 +166,168 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const x = Math.round(bx);
       const y = Math.round(by);
 
-      // Soft warm glow when near
       if (isNear) {
         ctx.fillStyle = 'rgba(255, 253, 249, 0.55)';
         ctx.beginPath();
-        ctx.arc(x, y + 2, 34, 0, Math.PI * 2);
+        ctx.arc(x, y + 4, 68, 0, Math.PI * 2);
         ctx.fill();
       }
 
       if (b.id === 'ceremony') {
-        // White Glasshouse Wedding Chapel with Floral Arch
-        ctx.fillStyle = 'rgba(92, 72, 56, 0.14)';
-        ctx.fillRect(x - 34, y + 12, 68, 4);
+        // High-Detail Glasshouse Wedding Chapel
+        ctx.fillStyle = 'rgba(92, 72, 56, 0.16)';
+        ctx.fillRect(x - 68, y + 24, 136, 8);
 
-        // Cream & Glass Walls
-        ctx.fillStyle = '#fffdf9';
-        ctx.fillRect(x - 32, y - 18, 64, 32);
+        // Side Wings
         ctx.fillStyle = '#f5ebe0';
-        ctx.fillRect(x - 36, y - 24, 12, 38);
-        ctx.fillRect(x + 24, y - 24, 12, 38);
+        ctx.fillRect(x - 72, y - 48, 28, 76);
+        ctx.fillRect(x + 44, y - 48, 28, 76);
+        // Main Sanctuary
+        ctx.fillStyle = '#fffdf9';
+        ctx.fillRect(x - 56, y - 42, 112, 70);
 
-        // Champagne Rose Roof
+        // Architectural Pilasters
+        ctx.fillStyle = '#e6d5b8';
+        for (let px = x - 52; px <= x + 48; px += 24) {
+          ctx.fillRect(px, y - 38, 4, 64);
+        }
+
+        // Gabled Pastel Rose Roof with Shingle Lines
         ctx.fillStyle = '#d97b84';
         ctx.beginPath();
-        ctx.moveTo(x - 28, y - 18);
-        ctx.lineTo(x, y - 37);
-        ctx.lineTo(x + 28, y - 18);
+        ctx.moveTo(x - 62, y - 40);
+        ctx.lineTo(x, y - 82);
+        ctx.lineTo(x + 62, y - 40);
         ctx.fill();
-        ctx.fillStyle = '#c59b6d';
-        ctx.fillRect(x - 38, y - 29, 16, 5);
-        ctx.fillRect(x + 22, y - 29, 16, 5);
+        ctx.strokeStyle = '#b85d67';
+        ctx.lineWidth = 3;
+        ctx.stroke();
 
-        // Gold Wedding Bell / Cross
+        // Side Wing Roofs
         ctx.fillStyle = '#c59b6d';
-        ctx.fillRect(x - 1, y - 43, 2, 6);
-        ctx.fillRect(x - 3, y - 41, 6, 2);
+        ctx.fillRect(x - 76, y - 58, 34, 10);
+        ctx.fillRect(x + 42, y - 58, 34, 10);
 
-        // Glass Arch Window
+        // Golden Spire & Bell
+        ctx.fillStyle = '#c59b6d';
+        ctx.fillRect(x - 2, y - 96, 4, 16);
+        ctx.fillRect(x - 7, y - 90, 14, 4);
+
+        // Arched Rose Stained Glass Window
         ctx.fillStyle = '#d8e8f2';
-        ctx.fillRect(x - 7, y - 13, 14, 10);
-        // Floral Arch Entrance
-        ctx.fillStyle = '#84a98c';
-        ctx.fillRect(x - 9, y, 18, 14);
+        ctx.fillRect(x - 16, y - 32, 32, 22);
+        ctx.strokeStyle = '#c59b6d';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 16, y - 32, 32, 22);
+        ctx.fillStyle = '#f4acb7';
+        ctx.fillRect(x - 6, y - 26, 12, 10);
+
+        // Floral Garland Entrance Arch
+        ctx.fillStyle = '#6b9071';
+        ctx.fillRect(x - 20, y - 2, 40, 30);
         ctx.fillStyle = '#f7ebe8';
-        ctx.fillRect(x - 6, y + 3, 12, 11);
+        ctx.fillRect(x - 14, y + 4, 28, 24);
+        // Rose blossoms along the arch
         ctx.fillStyle = '#e899a0';
-        ctx.fillRect(x - 8, y, 3, 3);
-        ctx.fillRect(x + 5, y, 3, 3);
+        ctx.fillRect(x - 18, y, 5, 5);
+        ctx.fillRect(x - 8, y - 2, 5, 5);
+        ctx.fillRect(x + 4, y - 2, 5, 5);
+        ctx.fillRect(x + 13, y, 5, 5);
       } else if (b.id === 'minigame') {
-        // White Marble Swan Fountain
-        ctx.fillStyle = '#f5ebe0';
-        ctx.fillRect(x - 23, y - 12, 46, 24);
+        // High-Detail Tiered Marble Swan Fountain
+        ctx.fillStyle = '#e6dfd5';
+        ctx.fillRect(x - 48, y - 22, 96, 48);
+        ctx.fillStyle = '#fffdf9';
+        ctx.fillRect(x - 44, y - 20, 88, 42);
         ctx.fillStyle = '#a8dadc';
-        ctx.fillRect(x - 19, y - 8, 38, 16);
-        // Gentle water ripple
-        ctx.fillStyle = tick % 24 < 12 ? '#dff3f5' : '#bce6e8';
-        ctx.fillRect(x - 6, y - 13, 12, 10);
-        ctx.fillRect(x - 13, y - 3, 5, 3);
-        ctx.fillRect(x + 8, y - 2, 5, 3);
-        // White Floral Centerpiece
+        ctx.fillRect(x - 38, y - 14, 76, 30);
+
+        // Animated Water Ripples
+        ctx.fillStyle = tick % 24 < 12 ? '#e0f7fa' : '#bce6e8';
+        ctx.fillRect(x - 14, y - 26, 28, 22);
+        ctx.fillRect(x - 28, y - 6, 12, 5);
+        ctx.fillRect(x + 16, y - 4, 12, 5);
+
+        // Center Floral Pedestal
         ctx.fillStyle = '#fffdf9';
-        ctx.fillRect(x - 4, y - 18, 8, 8);
+        ctx.fillRect(x - 10, y - 36, 20, 18);
         ctx.fillStyle = '#d97b84';
-        ctx.fillRect(x - 3, y - 21, 6, 4);
+        ctx.fillRect(x - 7, y - 42, 14, 8);
       } else {
-        // Sunlit Pastel Garden Pavilions
-        ctx.fillStyle = 'rgba(92, 72, 56, 0.14)';
-        ctx.fillRect(x - 24, y + 12, 48, 4);
-        // Ivory Cottage Walls
+        // High-Detail Sunlit Garden Pavilions
+        ctx.fillStyle = 'rgba(92, 72, 56, 0.15)';
+        ctx.fillRect(x - 48, y + 24, 96, 8);
+
+        // Ivory Walls & Wainscoting
         ctx.fillStyle = '#fffdf9';
-        ctx.fillRect(x - 21, y - 8, 42, 21);
-        // Champagne Trim
+        ctx.fillRect(x - 44, y - 18, 88, 44);
+        ctx.fillStyle = '#f5ebe0';
+        ctx.fillRect(x - 44, y + 12, 88, 14);
+
+        // Champagne Trim Pillars
         ctx.fillStyle = '#d4b48c';
-        ctx.fillRect(x - 21, y - 8, 2, 21);
-        ctx.fillRect(x + 19, y - 8, 2, 21);
-        // Pastel Roof
+        ctx.fillRect(x - 44, y - 18, 5, 44);
+        ctx.fillRect(x + 39, y - 18, 5, 44);
+
+        // Layered Pastel Roof with Scalloped Shingles
         ctx.fillStyle = b.color;
-        ctx.fillRect(x - 25, y - 15, 50, 8);
-        ctx.fillRect(x - 20, y - 20, 40, 5);
-        ctx.fillRect(x - 14, y - 23, 28, 3);
-        // Sunlit Windows with Flower Boxes
-        ctx.fillStyle = '#d8e8f2';
-        ctx.fillRect(x - 15, y - 4, 6, 5);
-        ctx.fillRect(x + 9, y - 4, 6, 5);
-        ctx.fillStyle = '#e899a0';
-        ctx.fillRect(x - 15, y + 1, 6, 2);
-        ctx.fillRect(x + 9, y + 1, 6, 2);
-        // Warm Wood Door
+        ctx.fillRect(x - 50, y - 32, 100, 16);
+        ctx.fillRect(x - 42, y - 42, 84, 10);
+        ctx.fillRect(x - 30, y - 50, 60, 8);
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        ctx.fillRect(x - 46, y - 30, 92, 3);
+
+        // Mullioned Windows with Flower Boxes
+        [-28, 16].forEach((wx) => {
+          ctx.fillStyle = '#d8e8f2';
+          ctx.fillRect(x + wx, y - 10, 14, 12);
+          ctx.strokeStyle = '#c59b6d';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x + wx, y - 10, 14, 12);
+          // Flower Box
+          ctx.fillStyle = '#6b9071';
+          ctx.fillRect(x + wx - 2, y + 2, 18, 4);
+          ctx.fillStyle = '#e899a0';
+          ctx.fillRect(x + wx, y, 4, 3);
+          ctx.fillRect(x + wx + 8, y, 4, 3);
+        });
+
+        // Arched Wooden Door
         ctx.fillStyle = '#9c7a5b';
-        ctx.fillRect(x - 5, y + 2, 10, 11);
+        ctx.fillRect(x - 10, y + 2, 20, 24);
+        ctx.fillStyle = '#e6d5b8';
+        ctx.fillRect(x + 5, y + 13, 3, 3);
       }
 
-      // Delicate Floating Stamp Marker
-      const floatY = Math.sin(tick * 0.06 + b.x) * 2;
-      const badgeW = 16;
-      const badgeH = 13;
-      const badgeY = b.id === 'ceremony' ? y - 52 + floatY : y - 36 + floatY;
+      // Floating Stamp Marker
+      const floatY = Math.sin(tick * 0.06 + b.x) * 4;
+      const badgeW = 32;
+      const badgeH = 26;
+      const badgeY = b.id === 'ceremony' ? y - 110 + floatY : y - 76 + floatY;
 
       ctx.fillStyle = isVisited ? '#6b9071' : '#fffdf9';
       ctx.fillRect(x - badgeW / 2, badgeY, badgeW, badgeH);
       ctx.strokeStyle = isVisited ? '#fffdf9' : '#c59b6d';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2.5;
       ctx.strokeRect(x - badgeW / 2, badgeY, badgeW, badgeH);
 
       ctx.fillStyle = isVisited ? '#fffdf9' : '#d97b84';
-      ctx.font = 'bold 9px sans-serif';
+      ctx.font = 'bold 16px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(isVisited ? '✓' : '♥', x, badgeY + 10);
+      ctx.fillText(isVisited ? '✓' : '♥', x, badgeY + 19);
 
       // Elegant Ivory Label Tag
       const label = b.shortName;
-      ctx.font = 'bold 10px "Gowun Batang", "Pretendard", sans-serif';
-      const textWidth = ctx.measureText(label).width + 12;
-      ctx.fillStyle = isNear ? '#d97b84' : 'rgba(255, 253, 249, 0.94)';
-      ctx.fillRect(x - textWidth / 2, y + 16, textWidth, 15);
+      ctx.font = 'bold 19px "Gowun Batang", "Pretendard", sans-serif';
+      const textWidth = ctx.measureText(label).width + 24;
+      ctx.fillStyle = isNear ? '#d97b84' : 'rgba(255, 253, 249, 0.95)';
+      ctx.fillRect(x - textWidth / 2, y + 32, textWidth, 28);
       ctx.strokeStyle = isNear ? '#fffdf9' : '#c59b6d';
-      ctx.lineWidth = 1.2;
-      ctx.strokeRect(x - textWidth / 2, y + 16, textWidth, 15);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - textWidth / 2, y + 32, textWidth, 28);
 
       ctx.fillStyle = isNear ? '#fffdf9' : '#3b2f2f';
-      ctx.fillText(label, x, y + 27);
+      ctx.fillText(label, x, y + 52);
     };
 
     const render = () => {
@@ -446,17 +396,16 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       ctx.fillStyle = '#bdd2b6';
       ctx.fillRect(0, 0, W, H);
 
-      // Subtle grass & tiny white/pink wildflowers
-      for (let gx = 0; gx < W; gx += 28) {
-        for (let gy = 0; gy < H; gy += 28) {
+      for (let gx = 0; gx < W; gx += 56) {
+        for (let gy = 0; gy < H; gy += 56) {
           ctx.fillStyle = '#b0c9a8';
-          if ((gx + gy) % 56 === 0) {
-            ctx.fillRect(gx + 6, gy + 6, 6, 3);
+          if ((gx + gy) % 112 === 0) {
+            ctx.fillRect(gx + 12, gy + 12, 12, 5);
             ctx.fillStyle = '#fffdf9';
-            ctx.fillRect(gx + 8, gy + 4, 2, 2);
+            ctx.fillRect(gx + 16, gy + 8, 5, 5);
           } else {
             ctx.fillStyle = '#f9dbe0';
-            ctx.fillRect(gx + 12, gy + 10, 2, 2);
+            ctx.fillRect(gx + 24, gy + 20, 5, 5);
           }
         }
       }
@@ -469,42 +418,44 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       ctx.fillRect(W * 0.74, H * 0.28, W * 0.06, H * 0.48);
       ctx.fillRect(W * 0.36, H * 0.38, W * 0.28, H * 0.24);
 
-      // Blush Rose & White Virgin Road leading to Chapel
+      // Virgin Road Carpet leading to Chapel
       ctx.fillStyle = '#fffdf9';
       ctx.fillRect(W * 0.465, H * 0.18, W * 0.07, H * 0.22);
       ctx.fillStyle = '#e899a0';
-      ctx.fillRect(W * 0.465, H * 0.18, 2, H * 0.22);
-      ctx.fillRect(W * 0.535 - 2, H * 0.18, 2, H * 0.22);
+      ctx.fillRect(W * 0.465, H * 0.18, 4, H * 0.22);
+      ctx.fillRect(W * 0.535 - 4, H * 0.18, 4, H * 0.22);
 
-      // 4. Pastel Cherry Blossom & Rose Trees
+      // 4. High-Detail Cherry Blossom Trees
       const treePositions = [
-        { x: 26, y: 42 },
-        { x: 354, y: 42 },
-        { x: 28, y: 175 },
-        { x: 352, y: 175 },
-        { x: 28, y: 325 },
-        { x: 352, y: 325 },
-        { x: 132, y: 48 },
-        { x: 248, y: 48 },
+        { x: 52, y: 84 },
+        { x: 708, y: 84 },
+        { x: 56, y: 350 },
+        { x: 704, y: 350 },
+        { x: 56, y: 650 },
+        { x: 704, y: 650 },
+        { x: 264, y: 96 },
+        { x: 496, y: 96 },
       ];
       treePositions.forEach((t) => {
+        ctx.fillStyle = 'rgba(74, 58, 42, 0.18)';
+        ctx.fillRect(t.x - 22, t.y + 14, 44, 8);
         ctx.fillStyle = '#8c6d53';
-        ctx.fillRect(t.x - 3, t.y, 6, 10);
+        ctx.fillRect(t.x - 6, t.y - 2, 12, 22);
         ctx.fillStyle = '#f4acb7';
-        ctx.fillRect(t.x - 12, t.y - 12, 24, 14);
+        ctx.fillRect(t.x - 26, t.y - 26, 52, 28);
         ctx.fillStyle = '#ffcad4';
-        ctx.fillRect(t.x - 9, t.y - 16, 18, 12);
+        ctx.fillRect(t.x - 20, t.y - 36, 40, 24);
         ctx.fillStyle = '#fffdf9';
-        ctx.fillRect(t.x - 4, t.y - 14, 6, 4);
+        ctx.fillRect(t.x - 10, t.y - 30, 14, 8);
       });
 
-      // 5. Target Marker if walking via tap
+      // 5. Target Marker
       if (targetPosRef.current) {
         const tx = (targetPosRef.current.x / 100) * W;
         const ty = (targetPosRef.current.y / 100) * H;
         ctx.strokeStyle = '#d97b84';
-        ctx.lineWidth = 1.5;
-        const r = 4 + (tick % 12) * 0.35;
+        ctx.lineWidth = 3;
+        const r = 8 + (tick % 12) * 0.7;
         ctx.strokeRect(tx - r, ty - r, r * 2, r * 2);
       }
 
@@ -515,53 +466,88 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         drawGardenPavilion(b, bx, by, !!visitedQuests[b.id], closest?.id === b.id);
       });
 
-      // 7. Draw Guestbook NPCs around the Fountain
-      const npcSpots = [
-        { x: 38, y: 43, color: '#749bc2' },
-        { x: 63, y: 43, color: '#e5989b' },
-        { x: 37, y: 58, color: '#84a98c' },
-        { x: 64, y: 58, color: '#d4a373' },
+      // 7. Draw 144x144 Guestbook NPCs around the Fountain
+      const npcSpots: { x: number; y: number; avatar: AvatarClassId }[] = [
+        { x: 37, y: 42, avatar: 'knight' },
+        { x: 64, y: 42, avatar: 'mage' },
+        { x: 36, y: 58, avatar: 'bard' },
+        { x: 65, y: 58, avatar: 'healer' },
       ];
       const recentGuests = guestbook.slice(0, 4);
       recentGuests.forEach((g, idx) => {
         const spot = npcSpots[idx % npcSpots.length];
         const nx = (spot.x / 100) * W;
         const ny = (spot.y / 100) * H;
-        drawPixelSpriteChar(nx, ny, 'npc', Math.floor(tick / 28) + idx, spot.color);
+        const guestCanvas = getHighResGuestCanvas(
+          g.avatar || spot.avatar,
+          Math.floor(tick / 24) + idx
+        );
+        ctx.drawImage(guestCanvas, Math.round(nx - 34), Math.round(ny - 52), 68, 68);
       });
 
-      // 8. Draw Couple & Cat
-      const walkFrame = isMoving ? Math.floor(tick / 6) : Math.floor(tick / 30);
+      // 8. Draw 144x144 Couple & Cat Party!
+      const walkFrame = isMoving ? Math.floor(tick / 6) % 4 : 0;
       const groomPx = (posRef.current.x / 100) * W;
       const groomPy = (posRef.current.y / 100) * H;
 
-      const brideTrail = trailRef.current[Math.min(9, trailRef.current.length - 1)] || posRef.current;
-      const catTrail = trailRef.current[Math.min(18, trailRef.current.length - 1)] || posRef.current;
+      const brideTrail =
+        trailRef.current[Math.min(9, trailRef.current.length - 1)] || posRef.current;
+      const catTrail =
+        trailRef.current[Math.min(18, trailRef.current.length - 1)] || posRef.current;
 
-      drawPixelSpriteChar(
-        (catTrail.x / 100) * W + 10,
-        (catTrail.y / 100) * H + 4,
-        'cat',
+      const catSprite = getHighResCatCanvas(walkFrame);
+      const brideSprite = getHighResBrideCanvas(
+        config.bride.dressColor,
+        config.bride.hairColor,
         walkFrame
       );
-      drawPixelSpriteChar(
-        (brideTrail.x / 100) * W - 7,
-        (brideTrail.y / 100) * H + 2,
-        'bride',
+      const groomSprite = getHighResGroomCanvas(
+        config.groom.suitColor,
+        config.groom.hairColor,
         walkFrame
       );
-      drawPixelSpriteChar(groomPx + 5, groomPy, 'groom', walkFrame);
 
-      // Couple Name Tag
-      ctx.fillStyle = 'rgba(255, 253, 249, 0.92)';
-      ctx.fillRect(groomPx - 28, groomPy - 26, 56, 12);
+      // Draw Cat (56x56 display of 144x144 sprite)
+      ctx.drawImage(
+        catSprite,
+        Math.round((catTrail.x / 100) * W - 6),
+        Math.round((catTrail.y / 100) * H - 36),
+        56,
+        56
+      );
+
+      // Draw Bride (86x86 display of 144x144 sprite)
+      ctx.drawImage(
+        brideSprite,
+        Math.round((brideTrail.x / 100) * W - 64),
+        Math.round((brideTrail.y / 100) * H - 64),
+        86,
+        86
+      );
+
+      // Draw Groom (86x86 display of 144x144 sprite)
+      ctx.drawImage(
+        groomSprite,
+        Math.round(groomPx - 28),
+        Math.round(groomPy - 66),
+        86,
+        86
+      );
+
+      // Couple Overhead Name Tag
+      ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
+      ctx.fillRect(groomPx - 58, groomPy - 78, 116, 24);
       ctx.strokeStyle = '#d97b84';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(groomPx - 28, groomPy - 26, 56, 12);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(groomPx - 58, groomPy - 78, 116, 24);
       ctx.fillStyle = '#3b2f2f';
-      ctx.font = 'bold 8px "Gowun Batang", sans-serif';
+      ctx.font = 'bold 15px "Gowun Batang", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`${config.groom.name} ♥ ${config.bride.name}`, groomPx, groomPy - 17);
+      ctx.fillText(
+        `${config.groom.name} ♥ ${config.bride.name}`,
+        groomPx,
+        groomPy - 61
+      );
 
       // 9. Guestbook Speech Bubble
       if (recentGuests.length > 0) {
@@ -569,34 +555,34 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         const activeGuest = recentGuests[activeIdx];
         const spot = npcSpots[activeIdx % npcSpots.length];
         const bx = (spot.x / 100) * W;
-        const by = (spot.y / 100) * H - 22;
+        const by = (spot.y / 100) * H - 56;
 
         const snippet =
           activeGuest.message.length > 16
             ? activeGuest.message.slice(0, 16) + '…'
             : activeGuest.message;
         const bubbleText = `${activeGuest.name}: "${snippet}"`;
-        ctx.font = '9px "Pretendard", sans-serif';
-        const bw = Math.min(210, ctx.measureText(bubbleText).width + 14);
-        const clampedX = Math.max(bw / 2 + 6, Math.min(W - bw / 2 - 6, bx));
+        ctx.font = 'bold 16px "Pretendard", sans-serif';
+        const bw = Math.min(420, ctx.measureText(bubbleText).width + 26);
+        const clampedX = Math.max(bw / 2 + 12, Math.min(W - bw / 2 - 12, bx));
 
         ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
-        ctx.fillRect(clampedX - bw / 2, by - 14, bw, 16);
+        ctx.fillRect(clampedX - bw / 2, by - 28, bw, 30);
         ctx.strokeStyle = '#c59b6d';
-        ctx.lineWidth = 1.2;
-        ctx.strokeRect(clampedX - bw / 2, by - 14, bw, 16);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(clampedX - bw / 2, by - 28, bw, 30);
 
         ctx.fillStyle = '#3b2f2f';
         ctx.textAlign = 'center';
-        ctx.fillText(bubbleText, clampedX, by - 3);
+        ctx.fillText(bubbleText, clampedX, by - 8);
       }
 
       // 10. Floating Petals
       petals.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
-        if (p.y > H) p.y = -4;
-        if (p.x < 0) p.x = W + 4;
+        if (p.y > H) p.y = -6;
+        if (p.x < 0) p.x = W + 6;
         ctx.fillStyle = p.color;
         ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
       });
@@ -616,21 +602,19 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     <div className="flex flex-col gap-3">
       {/* Garden Canvas Frame */}
       <div className="relative pixel-card overflow-hidden bg-[#bdd2b6]">
-        {/* Subtle Top Guide Pill */}
         <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
           <div className="bg-[#fffdf9]/90 backdrop-blur-sm border border-[#d4b48c] px-3 py-1 rounded-full text-[11px] text-[#5c4d47] flex items-center gap-1.5 shadow-sm">
             <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse" />
-            <span>정원의 파빌리온을 터치하거나 산책해 보세요</span>
+            <span>정원의 파빌리온을 터치하거나 산책해 보세요 (144px HD Pixel)</span>
           </div>
         </div>
 
         <canvas
           ref={canvasRef}
           onPointerDown={handleCanvasPointerDown}
-          className="w-full aspect-[380/360] block cursor-pointer pixelated touch-none"
+          className="w-full aspect-[760/720] block cursor-pointer pixelated touch-none"
         />
 
-        {/* Contextual Prompt when near a pavilion */}
         {nearbyBuilding && (
           <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10 bg-[#fffdf9]/95 border border-[#c59b6d] rounded-lg p-2.5 flex items-center justify-between gap-2 shadow-md animate-fadeIn">
             <div className="min-w-0">
@@ -654,7 +638,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         )}
       </div>
 
-      {/* Quick Garden Map Menu (1-Tap Open Any Section) */}
+      {/* Quick Garden Map Menu */}
       <div className="pixel-card p-3 bg-[#fffdf9]">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-[#5c4d47] font-bold">
@@ -688,7 +672,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         </div>
       </div>
 
-      {/* Soft Ivory Stroll Pad (Optional D-Pad + Action Buttons) */}
+      {/* Soft Ivory Stroll Pad */}
       <div className="pixel-card px-4 py-3 bg-[#faf5ec] flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative w-20 h-20 select-none">
