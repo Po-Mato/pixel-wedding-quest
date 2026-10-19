@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'DungGeunMo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+:root {
+  --pixel-bg: #120d1e;
+  --pixel-panel: #211936;
+  --pixel-gold: #ffd541;
+  --pixel-rose: #ff5277;
+  --pixel-mint: #38d9a9;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Galmuri11', 'DungGeunMo', monospace;
+  background-color: #120d1e;
+  color: #fff8e7;
+  margin: 0;
+  padding: 0;
+}
+
+.pixelated {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Retro 8-bit stepped border styles */
+.pixel-box {
+  background: #221b36;
+  border: 3px solid #fff8e7;
+  box-shadow:
+    inset -3px -3px 0px 0px #140f21,
+    inset 3px 3px 0px 0px #3d315e,
+    0 6px 0 0 #0b0714;
+}
+
+.pixel-box-gold {
+  background: #261e3d;
+  border: 3px solid #ffd541;
+  box-shadow:
+    inset -3px -3px 0px 0px #151024,
+    inset 3px 3px 0px 0px #4c3d75,
+    0 6px 0 0 #0b0714;
+}
+
+.pixel-box-parchment {
+  background: #fff8e7;
+  color: #2b1e16;
+  border: 3px solid #4a3222;
+  box-shadow:
+    inset -3px -3px 0px 0px #e6d2aa,
+    inset 3px 3px 0px 0px #ffffff,
+    0 5px 0 0 #1f140d;
+}
+
+.pixel-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #120d1e;
+  box-shadow:
+    inset -2px -2px 0px 0px rgba(0, 0, 0, 0.35),
+    inset 2px 2px 0px 0px rgba(255, 255, 255, 0.35),
+    0 4px 0 0 #0b0714;
+  transition: transform 0.06s steps(2), box-shadow 0.06s steps(2);
+  user-select: none;
+}
+
+.pixel-btn:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset -2px -2px 0px 0px rgba(0, 0, 0, 0.35),
+    inset 2px 2px 0px 0px rgba(255, 255, 255, 0.25),
+    0 1px 0 0 #0b0714;
+}
+
+/* Optional subtle CRT scanline overlay */
+.crt-scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.18) 50%
+  );
+  background-size: 100% 4px;
+}
+
+/* Custom Pixel Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #161124;
+}
+::-webkit-scrollbar-thumb {
+  background: #ffd541;
+  border: 1px solid #161124;
+}
