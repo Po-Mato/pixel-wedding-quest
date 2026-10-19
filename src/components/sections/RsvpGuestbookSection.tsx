@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Send, Sparkles, Users, MessageCircleHeart } from 'lucide-react';
+import { Send, Sparkles, MessageCircleHeart } from 'lucide-react';
 import {
   AVATAR_CLASSES,
   AvatarClassId,
@@ -42,9 +42,10 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
     soundEngine.playFanfare();
     try {
       confetti({
-        particleCount: 50,
-        spread: 70,
-        origin: { y: 0.65 },
+        particleCount: 40,
+        spread: 60,
+        origin: { y: 0.7 },
+        colors: ['#e899a0', '#d4af7a', '#84a98c'],
       });
     } catch {
       // ignore
@@ -55,7 +56,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
       name: name.trim(),
       avatar,
       side,
-      titleBadge: earnedTitle || `✨ ${selectedClassInfo.name}`,
+      titleBadge: earnedTitle || `🌷 ${selectedClassInfo.name}`,
       message: message.trim(),
       createdAt: '방금 전',
       attendance,
@@ -71,27 +72,29 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="pixel-card p-5 sm:p-6 bg-[#fffdf9] space-y-6">
       {/* Header */}
-      <div className="pixel-box p-4 bg-[#1f1833]">
-        <span className="text-[10px] font-bold px-2 py-0.5 bg-[#da77f2] text-[#120d1e]">
-          FINAL QUEST 06 · 모험가 주점 & 파티 등록소
-        </span>
-        <h3 className="text-base sm:text-lg font-extrabold text-[#ffd541] mt-1">
-          🏕️ 하객 캐릭터 생성 & 참석 의사(RSVP) · 방명록
+      <div className="text-center border-b border-[#efe6d8] pb-4">
+        <div className="text-[11px] tracking-[0.25em] text-[#c59b6d] font-engSerif uppercase">
+          RSVP & GUESTBOOK
+        </div>
+        <h3 className="text-base sm:text-lg font-bold text-[#3b2f2f] mt-1">
+          참석 의사 전달 & 축하 방명록
         </h3>
-        <p className="text-xs text-[#c3b8d9] mt-1 leading-relaxed">
-          나만의 도트 아바타 클래스를 선택하고 축하 메시지를 남겨주세요! 등록된 캐릭터는{' '}
-          <strong className="text-[#38d9a9]">웨딩빌리지 중앙 광장</strong>에 실시간 NPC로 소환됩니다.
+        <p className="text-xs text-[#7d6e65] mt-1.5 leading-relaxed break-keep">
+          소중한 걸음 해주시는 분들을 정성껏 모실 수 있도록 참석 여부와 따뜻한 축하 메시지를 남겨주세요.
         </p>
       </div>
 
-      {/* Character Creator + RSVP Form */}
-      <form onSubmit={handleSubmit} className="pixel-box-gold p-4 bg-[#171128] space-y-4">
-        {/* Step 1: Choose Avatar Class */}
+      {/* Form */}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 sm:p-5 space-y-4 font-sans"
+      >
+        {/* Avatar Picker */}
         <div>
-          <label className="block text-xs font-extrabold text-[#ffd541] mb-2">
-            STEP 1. 나의 하객 아바타 클래스 선택
+          <label className="block text-xs font-bold text-[#5c4d47] mb-2">
+            방명록 아이콘 선택 (픽셀 가든 광장에도 함께 산책합니다)
           </label>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             {AVATAR_CLASSES.map((cls) => {
@@ -104,43 +107,33 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                     soundEngine.playBlip(660);
                     setAvatar(cls.id);
                   }}
-                  className={`p-2 border-2 flex flex-col items-center gap-1 transition-transform ${
+                  className={`p-2 rounded-lg border flex flex-col items-center gap-1 transition-all ${
                     isSelected
-                      ? 'bg-[#2e2448] border-[#ffd541] scale-105 shadow-[0_0_8px_rgba(255,213,65,0.6)]'
-                      : 'bg-[#120d1e] border-[#362b52] opacity-75 hover:opacity-100'
+                      ? 'bg-[#fffdf9] border-[#d97b84] ring-1 ring-[#d97b84] shadow-sm scale-105'
+                      : 'bg-[#f4efe6] border-[#e2d4c0] opacity-75 hover:opacity-100'
                   }`}
                 >
-                  <GuestAvatarSprite avatar={cls.id} size={40} />
-                  <span className="text-[10px] font-extrabold text-white text-center leading-tight">
+                  <GuestAvatarSprite avatar={cls.id} size={36} />
+                  <span className="text-[10px] font-semibold text-[#3b2f2f] text-center leading-tight">
                     {cls.name}
                   </span>
                 </button>
               );
             })}
           </div>
-          <div className="mt-2 bg-[#120d1e] border border-[#362b52] px-3 py-1.5 text-[11px] flex items-center justify-between">
-            <span className="text-[#38d9a9] font-bold">
-              선택 클래스 : {selectedClassInfo.name} ({selectedClassInfo.roleDesc})
-            </span>
-            {earnedTitle && (
-              <span className="px-2 py-0.5 bg-[#ff5277] text-white text-[10px] font-extrabold">
-                칭호 장착됨: {earnedTitle}
-              </span>
-            )}
-          </div>
         </div>
 
-        {/* Step 2: RSVP Details */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        {/* RSVP Details */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="block text-[11px] font-bold text-[#c3b8d9] mb-1">
-              어느 쪽 하객이신가요?
+            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+              하객 구분
             </label>
             <div className="grid grid-cols-3 gap-1">
               {[
-                { id: 'groom', label: `신랑측` },
-                { id: 'bride', label: `신부측` },
-                { id: 'both', label: `공통친구` },
+                { id: 'groom', label: '신랑측' },
+                { id: 'bride', label: '신부측' },
+                { id: 'both', label: '공통지인' },
               ].map((s) => (
                 <button
                   type="button"
@@ -149,10 +142,10 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                     soundEngine.playBlip();
                     setSide(s.id as 'groom' | 'bride' | 'both');
                   }}
-                  className={`py-1.5 text-xs font-bold border ${
+                  className={`py-1.5 rounded text-xs font-medium border ${
                     side === s.id
-                      ? 'bg-[#ffd541] text-[#120d1e] border-white'
-                      : 'bg-[#120d1e] text-[#a599b8] border-[#362b52]'
+                      ? 'bg-[#3b2f2f] text-white border-[#3b2f2f]'
+                      : 'bg-[#fffdf9] text-[#7d6e65] border-[#e2d4c0]'
                   }`}
                 >
                   {s.label}
@@ -162,14 +155,14 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-[#c3b8d9] mb-1">
-              예식 참석 여부 (RSVP)
+            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+              참석 여부
             </label>
             <div className="grid grid-cols-3 gap-1">
               {[
                 { id: 'attend', label: '참석가능' },
                 { id: 'maybe', label: '미정' },
-                { id: 'unable', label: '마음만전달' },
+                { id: 'unable', label: '마음전달' },
               ].map((a) => (
                 <button
                   type="button"
@@ -178,10 +171,10 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                     soundEngine.playBlip();
                     setAttendance(a.id as 'attend' | 'maybe' | 'unable');
                   }}
-                  className={`py-1.5 text-[11px] font-bold border ${
+                  className={`py-1.5 rounded text-[11px] font-medium border ${
                     attendance === a.id
-                      ? 'bg-[#38d9a9] text-[#120d1e] border-white'
-                      : 'bg-[#120d1e] text-[#a599b8] border-[#362b52]'
+                      ? 'bg-[#d97b84] text-white border-[#d97b84]'
+                      : 'bg-[#fffdf9] text-[#7d6e65] border-[#e2d4c0]'
                   }`}
                 >
                   {a.label}
@@ -191,14 +184,14 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-[#c3b8d9] mb-1">
-              식사 여부 & 인원
+            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+              식사 여부 및 인원
             </label>
             <div className="flex gap-1.5">
               <select
                 value={meal}
                 onChange={(e) => setMeal(e.target.value as 'yes' | 'no' | 'undecided')}
-                className="flex-1 bg-[#120d1e] border border-[#362b52] text-xs text-white px-2 py-1.5"
+                className="flex-1 bg-[#fffdf9] border border-[#e2d4c0] rounded text-xs text-[#3b2f2f] px-2 py-1.5"
               >
                 <option value="yes">식사 예정</option>
                 <option value="no">식사 안함</option>
@@ -207,11 +200,11 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               <select
                 value={companions}
                 onChange={(e) => setCompanions(Number(e.target.value))}
-                className="w-20 bg-[#120d1e] border border-[#362b52] text-xs text-white px-2 py-1.5"
+                className="w-20 bg-[#fffdf9] border border-[#e2d4c0] rounded text-xs text-[#3b2f2f] px-2 py-1.5"
               >
                 {[1, 2, 3, 4, 5].map((n) => (
                   <option key={n} value={n}>
-                    총 {n}명
+                    외 {n - 1}명
                   </option>
                 ))}
               </select>
@@ -219,11 +212,11 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           </div>
         </div>
 
-        {/* Step 3: Name & Message */}
+        {/* Name & Message */}
         <div className="space-y-2.5">
           <div>
-            <label className="block text-[11px] font-bold text-[#c3b8d9] mb-1">
-              모험가 닉네임 (성함 / 관계) *
+            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+              성함 (또는 관계) *
             </label>
             <input
               type="text"
@@ -231,14 +224,14 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               maxLength={20}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="예: 민준이 대학동기 지훈 / 서연이 베프 수빈"
-              className="w-full bg-[#120d1e] border-2 border-[#4c3d75] focus:border-[#ffd541] outline-none px-3 py-2 text-xs text-white"
+              placeholder="예: 이지훈 (대학동기) / 박수빈"
+              className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f]"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-[#c3b8d9] mb-1">
-              축하 방명록 메시지 (마을 광장 말풍선에 표시됩니다!) *
+            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+              축하 메시지 *
             </label>
             <textarea
               required
@@ -246,39 +239,37 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               maxLength={120}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={`${config.groom.name} & ${config.bride.name} 두 사람에게 따뜻한 축복의 한마디를 남겨주세요!`}
-              className="w-full bg-[#120d1e] border-2 border-[#4c3d75] focus:border-[#ffd541] outline-none px-3 py-2 text-xs text-white resize-none"
+              placeholder={`${config.groom.name} ♥ ${config.bride.name} 두 사람의 새로운 출발에 따뜻한 한마디를 남겨주세요.`}
+              className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f] resize-none"
             />
           </div>
         </div>
 
         <button
           type="submit"
-          className="pixel-btn w-full bg-[#ff5277] hover:bg-[#ff3864] text-white py-3 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2"
+          className="w-full rounded-lg bg-[#d97b84] hover:bg-[#c96a73] text-white py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
         >
           <Send className="w-4 h-4" />
-          <span>파티 참가 등록 & 광장에 내 캐릭터 소환하기! (+500 EXP)</span>
+          <span>참석 의사 및 축하 메시지 등록하기</span>
         </button>
 
         {submittedToast && (
-          <div className="bg-[#2b4c3f] border-2 border-[#38d9a9] p-3 text-center text-xs font-bold text-white flex items-center justify-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-[#ffd541]" />
-            <span>
-              🎉 등록 완료! 웨딩빌리지 광장에 회원님의 캐릭터와 말풍선이 소환되었습니다!
-            </span>
+          <div className="bg-[#edf3ee] border border-[#a3bfa8] rounded-lg p-3 text-center text-xs font-medium text-[#3b5249] flex items-center justify-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-[#6b9071]" />
+            <span>따뜻한 축하 메시지가 소중히 등록되었습니다. 감사합니다!</span>
           </div>
         )}
       </form>
 
-      {/* Guestbook Feed */}
-      <div className="pixel-box p-4 bg-[#1f1833] space-y-3">
-        <div className="flex items-center justify-between border-b border-[#362b52] pb-2">
-          <div className="flex items-center gap-1.5 text-sm font-extrabold text-[#ffd541]">
-            <MessageCircleHeart className="w-4 h-4 text-[#ff5277]" />
-            <span>모험가 축하 방명록 ({guestbook.length}명 참여중)</span>
+      {/* Guestbook List */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between border-b border-[#efe6d8] pb-2">
+          <div className="flex items-center gap-1.5 text-sm font-bold text-[#3b2f2f]">
+            <MessageCircleHeart className="w-4 h-4 text-[#d97b84]" />
+            <span>축하 방명록 ({guestbook.length})</span>
           </div>
-          <span className="text-[11px] text-[#38d9a9] flex items-center gap-1">
-            <Users className="w-3.5 h-3.5" /> 실시간 광장 연동
+          <span className="text-[11px] text-[#8c7a70] font-sans">
+            따뜻한 마음에 감사드립니다
           </span>
         </div>
 
@@ -286,40 +277,28 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           {guestbook.map((item) => (
             <div
               key={item.id}
-              className="bg-[#151024] border border-[#3d315e] p-3 flex items-start gap-3"
+              className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-3.5 flex items-start gap-3"
             >
-              <div className="w-12 h-12 bg-[#221b36] border border-[#ffd541] flex items-center justify-center shrink-0">
-                <GuestAvatarSprite avatar={item.avatar} size={40} />
+              <div className="w-11 h-11 rounded-full bg-[#fffdf9] border border-[#d4b48c] flex items-center justify-center shrink-0">
+                <GuestAvatarSprite avatar={item.avatar} size={34} />
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-1 font-sans">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-extrabold text-white">
+                    <span className="text-xs font-bold text-[#3b2f2f]">
                       {item.name}
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.5 bg-[#2e2448] text-[#ffd541] border border-[#ffd541]/40 font-bold">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#fffdf9] text-[#8c7a70] border border-[#e2d4c0]">
                       {item.titleBadge}
                     </span>
                   </div>
-                  <span className="text-[10px] text-[#a599b8]">{item.createdAt}</span>
+                  <span className="text-[10px] text-[#9c897e]">{item.createdAt}</span>
                 </div>
 
-                <p className="text-xs text-[#e9ecef] mt-1.5 leading-relaxed break-keep">
-                  “{item.message}”
+                <p className="text-xs text-[#4a3b32] mt-1.5 leading-relaxed break-keep">
+                  {item.message}
                 </p>
-
-                {item.attendance && (
-                  <div className="mt-1.5 flex items-center gap-2 text-[10px] text-[#38d9a9]">
-                    <span>
-                      • {item.side === 'groom' ? '신랑측' : item.side === 'bride' ? '신부측' : '공통하객'}
-                    </span>
-                    <span>
-                      • {item.attendance === 'attend' ? '참석 예정' : item.attendance === 'maybe' ? '참석 미정' : '마음 전달'}
-                    </span>
-                    {item.companions && <span>• {item.companions}명</span>}
-                  </div>
-                )}
               </div>
             </div>
           ))}

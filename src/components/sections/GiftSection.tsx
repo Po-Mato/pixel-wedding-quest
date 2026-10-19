@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Copy, Check, Coins, Sparkles } from 'lucide-react';
+import { Copy, Check, Heart, Sparkles } from 'lucide-react';
 import { WeddingConfig, BankAccount } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 
@@ -20,13 +20,13 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
 
     try {
       confetti({
-        particleCount: 35,
-        spread: 60,
-        origin: { y: 0.7 },
-        colors: ['#ffd541', '#ff5277', '#38d9a9'],
+        particleCount: 28,
+        spread: 55,
+        origin: { y: 0.75 },
+        colors: ['#e899a0', '#d4af7a', '#84a98c'],
       });
     } catch {
-      // ignore if canvas-confetti fails
+      // ignore
     }
 
     setTimeout(() => {
@@ -38,35 +38,36 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
     activeSide === 'groom' ? config.accounts.groomSide : config.accounts.brideSide;
 
   return (
-    <div className="space-y-4">
-      {/* Guild Bank Header */}
-      <div className="pixel-box-gold p-4 bg-[#1f1833] text-center">
-        <div className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#ffa94d] text-[#120d1e] text-[10px] font-extrabold mb-2">
-          <Coins className="w-3.5 h-3.5" /> MAIN QUEST 05 · 길드 골드 은행
+    <div className="pixel-card p-5 sm:p-6 bg-[#fffdf9] space-y-5">
+      {/* Header */}
+      <div className="text-center border-b border-[#efe6d8] pb-4">
+        <div className="text-[11px] tracking-[0.25em] text-[#c59b6d] font-engSerif uppercase">
+          BLESSING
         </div>
-        <h3 className="text-base sm:text-lg font-extrabold text-[#ffd541]">
-          🏦 마음 전하실 곳 (축복의 골드 전송)
+        <h3 className="text-base sm:text-lg font-bold text-[#3b2f2f] mt-1 flex items-center justify-center gap-1.5">
+          <Heart className="w-4 h-4 text-[#d97b84]" />
+          <span>마음 전하실 곳</span>
         </h3>
-        <p className="text-xs text-[#e9ecef] mt-1.5 leading-relaxed break-keep">
-          참석이 어려우신 분들도 축복의 마음을 전하실 수 있도록 길드 계좌를 안내해 드립니다.
-          계좌 복사 시 <strong className="text-[#38d9a9]">행운 버프(LUCK +999)</strong>가 발동됩니다!
+        <p className="text-xs text-[#7d6e65] mt-2 leading-relaxed break-keep">
+          참석이 어려우신 분들을 위해 감사히 계좌번호를 함께 안내해 드립니다.
+          보내주시는 따뜻한 축복의 마음, 평생 소중히 간직하겠습니다.
         </p>
       </div>
 
-      {/* Groom / Bride Side Selector Tabs */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Groom / Bride Tabs */}
+      <div className="grid grid-cols-2 gap-2 font-sans">
         <button
           onClick={() => {
             soundEngine.playBlip(580);
             setActiveSide('groom');
           }}
-          className={`pixel-btn py-2.5 text-xs sm:text-sm font-extrabold ${
+          className={`py-2.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors ${
             activeSide === 'groom'
-              ? 'bg-[#4dabf7] text-[#120d1e]'
-              : 'bg-[#19132b] text-[#a599b8]'
+              ? 'bg-[#3b2f2f] text-white border-[#3b2f2f]'
+              : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
           }`}
         >
-          ⚔️ 신랑측 계좌 ({config.accounts.groomSide.length})
+          신랑측 계좌번호 보기
         </button>
 
         <button
@@ -74,18 +75,18 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
             soundEngine.playBlip(680);
             setActiveSide('bride');
           }}
-          className={`pixel-btn py-2.5 text-xs sm:text-sm font-extrabold ${
+          className={`py-2.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors ${
             activeSide === 'bride'
-              ? 'bg-[#ff5277] text-white'
-              : 'bg-[#19132b] text-[#a599b8]'
+              ? 'bg-[#d97b84] text-white border-[#d97b84]'
+              : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
           }`}
         >
-          🪄 신부측 계좌 ({config.accounts.brideSide.length})
+          신부측 계좌번호 보기
         </button>
       </div>
 
-      {/* Account Treasure Chest Cards */}
-      <div className="space-y-2.5">
+      {/* Account List */}
+      <div className="space-y-2.5 font-sans">
         {accounts.map((acc, idx) => {
           const key = `${activeSide}-${idx}`;
           const isCopied = copiedKey === key;
@@ -93,45 +94,45 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
           return (
             <div
               key={key}
-              className="pixel-box p-3.5 bg-[#161124] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             >
               <div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-[10px] font-extrabold px-2 py-0.5 ${
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                       activeSide === 'groom'
-                        ? 'bg-[#4dabf7] text-[#120d1e]'
-                        : 'bg-[#ff5277] text-white'
+                        ? 'bg-[#e6ebe8] text-[#3b5249]'
+                        : 'bg-[#f9ebea] text-[#b85d67]'
                     }`}
                   >
                     {acc.role}
                   </span>
-                  <span className="text-sm font-extrabold text-white">
+                  <span className="text-sm font-bold text-[#3b2f2f]">
                     예금주 : {acc.name}
                   </span>
                 </div>
 
-                <div className="mt-1.5 text-xs sm:text-sm text-[#ffd541] font-bold tracking-wide">
-                  [{acc.bank}] {acc.accountNumber}
+                <div className="mt-1.5 text-xs sm:text-sm text-[#5c4d47] font-medium tracking-wide">
+                  {acc.bank} · <strong className="text-[#3b2f2f]">{acc.accountNumber}</strong>
                 </div>
               </div>
 
               <button
                 onClick={() => handleCopyAccount(acc, key)}
-                className={`pixel-btn px-3.5 py-2 text-xs font-extrabold flex items-center justify-center gap-1.5 shrink-0 ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 shrink-0 transition-all ${
                   isCopied
-                    ? 'bg-[#38d9a9] text-[#120d1e]'
-                    : 'bg-[#ffd541] text-[#120d1e]'
+                    ? 'bg-[#6b9071] text-white border-[#587a5e]'
+                    : 'bg-[#fffdf9] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#d4b48c]'
                 }`}
               >
                 {isCopied ? (
                   <>
-                    <Check className="w-4 h-4" />
-                    <span>복사 완료! (+999 LUCK)</span>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>복사되었습니다</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="w-3.5 h-3.5 text-[#c59b6d]" />
                     <span>계좌번호 복사</span>
                   </>
                 )}
@@ -141,13 +142,10 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
         })}
       </div>
 
-      {/* Toast Notification when copied */}
       {copiedKey && (
-        <div className="bg-[#2b4c3f] border-2 border-[#38d9a9] p-3 text-center text-xs font-extrabold text-[#fff8e7] flex items-center justify-center gap-2 animate-bounce">
-          <Sparkles className="w-4 h-4 text-[#ffd541]" />
-          <span>
-            🪙 띠링! 클립보드에 계좌번호가 복사되었습니다. 따뜻한 축복에 감사드립니다!
-          </span>
+        <div className="bg-[#edf3ee] border border-[#a3bfa8] rounded-lg p-3 text-center text-xs font-sans font-medium text-[#3b5249] flex items-center justify-center gap-1.5 animate-fadeIn">
+          <Sparkles className="w-3.5 h-3.5 text-[#6b9071]" />
+          <span>클립보드에 계좌번호가 복사되었습니다. 따뜻한 축복에 감사드립니다.</span>
         </div>
       )}
     </div>

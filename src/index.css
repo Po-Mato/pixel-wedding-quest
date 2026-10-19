@@ -2,30 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: 'DungGeunMo';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-}
-
-:root {
-  --pixel-bg: #120d1e;
-  --pixel-panel: #211936;
-  --pixel-gold: #ffd541;
-  --pixel-rose: #ff5277;
-  --pixel-mint: #38d9a9;
-}
-
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  font-family: 'Galmuri11', 'DungGeunMo', monospace;
-  background-color: #120d1e;
-  color: #fff8e7;
+  font-family: 'Gowun Batang', 'Noto Serif KR', serif;
+  background-color: #f3ede2;
+  color: #3b2f2f;
   margin: 0;
   padding: 0;
 }
@@ -37,75 +22,58 @@ body {
   image-rendering: crisp-edges;
 }
 
-/* Retro 8-bit stepped border styles */
-.pixel-box {
-  background: #221b36;
-  border: 3px solid #fff8e7;
+/* Elegant Warm Pixel Frame (Soft Ivory & Champagne Gold stepped border) */
+.pixel-card {
+  background: #fffdf9;
+  border: 2px solid #d4b48c;
   box-shadow:
-    inset -3px -3px 0px 0px #140f21,
-    inset 3px 3px 0px 0px #3d315e,
-    0 6px 0 0 #0b0714;
+    inset 0 0 0 2px #faf3e8,
+    0 6px 20px rgba(92, 72, 56, 0.07);
+  border-radius: 4px;
 }
 
-.pixel-box-gold {
-  background: #261e3d;
-  border: 3px solid #ffd541;
+.pixel-card-rose {
+  background: #fffafa;
+  border: 2px solid #e2a3a9;
   box-shadow:
-    inset -3px -3px 0px 0px #151024,
-    inset 3px 3px 0px 0px #4c3d75,
-    0 6px 0 0 #0b0714;
+    inset 0 0 0 2px #fceef0,
+    0 6px 18px rgba(184, 93, 103, 0.08);
+  border-radius: 4px;
 }
 
-.pixel-box-parchment {
-  background: #fff8e7;
-  color: #2b1e16;
-  border: 3px solid #4a3222;
-  box-shadow:
-    inset -3px -3px 0px 0px #e6d2aa,
-    inset 3px 3px 0px 0px #ffffff,
-    0 5px 0 0 #1f140d;
+/* Classic Mobile Wedding Invitation Card */
+.classic-section {
+  background: #fffdf9;
+  border-bottom: 1px solid #efe6d8;
 }
 
+/* Elegant Tactile Button */
 .pixel-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #120d1e;
-  box-shadow:
-    inset -2px -2px 0px 0px rgba(0, 0, 0, 0.35),
-    inset 2px 2px 0px 0px rgba(255, 255, 255, 0.35),
-    0 4px 0 0 #0b0714;
-  transition: transform 0.06s steps(2), box-shadow 0.06s steps(2);
+  border: 1.5px solid #b58d62;
+  box-shadow: 0 2px 0 0 #c9a982;
+  border-radius: 6px;
+  transition: all 0.15s ease;
   user-select: none;
 }
 
 .pixel-btn:active {
-  transform: translateY(3px);
-  box-shadow:
-    inset -2px -2px 0px 0px rgba(0, 0, 0, 0.35),
-    inset 2px 2px 0px 0px rgba(255, 255, 255, 0.25),
-    0 1px 0 0 #0b0714;
+  transform: translateY(2px);
+  box-shadow: 0 0px 0 0 #c9a982;
 }
 
-/* Optional subtle CRT scanline overlay */
-.crt-scanlines {
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%,
-    rgba(0, 0, 0, 0.18) 50%
-  );
-  background-size: 100% 4px;
-}
-
-/* Custom Pixel Scrollbar */
+/* Subtle Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #161124;
+  background: #f5efe6;
 }
 ::-webkit-scrollbar-thumb {
-  background: #ffd541;
-  border: 1px solid #161124;
+  background: #d4b48c;
+  border-radius: 9999px;
 }

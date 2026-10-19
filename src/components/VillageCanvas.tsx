@@ -36,7 +36,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Player position in normalized map coordinates (0..100)
   const posRef = useRef<{ x: number; y: number }>({ x: 50, y: 63 });
   const targetPosRef = useRef<{ x: number; y: number } | null>(null);
   const pendingQuestRef = useRef<QuestBuildingId | null>(null);
@@ -52,18 +51,15 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   );
   const [npcBubbleIndex, setNpcBubbleIndex] = useState<number>(0);
 
-  // Cycle guestbook speech bubbles every 3.5 seconds
   useEffect(() => {
     const timer = window.setInterval(() => {
       setNpcBubbleIndex((prev) => prev + 1);
-    }, 3500);
+    }, 3800);
     return () => window.clearInterval(timer);
   }, []);
 
-  // Keyboard listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input or textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
@@ -87,19 +83,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     };
   }, [nearbyBuilding, onOpenQuest]);
 
-  // Move to a building and open its modal upon arrival
-  const walkToBuilding = useCallback(
-    (buildingId: QuestBuildingId) => {
-      const b = QUEST_BUILDINGS.find((item) => item.id === buildingId);
-      if (!b) return;
-      soundEngine.playBlip(740);
-      targetPosRef.current = { x: b.x, y: Math.min(92, b.y + 8) };
-      pendingQuestRef.current = b.id;
-    },
-    []
-  );
+  const walkToBuilding = useCallback((buildingId: QuestBuildingId) => {
+    const b = QUEST_BUILDINGS.find((item) => item.id === buildingId);
+    if (!b) return;
+    soundEngine.playBlip(700);
+    targetPosRef.current = { x: b.x, y: Math.min(91, b.y + 8) };
+    pendingQuestRef.current = b.id;
+  }, []);
 
-  // Handle tap/click directly on the canvas
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -107,14 +98,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     const clickX = ((e.clientX - rect.left) / rect.width) * 100;
     const clickY = ((e.clientY - rect.top) / rect.height) * 100;
 
-    // Check if user tapped on or near a building
     const tappedBuilding = QUEST_BUILDINGS.find((b) => {
       const dist = Math.hypot(clickX - b.x, clickY - b.y);
-      return dist < 13;
+      return dist < 13.5;
     });
 
     if (tappedBuilding) {
-      // If already very close, open immediately! Otherwise walk there and auto-open
       const distFromPlayer = Math.hypot(
         posRef.current.x - tappedBuilding.x,
         posRef.current.y - tappedBuilding.y
@@ -126,8 +115,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         walkToBuilding(tappedBuilding.id);
       }
     } else {
-      // Walk to tapped ground position
-      soundEngine.playBlip(520);
+      soundEngine.playBlip(560);
       targetPosRef.current = {
         x: Math.max(8, Math.min(92, clickX)),
         y: Math.max(14, Math.min(92, clickY)),
@@ -147,14 +135,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     canvas.width = W;
     canvas.height = H;
 
-    // Initialize floating cherry blossom petals
-    const petals: Petal[] = Array.from({ length: 24 }, () => ({
+    // Soft floating cherry blossom petals & sunlight dust
+    const petals: Petal[] = Array.from({ length: 28 }, () => ({
       x: Math.random() * W,
       y: Math.random() * H,
-      vx: -0.25 - Math.random() * 0.35,
-      vy: 0.35 + Math.random() * 0.45,
+      vx: -0.2 - Math.random() * 0.3,
+      vy: 0.28 + Math.random() * 0.38,
       size: Math.random() > 0.5 ? 3 : 2,
-      color: Math.random() > 0.3 ? '#ffb3c6' : '#ffe5ec',
+      color: Math.random() > 0.35 ? '#ffd6e0' : '#fffdf9',
     }));
 
     let animId: number;
@@ -165,95 +153,94 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       cy: number,
       role: 'groom' | 'bride' | 'cat' | 'npc',
       walkFrame: number,
-      npcColor = '#4dabf7'
+      npcColor = '#84a98c'
     ) => {
-      const bob = walkFrame % 2 === 1 ? -2 : 0;
+      const bob = walkFrame % 2 === 1 ? -1.5 : 0;
       const x = Math.round(cx);
       const y = Math.round(cy + bob);
 
-      // Shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      // Soft warm shadow
+      ctx.fillStyle = 'rgba(74, 58, 42, 0.2)';
       ctx.fillRect(x - 6, Math.round(cy) + 8, 12, 3);
 
       if (role === 'cat') {
-        // Mochi the Cheese Cat
-        ctx.fillStyle = '#ffa94d';
+        ctx.fillStyle = '#e6a15c';
         ctx.fillRect(x - 4, y - 2, 8, 6);
         ctx.fillRect(x - 4, y - 4, 2, 2);
         ctx.fillRect(x + 2, y - 4, 2, 2);
-        ctx.fillStyle = '#1a132b';
+        ctx.fillStyle = '#3b2f2f';
         ctx.fillRect(x - 3, y, 1, 1);
         ctx.fillRect(x + 2, y, 1, 1);
-        ctx.fillStyle = '#ff5277';
+        ctx.fillStyle = '#d97b84';
         ctx.fillRect(x - 2, y + 3, 4, 1);
-        ctx.fillStyle = '#ffe8cc';
+        ctx.fillStyle = '#fff8ee';
         ctx.fillRect(x - 3, y + 4, 6, 4);
         return;
       }
 
       if (role === 'groom') {
-        // Crown
-        ctx.fillStyle = '#ffd541';
-        ctx.fillRect(x - 3, y - 12, 6, 2);
         // Hair
         ctx.fillStyle = config.groom.hairColor || '#2c1e18';
         ctx.fillRect(x - 5, y - 10, 10, 3);
         // Face
-        ctx.fillStyle = '#ffe0bd';
+        ctx.fillStyle = '#ffead6';
         ctx.fillRect(x - 4, y - 7, 8, 5);
         // Eyes
-        ctx.fillStyle = '#1a132b';
-        ctx.fillRect(x - 3, y - 5, 2, 2);
-        ctx.fillRect(x + 1, y - 5, 2, 2);
-        // Suit
-        ctx.fillStyle = config.groom.suitColor || '#2b3a67';
+        ctx.fillStyle = '#3b2f2f';
+        ctx.fillRect(x - 3, y - 5, 1.5, 2);
+        ctx.fillRect(x + 1.5, y - 5, 1.5, 2);
+        // Tuxedo
+        ctx.fillStyle = config.groom.suitColor || '#34495e';
         ctx.fillRect(x - 5, y - 2, 10, 7);
-        // Shirt & Bowtie
+        // Shirt & Champagne Bowtie
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(x - 2, y - 2, 4, 4);
-        ctx.fillStyle = '#ff5277';
-        ctx.fillRect(x - 1, y - 2, 2, 2);
-        // Feet
-        ctx.fillStyle = '#111';
+        ctx.fillStyle = '#c59b6d';
+        ctx.fillRect(x - 1, y - 2, 2, 1.5);
+        // Rose Boutonniere
+        ctx.fillStyle = '#e899a0';
+        ctx.fillRect(x - 4, y - 1, 1.5, 1.5);
+        // Shoes
+        ctx.fillStyle = '#2b211e';
         ctx.fillRect(x - 4, y + 5 + (walkFrame % 2), 3, 2);
         ctx.fillRect(x + 1, y + 5 + ((walkFrame + 1) % 2), 3, 2);
       } else if (role === 'bride') {
-        // Veil
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        // Flowing White Veil
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
         ctx.fillRect(x - 7, y - 9, 14, 12);
-        // Tiara
-        ctx.fillStyle = '#ffd541';
+        // Pearl & Champagne Tiara
+        ctx.fillStyle = '#d4af7a';
         ctx.fillRect(x - 3, y - 12, 6, 2);
-        ctx.fillStyle = '#ff5277';
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(x - 1, y - 13, 2, 1);
         // Hair
         ctx.fillStyle = config.bride.hairColor || '#3b2314';
         ctx.fillRect(x - 5, y - 10, 10, 3);
         // Face
-        ctx.fillStyle = '#ffe4c8';
+        ctx.fillStyle = '#ffefe0';
         ctx.fillRect(x - 4, y - 7, 8, 5);
         // Eyes
-        ctx.fillStyle = '#1a132b';
-        ctx.fillRect(x - 3, y - 5, 2, 2);
-        ctx.fillRect(x + 1, y - 5, 2, 2);
-        // Dress
+        ctx.fillStyle = '#3b2f2f';
+        ctx.fillRect(x - 3, y - 5, 1.5, 2);
+        ctx.fillRect(x + 1.5, y - 5, 1.5, 2);
+        // White Silk Gown
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(x - 5, y - 2, 10, 4);
         ctx.fillRect(x - 7, y + 2, 14, 5);
-        // Bouquet
-        ctx.fillStyle = '#38d9a9';
+        // Pastel Rose Bouquet
+        ctx.fillStyle = '#84a98c';
         ctx.fillRect(x - 2, y, 4, 3);
-        ctx.fillStyle = '#ff5277';
+        ctx.fillStyle = '#e899a0';
         ctx.fillRect(x - 2, y, 2, 2);
-        ctx.fillStyle = '#ffd541';
+        ctx.fillStyle = '#fffdf9';
         ctx.fillRect(x, y + 1, 2, 2);
       } else {
-        // Guest NPC
-        ctx.fillStyle = npcColor;
+        // Pastel Guest NPC
+        ctx.fillStyle = '#4a3525';
         ctx.fillRect(x - 4, y - 10, 8, 3);
-        ctx.fillStyle = '#ffe0bd';
+        ctx.fillStyle = '#ffead6';
         ctx.fillRect(x - 4, y - 7, 8, 5);
-        ctx.fillStyle = '#1a132b';
+        ctx.fillStyle = '#3b2f2f';
         ctx.fillRect(x - 2, y - 5, 1, 2);
         ctx.fillRect(x + 1, y - 5, 1, 2);
         ctx.fillStyle = npcColor;
@@ -261,7 +248,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
     };
 
-    const drawBuildingSprite = (
+    const drawGardenPavilion = (
       b: (typeof QUEST_BUILDINGS)[0],
       bx: number,
       by: number,
@@ -271,122 +258,132 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const x = Math.round(bx);
       const y = Math.round(by);
 
-      // Highlight aura when near
+      // Soft warm glow when near
       if (isNear) {
-        ctx.fillStyle = 'rgba(255, 213, 65, 0.28)';
+        ctx.fillStyle = 'rgba(255, 253, 249, 0.55)';
         ctx.beginPath();
         ctx.arc(x, y + 2, 34, 0, Math.PI * 2);
         ctx.fill();
       }
 
       if (b.id === 'ceremony') {
-        // Grand Wedding Cathedral at Top Center
-        ctx.fillStyle = '#f8f9fa';
-        ctx.fillRect(x - 32, y - 18, 64, 34);
-        // Twin Towers
-        ctx.fillStyle = '#e9ecef';
-        ctx.fillRect(x - 36, y - 26, 14, 42);
-        ctx.fillRect(x + 22, y - 26, 14, 42);
-        // Pink / Royal Roofs
-        ctx.fillStyle = '#ff5277';
+        // White Glasshouse Wedding Chapel with Floral Arch
+        ctx.fillStyle = 'rgba(92, 72, 56, 0.14)';
+        ctx.fillRect(x - 34, y + 12, 68, 4);
+
+        // Cream & Glass Walls
+        ctx.fillStyle = '#fffdf9';
+        ctx.fillRect(x - 32, y - 18, 64, 32);
+        ctx.fillStyle = '#f5ebe0';
+        ctx.fillRect(x - 36, y - 24, 12, 38);
+        ctx.fillRect(x + 24, y - 24, 12, 38);
+
+        // Champagne Rose Roof
+        ctx.fillStyle = '#d97b84';
         ctx.beginPath();
-        ctx.moveTo(x - 26, y - 18);
-        ctx.lineTo(x, y - 38);
-        ctx.lineTo(x + 26, y - 18);
+        ctx.moveTo(x - 28, y - 18);
+        ctx.lineTo(x, y - 37);
+        ctx.lineTo(x + 28, y - 18);
         ctx.fill();
-        ctx.fillRect(x - 38, y - 32, 18, 6);
-        ctx.fillRect(x + 20, y - 32, 18, 6);
-        // Cross / Bell on top
-        ctx.fillStyle = '#ffd541';
-        ctx.fillRect(x - 1, y - 44, 2, 7);
-        ctx.fillRect(x - 3, y - 42, 6, 2);
-        // Stained Glass Rose Window
-        ctx.fillStyle = '#4dabf7';
-        ctx.fillRect(x - 6, y - 12, 12, 10);
-        ctx.fillStyle = '#ffd541';
-        ctx.fillRect(x - 2, y - 10, 4, 6);
-        // Red Carpet Door
-        ctx.fillStyle = '#5c3c24';
-        ctx.fillRect(x - 7, y + 2, 14, 14);
-        ctx.fillStyle = '#ff5277';
-        ctx.fillRect(x - 5, y + 10, 10, 8);
+        ctx.fillStyle = '#c59b6d';
+        ctx.fillRect(x - 38, y - 29, 16, 5);
+        ctx.fillRect(x + 22, y - 29, 16, 5);
+
+        // Gold Wedding Bell / Cross
+        ctx.fillStyle = '#c59b6d';
+        ctx.fillRect(x - 1, y - 43, 2, 6);
+        ctx.fillRect(x - 3, y - 41, 6, 2);
+
+        // Glass Arch Window
+        ctx.fillStyle = '#d8e8f2';
+        ctx.fillRect(x - 7, y - 13, 14, 10);
+        // Floral Arch Entrance
+        ctx.fillStyle = '#84a98c';
+        ctx.fillRect(x - 9, y, 18, 14);
+        ctx.fillStyle = '#f7ebe8';
+        ctx.fillRect(x - 6, y + 3, 12, 11);
+        ctx.fillStyle = '#e899a0';
+        ctx.fillRect(x - 8, y, 3, 3);
+        ctx.fillRect(x + 5, y, 3, 3);
       } else if (b.id === 'minigame') {
-        // Center Blessing Fountain
-        ctx.fillStyle = '#adb5bd';
-        ctx.fillRect(x - 22, y - 12, 44, 24);
-        ctx.fillStyle = '#339af0';
-        ctx.fillRect(x - 18, y - 8, 36, 16);
-        // Animated water splash
-        ctx.fillStyle = tick % 20 < 10 ? '#a5d8ff' : '#74c0fc';
-        ctx.fillRect(x - 6, y - 14, 12, 12);
-        ctx.fillRect(x - 12, y - 4, 6, 4);
-        ctx.fillRect(x + 6, y - 2, 6, 4);
-        // Gold Statue / Heart in center
-        ctx.fillStyle = '#ffd541';
+        // White Marble Swan Fountain
+        ctx.fillStyle = '#f5ebe0';
+        ctx.fillRect(x - 23, y - 12, 46, 24);
+        ctx.fillStyle = '#a8dadc';
+        ctx.fillRect(x - 19, y - 8, 38, 16);
+        // Gentle water ripple
+        ctx.fillStyle = tick % 24 < 12 ? '#dff3f5' : '#bce6e8';
+        ctx.fillRect(x - 6, y - 13, 12, 10);
+        ctx.fillRect(x - 13, y - 3, 5, 3);
+        ctx.fillRect(x + 8, y - 2, 5, 3);
+        // White Floral Centerpiece
+        ctx.fillStyle = '#fffdf9';
         ctx.fillRect(x - 4, y - 18, 8, 8);
-        ctx.fillStyle = '#ff5277';
-        ctx.fillRect(x - 3, y - 22, 6, 5);
+        ctx.fillStyle = '#d97b84';
+        ctx.fillRect(x - 3, y - 21, 6, 4);
       } else {
-        // Cozy RPG Town Buildings (Guild, Museum, Station, Bank, Tavern)
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(x - 24, y + 12, 48, 5);
-        // Walls
-        ctx.fillStyle = '#f3e5ab';
-        ctx.fillRect(x - 22, y - 8, 44, 22);
-        // Timber framing
-        ctx.fillStyle = '#6c462c';
-        ctx.fillRect(x - 22, y - 8, 3, 22);
-        ctx.fillRect(x + 19, y - 8, 3, 22);
-        ctx.fillRect(x - 22, y + 2, 44, 2);
-        // Colored Pixel Roof
+        // Sunlit Pastel Garden Pavilions
+        ctx.fillStyle = 'rgba(92, 72, 56, 0.14)';
+        ctx.fillRect(x - 24, y + 12, 48, 4);
+        // Ivory Cottage Walls
+        ctx.fillStyle = '#fffdf9';
+        ctx.fillRect(x - 21, y - 8, 42, 21);
+        // Champagne Trim
+        ctx.fillStyle = '#d4b48c';
+        ctx.fillRect(x - 21, y - 8, 2, 21);
+        ctx.fillRect(x + 19, y - 8, 2, 21);
+        // Pastel Roof
         ctx.fillStyle = b.color;
-        ctx.fillRect(x - 26, y - 16, 52, 9);
-        ctx.fillRect(x - 22, y - 21, 44, 5);
-        ctx.fillRect(x - 16, y - 25, 32, 4);
-        // Windows
-        ctx.fillStyle = '#ffd541';
+        ctx.fillRect(x - 25, y - 15, 50, 8);
+        ctx.fillRect(x - 20, y - 20, 40, 5);
+        ctx.fillRect(x - 14, y - 23, 28, 3);
+        // Sunlit Windows with Flower Boxes
+        ctx.fillStyle = '#d8e8f2';
         ctx.fillRect(x - 15, y - 4, 6, 5);
         ctx.fillRect(x + 9, y - 4, 6, 5);
-        // Door
-        ctx.fillStyle = '#4a3020';
-        ctx.fillRect(x - 5, y + 3, 10, 11);
+        ctx.fillStyle = '#e899a0';
+        ctx.fillRect(x - 15, y + 1, 6, 2);
+        ctx.fillRect(x + 9, y + 1, 6, 2);
+        // Warm Wood Door
+        ctx.fillStyle = '#9c7a5b';
+        ctx.fillRect(x - 5, y + 2, 10, 11);
       }
 
-      // Floating Quest Marker [!] or [★]
-      const floatY = Math.sin(tick * 0.08 + b.x) * 2.5;
+      // Delicate Floating Stamp Marker
+      const floatY = Math.sin(tick * 0.06 + b.x) * 2;
       const badgeW = 16;
-      const badgeH = 14;
-      const badgeY = b.id === 'ceremony' ? y - 54 + floatY : y - 38 + floatY;
+      const badgeH = 13;
+      const badgeY = b.id === 'ceremony' ? y - 52 + floatY : y - 36 + floatY;
 
-      ctx.fillStyle = isVisited ? '#38d9a9' : '#ffd541';
+      ctx.fillStyle = isVisited ? '#6b9071' : '#fffdf9';
       ctx.fillRect(x - badgeW / 2, badgeY, badgeW, badgeH);
-      ctx.strokeStyle = '#120d1e';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isVisited ? '#fffdf9' : '#c59b6d';
+      ctx.lineWidth = 1.5;
       ctx.strokeRect(x - badgeW / 2, badgeY, badgeW, badgeH);
 
-      ctx.fillStyle = '#120d1e';
-      ctx.font = 'bold 10px monospace';
+      ctx.fillStyle = isVisited ? '#fffdf9' : '#d97b84';
+      ctx.font = 'bold 9px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(isVisited ? '★' : '!', x, badgeY + 11);
+      ctx.fillText(isVisited ? '✓' : '♥', x, badgeY + 10);
 
-      // Building Label Tag
+      // Elegant Ivory Label Tag
       const label = b.shortName;
-      ctx.font = 'bold 10px "Galmuri11", "DungGeunMo", monospace';
-      const textWidth = ctx.measureText(label).width + 10;
-      ctx.fillStyle = isNear ? '#ffd541' : 'rgba(18, 13, 30, 0.86)';
-      ctx.fillRect(x - textWidth / 2, y + 17, textWidth, 15);
-      ctx.strokeStyle = isNear ? '#120d1e' : b.color;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x - textWidth / 2, y + 17, textWidth, 15);
+      ctx.font = 'bold 10px "Gowun Batang", "Pretendard", sans-serif';
+      const textWidth = ctx.measureText(label).width + 12;
+      ctx.fillStyle = isNear ? '#d97b84' : 'rgba(255, 253, 249, 0.94)';
+      ctx.fillRect(x - textWidth / 2, y + 16, textWidth, 15);
+      ctx.strokeStyle = isNear ? '#fffdf9' : '#c59b6d';
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(x - textWidth / 2, y + 16, textWidth, 15);
 
-      ctx.fillStyle = isNear ? '#120d1e' : '#fff8e7';
-      ctx.fillText(label, x, y + 28);
+      ctx.fillStyle = isNear ? '#fffdf9' : '#3b2f2f';
+      ctx.fillText(label, x, y + 27);
     };
 
     const render = () => {
       tick++;
 
-      // 1. Update Player Movement
+      // 1. Update Movement
       let dx = dpadDirRef.current.dx;
       let dy = dpadDirRef.current.dy;
 
@@ -395,11 +392,10 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       if (keysRef.current['ArrowUp'] || keysRef.current['w'] || keysRef.current['W']) dy -= 1;
       if (keysRef.current['ArrowDown'] || keysRef.current['s'] || keysRef.current['S']) dy += 1;
 
-      const speed = 0.55;
+      const speed = 0.52;
       let isMoving = false;
 
       if (dx !== 0 || dy !== 0) {
-        // Manual control overrides auto-target
         targetPosRef.current = null;
         pendingQuestRef.current = null;
         const len = Math.hypot(dx, dy) || 1;
@@ -428,13 +424,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       if (isMoving) {
         trailRef.current.unshift({ x: posRef.current.x, y: posRef.current.y });
         if (trailRef.current.length > 26) trailRef.current.pop();
-        if (tick - stepSoundCooldownRef.current > 14) {
+        if (tick - stepSoundCooldownRef.current > 15) {
           soundEngine.playStep();
           stepSoundCooldownRef.current = tick;
         }
       }
 
-      // Check proximity to buildings
+      // Check proximity
       let closest: (typeof QUEST_BUILDINGS)[0] | null = null;
       let minDist = 15;
       for (const b of QUEST_BUILDINGS) {
@@ -446,97 +442,95 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
       setNearbyBuilding((prev) => (prev?.id !== closest?.id ? closest : prev));
 
-      // 2. Draw Grass Background
-      ctx.fillStyle = '#2d6a4f';
+      // 2. Draw Sunlit Sage Garden Lawn
+      ctx.fillStyle = '#bdd2b6';
       ctx.fillRect(0, 0, W, H);
 
-      // Checkerboard lush pixel grass patches
-      ctx.fillStyle = '#367a5b';
-      for (let gx = 0; gx < W; gx += 24) {
-        for (let gy = 0; gy < H; gy += 24) {
-          if ((gx + gy) % 48 === 0) {
-            ctx.fillRect(gx + 4, gy + 4, 8, 4);
-            ctx.fillRect(gx + 6, gy + 2, 4, 2);
+      // Subtle grass & tiny white/pink wildflowers
+      for (let gx = 0; gx < W; gx += 28) {
+        for (let gy = 0; gy < H; gy += 28) {
+          ctx.fillStyle = '#b0c9a8';
+          if ((gx + gy) % 56 === 0) {
+            ctx.fillRect(gx + 6, gy + 6, 6, 3);
+            ctx.fillStyle = '#fffdf9';
+            ctx.fillRect(gx + 8, gy + 4, 2, 2);
+          } else {
+            ctx.fillStyle = '#f9dbe0';
+            ctx.fillRect(gx + 12, gy + 10, 2, 2);
           }
         }
       }
 
-      // 3. Draw Cobblestone Village Roads & Plaza
-      ctx.fillStyle = '#d8c3a5';
-      // Central Vertical Road (Cathedral to Tavern)
+      // 3. Draw Warm Ivory Stone Garden Paths
+      ctx.fillStyle = '#f5ebe0';
       ctx.fillRect(W * 0.44, H * 0.16, W * 0.12, H * 0.72);
-      // Horizontal Crossroad
       ctx.fillRect(W * 0.18, H * 0.45, W * 0.64, H * 0.1);
-      // Diagonal/Branch paths to 4 corner buildings
-      ctx.fillRect(W * 0.2, H * 0.26, W * 0.06, H * 0.5);
-      ctx.fillRect(W * 0.74, H * 0.26, W * 0.06, H * 0.5);
-      // Center Plaza Square
+      ctx.fillRect(W * 0.2, H * 0.28, W * 0.06, H * 0.48);
+      ctx.fillRect(W * 0.74, H * 0.28, W * 0.06, H * 0.48);
       ctx.fillRect(W * 0.36, H * 0.38, W * 0.28, H * 0.24);
 
-      // Red Wedding Carpet leading to Cathedral
-      ctx.fillStyle = '#e03131';
-      ctx.fillRect(W * 0.47, H * 0.18, W * 0.06, H * 0.22);
-      ctx.fillStyle = '#ffd541';
-      ctx.fillRect(W * 0.47, H * 0.18, 2, H * 0.22);
-      ctx.fillRect(W * 0.53 - 2, H * 0.18, 2, H * 0.22);
+      // Blush Rose & White Virgin Road leading to Chapel
+      ctx.fillStyle = '#fffdf9';
+      ctx.fillRect(W * 0.465, H * 0.18, W * 0.07, H * 0.22);
+      ctx.fillStyle = '#e899a0';
+      ctx.fillRect(W * 0.465, H * 0.18, 2, H * 0.22);
+      ctx.fillRect(W * 0.535 - 2, H * 0.18, 2, H * 0.22);
 
-      // 4. Cherry Blossom Trees in Corners & Edges
+      // 4. Pastel Cherry Blossom & Rose Trees
       const treePositions = [
-        { x: 26, y: 40 },
-        { x: 354, y: 40 },
-        { x: 30, y: 175 },
-        { x: 350, y: 175 },
+        { x: 26, y: 42 },
+        { x: 354, y: 42 },
+        { x: 28, y: 175 },
+        { x: 352, y: 175 },
         { x: 28, y: 325 },
         { x: 352, y: 325 },
-        { x: 130, y: 52 },
-        { x: 250, y: 52 },
+        { x: 132, y: 48 },
+        { x: 248, y: 48 },
       ];
       treePositions.forEach((t) => {
-        // Trunk
-        ctx.fillStyle = '#5c3c24';
+        ctx.fillStyle = '#8c6d53';
         ctx.fillRect(t.x - 3, t.y, 6, 10);
-        // Pink Blossom Canopy
-        ctx.fillStyle = '#ff8fab';
+        ctx.fillStyle = '#f4acb7';
         ctx.fillRect(t.x - 12, t.y - 12, 24, 14);
-        ctx.fillStyle = '#ffb3c6';
+        ctx.fillStyle = '#ffcad4';
         ctx.fillRect(t.x - 9, t.y - 16, 18, 12);
-        ctx.fillStyle = '#ffe5ec';
-        ctx.fillRect(t.x - 5, t.y - 14, 6, 4);
+        ctx.fillStyle = '#fffdf9';
+        ctx.fillRect(t.x - 4, t.y - 14, 6, 4);
       });
 
-      // 5. Draw Target Marker if walking via tap
+      // 5. Target Marker if walking via tap
       if (targetPosRef.current) {
         const tx = (targetPosRef.current.x / 100) * W;
         const ty = (targetPosRef.current.y / 100) * H;
-        ctx.strokeStyle = '#ffd541';
-        ctx.lineWidth = 2;
-        const r = 5 + (tick % 12) * 0.4;
+        ctx.strokeStyle = '#d97b84';
+        ctx.lineWidth = 1.5;
+        const r = 4 + (tick % 12) * 0.35;
         ctx.strokeRect(tx - r, ty - r, r * 2, r * 2);
       }
 
-      // 6. Draw All 7 Interactive Buildings
+      // 6. Draw 7 Garden Pavilions
       QUEST_BUILDINGS.forEach((b) => {
         const bx = (b.x / 100) * W;
         const by = (b.y / 100) * H;
-        drawBuildingSprite(b, bx, by, !!visitedQuests[b.id], closest?.id === b.id);
+        drawGardenPavilion(b, bx, by, !!visitedQuests[b.id], closest?.id === b.id);
       });
 
-      // 7. Draw Guestbook NPCs around the Plaza
+      // 7. Draw Guestbook NPCs around the Fountain
       const npcSpots = [
-        { x: 38, y: 43, color: '#4dabf7' },
-        { x: 63, y: 43, color: '#da77f2' },
-        { x: 37, y: 58, color: '#69db7c' },
-        { x: 64, y: 58, color: '#ffa94d' },
+        { x: 38, y: 43, color: '#749bc2' },
+        { x: 63, y: 43, color: '#e5989b' },
+        { x: 37, y: 58, color: '#84a98c' },
+        { x: 64, y: 58, color: '#d4a373' },
       ];
       const recentGuests = guestbook.slice(0, 4);
       recentGuests.forEach((g, idx) => {
         const spot = npcSpots[idx % npcSpots.length];
         const nx = (spot.x / 100) * W;
         const ny = (spot.y / 100) * H;
-        drawPixelSpriteChar(nx, ny, 'npc', Math.floor(tick / 25) + idx, spot.color);
+        drawPixelSpriteChar(nx, ny, 'npc', Math.floor(tick / 28) + idx, spot.color);
       });
 
-      // 8. Draw Player Party (Cat -> Bride -> Groom)
+      // 8. Draw Couple & Cat
       const walkFrame = isMoving ? Math.floor(tick / 6) : Math.floor(tick / 30);
       const groomPx = (posRef.current.x / 100) * W;
       const groomPy = (posRef.current.y / 100) * H;
@@ -544,35 +538,32 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const brideTrail = trailRef.current[Math.min(9, trailRef.current.length - 1)] || posRef.current;
       const catTrail = trailRef.current[Math.min(18, trailRef.current.length - 1)] || posRef.current;
 
-      // Draw Cat
       drawPixelSpriteChar(
         (catTrail.x / 100) * W + 10,
         (catTrail.y / 100) * H + 4,
         'cat',
         walkFrame
       );
-      // Draw Bride
       drawPixelSpriteChar(
         (brideTrail.x / 100) * W - 7,
         (brideTrail.y / 100) * H + 2,
         'bride',
         walkFrame
       );
-      // Draw Groom
       drawPixelSpriteChar(groomPx + 5, groomPy, 'groom', walkFrame);
 
-      // Party Overhead Badge
-      ctx.fillStyle = 'rgba(22, 17, 36, 0.85)';
-      ctx.fillRect(groomPx - 28, groomPy - 27, 56, 12);
-      ctx.strokeStyle = '#ff5277';
+      // Couple Name Tag
+      ctx.fillStyle = 'rgba(255, 253, 249, 0.92)';
+      ctx.fillRect(groomPx - 28, groomPy - 26, 56, 12);
+      ctx.strokeStyle = '#d97b84';
       ctx.lineWidth = 1;
-      ctx.strokeRect(groomPx - 28, groomPy - 27, 56, 12);
-      ctx.fillStyle = '#ffd541';
-      ctx.font = 'bold 8px "Galmuri11", monospace';
+      ctx.strokeRect(groomPx - 28, groomPy - 26, 56, 12);
+      ctx.fillStyle = '#3b2f2f';
+      ctx.font = 'bold 8px "Gowun Batang", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`♥ ${config.groom.name}&${config.bride.name}`, groomPx, groomPy - 18);
+      ctx.fillText(`${config.groom.name} ♥ ${config.bride.name}`, groomPx, groomPy - 17);
 
-      // 9. Draw Active Guestbook Speech Bubble in Plaza
+      // 9. Guestbook Speech Bubble
       if (recentGuests.length > 0) {
         const activeIdx = npcBubbleIndex % recentGuests.length;
         const activeGuest = recentGuests[activeIdx];
@@ -585,22 +576,22 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             ? activeGuest.message.slice(0, 16) + '…'
             : activeGuest.message;
         const bubbleText = `${activeGuest.name}: "${snippet}"`;
-        ctx.font = '9px "Galmuri11", monospace';
+        ctx.font = '9px "Pretendard", sans-serif';
         const bw = Math.min(210, ctx.measureText(bubbleText).width + 14);
         const clampedX = Math.max(bw / 2 + 6, Math.min(W - bw / 2 - 6, bx));
 
-        ctx.fillStyle = '#fff8e7';
+        ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
         ctx.fillRect(clampedX - bw / 2, by - 14, bw, 16);
-        ctx.strokeStyle = '#2b1e16';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#c59b6d';
+        ctx.lineWidth = 1.2;
         ctx.strokeRect(clampedX - bw / 2, by - 14, bw, 16);
 
-        ctx.fillStyle = '#2b1e16';
+        ctx.fillStyle = '#3b2f2f';
         ctx.textAlign = 'center';
         ctx.fillText(bubbleText, clampedX, by - 3);
       }
 
-      // 10. Floating Cherry Blossom Petals
+      // 10. Floating Petals
       petals.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
@@ -617,38 +608,36 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     return () => window.cancelAnimationFrame(animId);
   }, [config, visitedQuests, guestbook, npcBubbleIndex, onOpenQuest]);
 
-  // Helper for D-Pad touch/mouse hold
   const setDpad = (dx: number, dy: number) => {
     dpadDirRef.current = { dx, dy };
   };
 
   return (
-    <div className="flex flex-col gap-2.5">
-      {/* Map Viewport Frame */}
-      <div className="relative pixel-box overflow-hidden bg-[#1b4332]">
-        {/* Top Floating HUD inside Canvas */}
-        <div className="absolute top-2 left-2 right-2 z-10 flex items-center justify-between pointer-events-none">
-          <div className="bg-[#120d1e]/85 border border-[#ffd541] px-2.5 py-1 text-[11px] text-[#ffd541] flex items-center gap-1.5 shadow">
-            <span className="inline-block w-2 h-2 bg-[#38d9a9] animate-pulse" />
-            <span>웨딩빌리지 · 건물을 터치하거나 걸어가세요!</span>
+    <div className="flex flex-col gap-3">
+      {/* Garden Canvas Frame */}
+      <div className="relative pixel-card overflow-hidden bg-[#bdd2b6]">
+        {/* Subtle Top Guide Pill */}
+        <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
+          <div className="bg-[#fffdf9]/90 backdrop-blur-sm border border-[#d4b48c] px-3 py-1 rounded-full text-[11px] text-[#5c4d47] flex items-center gap-1.5 shadow-sm">
+            <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse" />
+            <span>정원의 파빌리온을 터치하거나 산책해 보세요</span>
           </div>
         </div>
 
-        {/* Interactive Pixel Canvas */}
         <canvas
           ref={canvasRef}
           onPointerDown={handleCanvasPointerDown}
           className="w-full aspect-[380/360] block cursor-pointer pixelated touch-none"
         />
 
-        {/* Contextual Action Prompt Banner when near a building */}
+        {/* Contextual Prompt when near a pavilion */}
         {nearbyBuilding && (
-          <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10 bg-[#161124]/95 border-2 border-[#ffd541] p-2.5 flex items-center justify-between gap-2 shadow-lg animate-fadeIn">
+          <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10 bg-[#fffdf9]/95 border border-[#c59b6d] rounded-lg p-2.5 flex items-center justify-between gap-2 shadow-md animate-fadeIn">
             <div className="min-w-0">
-              <div className="text-[10px] text-[#38d9a9] font-bold">
-                {nearbyBuilding.badge} · NPC {nearbyBuilding.npcName}
+              <div className="text-[10px] text-[#c59b6d] font-sans font-semibold tracking-wider">
+                {nearbyBuilding.badge} · {nearbyBuilding.npcName}
               </div>
-              <div className="text-xs font-bold text-[#fff8e7] truncate">
+              <div className="text-xs font-bold text-[#3b2f2f] truncate">
                 {nearbyBuilding.name}
               </div>
             </div>
@@ -657,21 +646,21 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 soundEngine.playSelect();
                 onOpenQuest(nearbyBuilding.id);
               }}
-              className="pixel-btn bg-[#ff5277] text-white text-xs font-bold px-3 py-1.5 shrink-0"
+              className="pixel-btn bg-[#d97b84] text-white border-[#b85d67] text-xs font-bold px-3.5 py-1.5 shrink-0"
             >
-              [A] 입장하기 ▶
+              열어보기 ▶
             </button>
           </div>
         )}
       </div>
 
-      {/* Quick Teleport Bar (1-Tap Warp to Any Building!) */}
-      <div className="pixel-box p-2.5 bg-[#1d1630]">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] text-[#ffd541] font-bold">
-            ⚡ 순간이동 포탈 (원하는 장소로 바로 이동)
+      {/* Quick Garden Map Menu (1-Tap Open Any Section) */}
+      <div className="pixel-card p-3 bg-[#fffdf9]">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-[#5c4d47] font-bold">
+            🌿 웨딩 가든 바로가기 (원하는 카드를 터치하세요)
           </span>
-          <span className="text-[10px] text-[#a599b8]">터치 시 즉시 열기</span>
+          <span className="text-[11px] text-[#9c897e] font-sans">즉시 열람</span>
         </div>
         <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
           {QUEST_BUILDINGS.map((b) => {
@@ -683,14 +672,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                   soundEngine.playSelect();
                   onOpenQuest(b.id);
                 }}
-                className={`pixel-btn px-1.5 py-1.5 text-[11px] font-bold flex flex-col items-center justify-center gap-0.5 ${
+                className={`px-1.5 py-2 rounded-md border text-[11px] font-medium flex flex-col items-center justify-center gap-0.5 transition-all ${
                   done
-                    ? 'bg-[#2b4c3f] text-[#38d9a9] border-[#38d9a9]'
-                    : 'bg-[#2e2448] text-[#fff8e7]'
+                    ? 'bg-[#edf3ee] text-[#4d6b53] border-[#a3bfa8]'
+                    : 'bg-[#faf5ec] text-[#4a3b32] border-[#e2d4c0] hover:border-[#c59b6d]'
                 }`}
               >
-                <span className="text-xs">{b.name.split(' ')[0]}</span>
-                <span className="truncate w-full text-center text-[10px]">
+                <span className="text-sm">{b.name.split(' ')[0]}</span>
+                <span className="truncate w-full text-center text-[10px] font-sans">
                   {b.shortName}
                 </span>
               </button>
@@ -699,97 +688,72 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         </div>
       </div>
 
-      {/* Handheld Console Controls (Virtual D-Pad + A/B Buttons) */}
-      <div className="pixel-box px-4 py-3 bg-[#241c3b] flex items-center justify-between">
-        {/* D-Pad */}
+      {/* Soft Ivory Stroll Pad (Optional D-Pad + Action Buttons) */}
+      <div className="pixel-card px-4 py-3 bg-[#faf5ec] flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="relative w-24 h-24 select-none">
-            {/* UP */}
+          <div className="relative w-20 h-20 select-none">
             <button
               onPointerDown={() => setDpad(0, -1)}
               onPointerUp={() => setDpad(0, 0)}
               onPointerLeave={() => setDpad(0, 0)}
-              aria-label="위로 이동"
-              className="absolute top-0 left-8 w-8 h-8 bg-[#382d59] active:bg-[#ffd541] active:text-[#120d1e] border-2 border-[#120d1e] flex items-center justify-center text-xs font-bold"
+              aria-label="위로 산책"
+              className="absolute top-0 left-7 w-6 h-6 rounded-t bg-[#fffdf9] active:bg-[#d97b84] active:text-white border border-[#c59b6d] flex items-center justify-center text-[10px] text-[#5c4d47]"
             >
               ▲
             </button>
-            {/* DOWN */}
             <button
               onPointerDown={() => setDpad(0, 1)}
               onPointerUp={() => setDpad(0, 0)}
               onPointerLeave={() => setDpad(0, 0)}
-              aria-label="아래로 이동"
-              className="absolute bottom-0 left-8 w-8 h-8 bg-[#382d59] active:bg-[#ffd541] active:text-[#120d1e] border-2 border-[#120d1e] flex items-center justify-center text-xs font-bold"
+              aria-label="아래로 산책"
+              className="absolute bottom-0 left-7 w-6 h-6 rounded-b bg-[#fffdf9] active:bg-[#d97b84] active:text-white border border-[#c59b6d] flex items-center justify-center text-[10px] text-[#5c4d47]"
             >
               ▼
             </button>
-            {/* LEFT */}
             <button
               onPointerDown={() => setDpad(-1, 0)}
               onPointerUp={() => setDpad(0, 0)}
               onPointerLeave={() => setDpad(0, 0)}
-              aria-label="왼쪽으로 이동"
-              className="absolute top-8 left-0 w-8 h-8 bg-[#382d59] active:bg-[#ffd541] active:text-[#120d1e] border-2 border-[#120d1e] flex items-center justify-center text-xs font-bold"
+              aria-label="왼쪽으로 산책"
+              className="absolute top-7 left-0 w-6 h-6 rounded-l bg-[#fffdf9] active:bg-[#d97b84] active:text-white border border-[#c59b6d] flex items-center justify-center text-[10px] text-[#5c4d47]"
             >
               ◀
             </button>
-            {/* RIGHT */}
             <button
               onPointerDown={() => setDpad(1, 0)}
               onPointerUp={() => setDpad(0, 0)}
               onPointerLeave={() => setDpad(0, 0)}
-              aria-label="오른쪽으로 이동"
-              className="absolute top-8 right-0 w-8 h-8 bg-[#382d59] active:bg-[#ffd541] active:text-[#120d1e] border-2 border-[#120d1e] flex items-center justify-center text-xs font-bold"
+              aria-label="오른쪽으로 산책"
+              className="absolute top-7 right-0 w-6 h-6 rounded-r bg-[#fffdf9] active:bg-[#d97b84] active:text-white border border-[#c59b6d] flex items-center justify-center text-[10px] text-[#5c4d47]"
             >
               ▶
             </button>
-            {/* Center Pivot */}
-            <div className="absolute top-8 left-8 w-8 h-8 bg-[#2c2247] border border-[#120d1e] flex items-center justify-center">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#19132b]" />
+            <div className="absolute top-7 left-7 w-6 h-6 bg-[#f3ede2] border border-[#d4b48c] flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#c59b6d]" />
             </div>
           </div>
 
-          <div className="hidden xs:flex flex-col text-[11px] text-[#c3b8d9] leading-relaxed">
-            <span className="text-[#ffd541] font-bold">조작 가이드</span>
-            <span>• 맵 건물 직접 터치</span>
-            <span>• 방향키 / 십자키 이동</span>
+          <div className="flex flex-col text-[11px] text-[#6e5d53] leading-relaxed">
+            <span className="text-[#3b2f2f] font-bold">🌸 가든 산책 안내</span>
+            <span>• 정원 위 원하는 건물을 터치해 보세요</span>
+            <span>• 방향키로도 신랑·신부가 산책합니다</span>
           </div>
         </div>
 
-        {/* Console B & A Action Buttons */}
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-center gap-1">
-            <button
-              onClick={() => {
-                soundEngine.playSelect();
-                onOpenQuest('minigame');
-              }}
-              className="w-12 h-12 rounded-full bg-[#38d9a9] text-[#120d1e] border-2 border-[#120d1e] shadow-[0_4px_0_#0b0714] active:translate-y-1 font-extrabold text-sm flex items-center justify-center"
-            >
-              B
-            </button>
-            <span className="text-[10px] text-[#38d9a9] font-bold">미니게임</span>
-          </div>
-
-          <div className="flex flex-col items-center gap-1 -mt-3">
-            <button
-              onClick={() => {
-                soundEngine.playSelect();
-                if (nearbyBuilding) {
-                  onOpenQuest(nearbyBuilding.id);
-                } else {
-                  onOpenQuest('story');
-                }
-              }}
-              className="w-12 h-12 rounded-full bg-[#ff5277] text-white border-2 border-[#120d1e] shadow-[0_4px_0_#0b0714] active:translate-y-1 font-extrabold text-sm flex items-center justify-center"
-            >
-              A
-            </button>
-            <span className="text-[10px] text-[#ff5277] font-bold">
-              {nearbyBuilding ? nearbyBuilding.shortName : '초대장열기'}
-            </span>
-          </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => {
+              soundEngine.playSelect();
+              if (nearbyBuilding) {
+                onOpenQuest(nearbyBuilding.id);
+              } else {
+                onOpenQuest('story');
+              }
+            }}
+            className="pixel-btn bg-[#d97b84] text-white border-[#b85d67] px-3.5 py-2 text-xs font-bold"
+          >
+            {nearbyBuilding ? `${nearbyBuilding.shortName} 열기` : '초대장 열기'}
+          </button>
         </div>
       </div>
     </div>

@@ -3,8 +3,8 @@ import confetti from 'canvas-confetti';
 import {
   Volume2,
   VolumeX,
-  Gamepad2,
-  ScrollText,
+  Sparkles,
+  BookOpen,
   Home,
   Wrench,
   Share2,
@@ -24,6 +24,7 @@ import {
 import { soundEngine } from './utils/soundEngine';
 import { TitleScreen } from './components/TitleScreen';
 import { VillageCanvas } from './components/VillageCanvas';
+import { ClassicWeddingView } from './components/ClassicWeddingView';
 import { StorySection } from './components/sections/StorySection';
 import { CeremonySection } from './components/sections/CeremonySection';
 import { GallerySection } from './components/sections/GallerySection';
@@ -34,10 +35,10 @@ import { MiniGameSection } from './components/sections/MiniGameSection';
 import { CustomizerModal } from './components/CustomizerModal';
 import { CertificateModal } from './components/CertificateModal';
 
-type AppScreenMode = 'title' | 'world' | 'scroll';
+type AppScreenMode = 'title' | 'world' | 'classic';
 
-const STORAGE_CONFIG_KEY = 'pixel_wedding_quest_config_v1';
-const STORAGE_GUESTBOOK_KEY = 'pixel_wedding_quest_guestbook_v1';
+const STORAGE_CONFIG_KEY = 'pixel_wedding_quest_config_v2';
+const STORAGE_GUESTBOOK_KEY = 'pixel_wedding_quest_guestbook_v2';
 
 export function App() {
   const [config, setConfig] = useState<WeddingConfig>(() => {
@@ -78,7 +79,6 @@ export function App() {
   const [showCertificate, setShowCertificate] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Persist config & guestbook
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(config));
@@ -106,7 +106,12 @@ export function App() {
       if (prevCount < 7 && nextCount === 7) {
         soundEngine.playFanfare();
         try {
-          confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
+          confetti({
+            particleCount: 55,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#e899a0', '#d4af7a', '#84a98c'],
+          });
         } catch {
           // ignore
         }
@@ -132,18 +137,9 @@ export function App() {
     setScreenMode('world');
   };
 
-  const handleStartScrollMode = () => {
-    setScreenMode('scroll');
-    // Mark main quests as visited when browsing scroll mode
-    setVisitedQuests((prev) => ({
-      ...prev,
-      story: true,
-      ceremony: true,
-      gallery: true,
-      location: true,
-      gift: true,
-      rsvp: true,
-    }));
+  const handleStartClassicMode = () => {
+    setScreenMode('classic');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleShareLink = () => {
@@ -152,7 +148,7 @@ export function App() {
     if (navigator.share) {
       navigator
         .share({
-          title: `💍 ${config.groom.name} ♥ ${config.bride.name}의 모바일 웨딩 퀘스트`,
+          title: `${config.groom.fullName} ♥ ${config.bride.fullName} 결혼합니다`,
           text: `${config.wedding.dateDisplay} ${config.wedding.timeDisplay} · ${config.wedding.venueName}`,
           url,
         })
@@ -177,12 +173,11 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0917] text-[#fff8e7] flex flex-col items-center justify-start py-2 sm:py-6 px-2 sm:px-4">
-      {/* Handheld Game Console Outer Shell */}
-      <div className="w-full max-w-[480px] flex flex-col gap-2.5">
-        {/* Top Console Header Bar */}
-        <header className="pixel-box px-3 py-2 bg-[#1c152e] flex items-center justify-between gap-1.5">
-          {/* Left: Home & Mode Switcher */}
+    <div className="min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center justify-start py-3 sm:py-6 px-2.5 sm:px-4">
+      <div className="w-full max-w-[480px] flex flex-col gap-3">
+        {/* Top Elegant Mode Switcher & Audio Bar */}
+        <header className="pixel-card px-3 py-2.5 bg-[#fffdf9] flex items-center justify-between gap-1.5 font-sans">
+          {/* Left: Cover & Mode Toggle Pills */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => {
@@ -190,60 +185,62 @@ export function App() {
                 setActiveQuest(null);
                 setScreenMode('title');
               }}
-              title="타이틀 화면으로"
-              className="pixel-btn bg-[#2e2448] text-[#ffd541] p-1.5"
+              title="표지 화면으로"
+              className="p-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border border-[#e2d4c0]"
             >
               <Home className="w-4 h-4" />
             </button>
 
-            <button
-              onClick={() => {
-                soundEngine.playSelect();
-                setActiveQuest(null);
-                setScreenMode('world');
-              }}
-              className={`pixel-btn px-2.5 py-1 text-xs font-extrabold flex items-center gap-1 ${
-                screenMode === 'world'
-                  ? 'bg-[#ff5277] text-white'
-                  : 'bg-[#151024] text-[#a599b8]'
-              }`}
-            >
-              <Gamepad2 className="w-3.5 h-3.5" />
-              <span>마을탐험</span>
-            </button>
+            <div className="inline-flex rounded-full bg-[#f5efe6] p-0.5 border border-[#e2d4c0]">
+              <button
+                onClick={() => {
+                  soundEngine.playSelect();
+                  setActiveQuest(null);
+                  handleStartClassicMode();
+                }}
+                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all ${
+                  screenMode === 'classic'
+                    ? 'bg-[#3b2f2f] text-[#fffdf9] shadow-xs'
+                    : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>일반 청첩장</span>
+              </button>
 
-            <button
-              onClick={() => {
-                soundEngine.playSelect();
-                setActiveQuest(null);
-                handleStartScrollMode();
-              }}
-              className={`pixel-btn px-2.5 py-1 text-xs font-extrabold flex items-center gap-1 ${
-                screenMode === 'scroll'
-                  ? 'bg-[#ffd541] text-[#120d1e]'
-                  : 'bg-[#151024] text-[#a599b8]'
-              }`}
-            >
-              <ScrollText className="w-3.5 h-3.5" />
-              <span>한눈에보기</span>
-            </button>
+              <button
+                onClick={() => {
+                  soundEngine.playSelect();
+                  setActiveQuest(null);
+                  setScreenMode('world');
+                }}
+                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all ${
+                  screenMode === 'world'
+                    ? 'bg-[#d97b84] text-white shadow-xs'
+                    : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>픽셀 가든</span>
+              </button>
+            </div>
           </div>
 
-          {/* Right: BGM & Customizer */}
+          {/* Right: Music-Box BGM & Customizer */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleToggleBgm}
-              className={`pixel-btn px-2 py-1 text-[11px] font-extrabold flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1 transition-colors ${
                 bgmPlaying
-                  ? 'bg-[#38d9a9] text-[#120d1e]'
-                  : 'bg-[#151024] text-[#a599b8]'
+                  ? 'bg-[#fcf0f1] text-[#b85d67] border-[#e2a3a9]'
+                  : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
               }`}
-              title="8-Bit 웨딩 칩튠 BGM 켜기/끄기"
+              title="오르골 웨딩 BGM 켜기/끄기"
             >
               {bgmPlaying ? (
                 <>
                   <Volume2 className="w-3.5 h-3.5 animate-pulse" />
-                  <span>8-BIT ON</span>
+                  <span>오르골 ON</span>
                 </>
               ) : (
                 <>
@@ -258,20 +255,20 @@ export function App() {
                 soundEngine.playSelect();
                 setShowCustomizer(true);
               }}
-              title="청첩장 내용 커스텀 편집"
-              className="pixel-btn bg-[#2e2448] text-[#ffd541] p-1.5"
+              title="청첩장 내용 편집"
+              className="p-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#7d6e65] border border-[#e2d4c0]"
             >
-              <Wrench className="w-4 h-4" />
+              <Wrench className="w-3.5 h-3.5" />
             </button>
           </div>
         </header>
 
-        {/* Quest Stamp Tracker Bar (Shown in World & Scroll modes) */}
-        {screenMode !== 'title' && (
-          <div className="pixel-box px-3 py-2 bg-[#181229] flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-[11px] font-extrabold text-[#ffd541] shrink-0">
-                스탬프 {stampCount}/7
+        {/* Garden Stamp Bar (Only shown in Pixel Garden Mode) */}
+        {screenMode === 'world' && (
+          <div className="pixel-card px-3.5 py-2 bg-[#fffdf9] flex items-center justify-between gap-2 font-sans">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[11px] font-bold text-[#5c4d47] shrink-0">
+                가든 산책 스탬프 {stampCount}/7
               </span>
               <div className="flex items-center gap-1">
                 {QUEST_BUILDINGS.map((b) => {
@@ -281,22 +278,16 @@ export function App() {
                       key={b.id}
                       onClick={() => {
                         soundEngine.playSelect();
-                        if (screenMode === 'world') {
-                          handleOpenQuest(b.id);
-                        } else {
-                          document
-                            .getElementById(`section-${b.id}`)
-                            ?.scrollIntoView({ behavior: 'smooth' });
-                        }
+                        handleOpenQuest(b.id);
                       }}
                       title={b.name}
-                      className={`w-5 h-5 text-[10px] font-bold flex items-center justify-center border ${
+                      className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center border transition-colors ${
                         done
-                          ? 'bg-[#38d9a9] text-[#120d1e] border-[#120d1e]'
-                          : 'bg-[#120d1e] text-[#a599b8] border-[#362b52]'
+                          ? 'bg-[#d97b84] text-white border-[#d97b84]'
+                          : 'bg-[#faf5ec] text-[#b8a99e] border-[#e2d4c0]'
                       }`}
                     >
-                      {done ? '★' : '·'}
+                      {done ? '♥' : '·'}
                     </button>
                   );
                 })}
@@ -308,14 +299,14 @@ export function App() {
                 soundEngine.playFanfare();
                 setShowCertificate(true);
               }}
-              className={`pixel-btn px-2 py-1 text-[10px] font-extrabold flex items-center gap-1 shrink-0 ${
+              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 shrink-0 ${
                 stampCount >= 3
-                  ? 'bg-[#ffd541] text-[#120d1e] animate-pulse'
-                  : 'bg-[#2e2448] text-[#c3b8d9]'
+                  ? 'bg-[#faf5ec] text-[#b85d67] border-[#d97b84]'
+                  : 'bg-[#faf5ec] text-[#9c897e] border-[#e2d4c0]'
               }`}
             >
               <Award className="w-3 h-3" />
-              <span>인증서</span>
+              <span>초대권</span>
             </button>
           </div>
         )}
@@ -326,7 +317,7 @@ export function App() {
             <TitleScreen
               config={config}
               onStartWorldMode={handleStartWorldMode}
-              onStartScrollMode={handleStartScrollMode}
+              onStartClassicMode={handleStartClassicMode}
             />
           )}
 
@@ -339,104 +330,54 @@ export function App() {
             />
           )}
 
-          {screenMode === 'scroll' && (
-            <div className="space-y-6">
-              {/* Sticky Quick-Jump Bar for Scroll Mode */}
-              <div className="sticky top-1 z-30 pixel-box p-2 bg-[#161124]/95 backdrop-blur flex items-center justify-between gap-1 overflow-x-auto">
-                {QUEST_BUILDINGS.map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => {
-                      soundEngine.playBlip();
-                      document
-                        .getElementById(`section-${b.id}`)
-                        ?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="pixel-btn bg-[#2e2448] hover:bg-[#ffd541] hover:text-[#120d1e] text-white px-2 py-1 text-[11px] font-bold shrink-0"
-                  >
-                    {b.shortName}
-                  </button>
-                ))}
-              </div>
-
-              <section id="section-story">
-                <StorySection config={config} />
-              </section>
-
-              <section id="section-ceremony">
-                <CeremonySection config={config} />
-              </section>
-
-              <section id="section-gallery">
-                <GallerySection config={config} />
-              </section>
-
-              <section id="section-location">
-                <LocationSection config={config} />
-              </section>
-
-              <section id="section-gift">
-                <GiftSection config={config} />
-              </section>
-
-              <section id="section-minigame">
-                <MiniGameSection
-                  config={config}
-                  earnedTitle={earnedTitle}
-                  onUnlockTitle={setEarnedTitle}
-                />
-              </section>
-
-              <section id="section-rsvp">
-                <RsvpGuestbookSection
-                  config={config}
-                  guestbook={guestbook}
-                  earnedTitle={earnedTitle}
-                  onAddGuestbook={(entry) =>
-                    setGuestbook((prev) => [entry, ...prev])
-                  }
-                />
-              </section>
-            </div>
+          {screenMode === 'classic' && (
+            <ClassicWeddingView
+              config={config}
+              guestbook={guestbook}
+              earnedTitle={earnedTitle}
+              onUnlockTitle={setEarnedTitle}
+              onAddGuestbook={(entry) => setGuestbook((prev) => [entry, ...prev])}
+              onSwitchToGardenMode={() => setScreenMode('world')}
+            />
           )}
         </main>
 
-        {/* Footer Share & Copyright */}
-        <footer className="pixel-box p-3 bg-[#161124] flex items-center justify-between text-xs">
-          <div className="text-[11px] text-[#a599b8]">
-            💍 <strong className="text-[#ffd541]">{config.groom.name} ♥ {config.bride.name}</strong> · 2027.05.22
+        {/* Footer Share & Couple Mark */}
+        <footer className="pixel-card p-3.5 bg-[#fffdf9] flex items-center justify-between text-xs">
+          <div className="text-xs text-[#6e5d53]">
+            <strong className="text-[#3b2f2f]">{config.groom.fullName}</strong>{' '}
+            <span className="text-[#d97b84]">♥</span>{' '}
+            <strong className="text-[#3b2f2f]">{config.bride.fullName}</strong> · 2027. 05. 22
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleShareLink}
-              className="pixel-btn bg-[#38d9a9] text-[#120d1e] px-3 py-1 text-[11px] font-extrabold flex items-center gap-1"
-            >
-              {copiedLink ? (
-                <>
-                  <Check className="w-3.5 h-3.5" /> 링크 복사됨!
-                </>
-              ) : (
-                <>
-                  <Share2 className="w-3.5 h-3.5" /> 청첩장 공유하기
-                </>
-              )}
-            </button>
-          </div>
+          <button
+            onClick={handleShareLink}
+            className="px-3.5 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-sans font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            {copiedLink ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-[#6b9071]" /> 링크 복사됨
+              </>
+            ) : (
+              <>
+                <Share2 className="w-3.5 h-3.5 text-[#c59b6d]" /> 청첩장 공유하기
+              </>
+            )}
+          </button>
         </footer>
       </div>
 
-      {/* RPG Building Quest Modal (when exploring World Mode) */}
+      {/* Pavilion Modal (when exploring Pixel Garden Mode) */}
       {screenMode === 'world' && activeQuest && currentBuildingMeta && (
-        <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center p-2.5 sm:p-4">
-          <div className="pixel-box-gold w-full max-w-[480px] max-h-[90vh] bg-[#161124] flex flex-col overflow-hidden animate-fadeIn">
-            {/* Modal Top RPG Dialogue Header */}
-            <div className="p-3 bg-[#261e3d] border-b-2 border-[#ffd541] flex items-center justify-between gap-2 shrink-0">
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+          <div className="pixel-card w-full max-w-[480px] max-h-[90vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn">
+            {/* Modal Top Header */}
+            <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between gap-2 shrink-0">
               <div className="min-w-0">
-                <div className="text-[10px] font-extrabold text-[#38d9a9]">
-                  {currentBuildingMeta.badge} · NPC {currentBuildingMeta.npcName}
+                <div className="text-[10px] tracking-widest font-sans font-bold text-[#c59b6d]">
+                  {currentBuildingMeta.badge} · {currentBuildingMeta.npcName}
                 </div>
-                <h2 className="text-sm sm:text-base font-extrabold text-[#ffd541] truncate">
+                <h2 className="text-sm sm:text-base font-bold text-[#3b2f2f] truncate">
                   {currentBuildingMeta.name}
                 </h2>
               </div>
@@ -446,14 +387,14 @@ export function App() {
                   soundEngine.playBlip(440);
                   setActiveQuest(null);
                 }}
-                className="pixel-btn bg-[#ff5277] text-white px-2.5 py-1 text-xs font-extrabold flex items-center gap-1 shrink-0"
+                className="px-3 py-1 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-sans font-bold flex items-center gap-1 shrink-0"
               >
                 <X className="w-3.5 h-3.5" /> 닫기
               </button>
             </div>
 
-            {/* Scrollable Quest Content */}
-            <div className="p-3.5 sm:p-4 overflow-y-auto flex-1">
+            {/* Scrollable Pavilion Content */}
+            <div className="p-3 sm:p-4 overflow-y-auto flex-1">
               {activeQuest === 'story' && <StorySection config={config} />}
               {activeQuest === 'ceremony' && <CeremonySection config={config} />}
               {activeQuest === 'gallery' && <GallerySection config={config} />}
@@ -478,13 +419,13 @@ export function App() {
               )}
             </div>
 
-            {/* Modal Footer: Prev / Return to Map / Next Building */}
-            <div className="p-2.5 bg-[#221b36] border-t-2 border-[#ffd541] flex items-center justify-between gap-2 shrink-0">
+            {/* Modal Footer: Prev / Return to Garden / Next */}
+            <div className="p-2.5 bg-[#fffdf9] border-t border-[#e6d5b8] flex items-center justify-between gap-2 shrink-0 font-sans">
               <button
                 onClick={() => navigateAdjacentQuest(-1)}
-                className="pixel-btn bg-[#2e2448] text-[#e9ecef] px-2.5 py-1.5 text-xs font-bold flex items-center gap-1"
+                className="px-3 py-1.5 rounded-full bg-[#faf5ec] border border-[#e2d4c0] text-[#5c4d47] text-xs font-semibold flex items-center gap-1"
               >
-                <ChevronLeft className="w-3.5 h-3.5" /> 이전 건물
+                <ChevronLeft className="w-3.5 h-3.5" /> 이전 카드
               </button>
 
               <button
@@ -492,23 +433,22 @@ export function App() {
                   soundEngine.playBlip(520);
                   setActiveQuest(null);
                 }}
-                className="pixel-btn bg-[#ffd541] text-[#120d1e] px-3 py-1.5 text-xs font-extrabold"
+                className="px-4 py-1.5 rounded-full bg-[#d97b84] text-white text-xs font-bold shadow-xs"
               >
-                🗺️ 마을 광장으로
+                🌿 정원으로 돌아가기
               </button>
 
               <button
                 onClick={() => navigateAdjacentQuest(1)}
-                className="pixel-btn bg-[#2e2448] text-[#e9ecef] px-2.5 py-1.5 text-xs font-bold flex items-center gap-1"
+                className="px-3 py-1.5 rounded-full bg-[#faf5ec] border border-[#e2d4c0] text-[#5c4d47] text-xs font-semibold flex items-center gap-1"
               >
-                다음 건물 <ChevronRight className="w-3.5 h-3.5" />
+                다음 카드 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Live Customizer Modal */}
       {showCustomizer && (
         <CustomizerModal
           config={config}
@@ -517,7 +457,6 @@ export function App() {
         />
       )}
 
-      {/* Honorary Party Member Certificate Modal */}
       {showCertificate && (
         <CertificateModal
           config={config}

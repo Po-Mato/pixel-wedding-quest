@@ -38,34 +38,31 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 overflow-y-auto">
-      <div className="pixel-box-gold w-full max-w-lg bg-[#19132b] max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="p-3.5 bg-[#261e3d] border-b-2 border-[#ffd541] flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-extrabold text-[#ffd541]">
-            <Wrench className="w-4 h-4" />
-            <span>🛠️ 청첩장 실시간 커스텀 에디터 (DEV MODE)</span>
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 overflow-y-auto font-sans">
+      <div className="pixel-card w-full max-w-lg bg-[#fffdf9] max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="p-4 bg-[#faf5ec] border-b border-[#e6d5b8] flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-bold text-[#3b2f2f]">
+            <Wrench className="w-4 h-4 text-[#c59b6d]" />
+            <span>청첩장 정보 실시간 편집</span>
           </div>
           <button
             onClick={onClose}
-            className="pixel-btn bg-[#ff5277] text-white p-1"
+            className="p-1.5 rounded-full bg-[#fffdf9] border border-[#e2d4c0] text-[#7d6e65]"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Form Body */}
         <form onSubmit={handleSave} className="p-4 space-y-4 overflow-y-auto text-xs">
-          <p className="text-[#c3b8d9] bg-[#120d1e] p-2.5 border border-[#362b52]">
-            💡 신랑·신부 성함, 예식일, 웨딩홀 정보를 수정하면 맵과 청첩장 전체에 즉시 반영되며 브라우저에 자동 저장됩니다. (영구 반영은 <code>src/data/weddingConfig.ts</code> 수정)
+          <p className="text-[#5c4d47] bg-[#faf5ec] p-3 rounded-lg border border-[#e6d5b8]">
+            💡 신랑·신부 성함, 예식일, 웨딩홀 정보를 수정하면 일반 청첩장과 픽셀 정원 모두에 즉시 반영됩니다.
           </p>
 
-          {/* Groom & Bride Names */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#120d1e] p-3 border border-[#4dabf7]/50 space-y-2">
-              <div className="font-extrabold text-[#4dabf7]">⚔️ 신랑 정보</div>
+            <div className="bg-[#faf5ec] p-3 rounded-lg border border-[#e6d5b8] space-y-2">
+              <div className="font-bold text-[#3b2f2f]">신랑 정보</div>
               <div>
-                <label className="block text-[10px] text-[#a599b8]">이름 (약칭)</label>
+                <label className="block text-[10px] text-[#8c7a70]">이름 (약칭)</label>
                 <input
                   type="text"
                   value={draft.groom.name}
@@ -75,11 +72,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       groom: { ...draft.groom, name: e.target.value },
                     })
                   }
-                  className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-[#a599b8]">전체 성함</label>
+                <label className="block text-[10px] text-[#8c7a70]">전체 성함</label>
                 <input
                   type="text"
                   value={draft.groom.fullName}
@@ -89,11 +86,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       groom: { ...draft.groom, fullName: e.target.value },
                     })
                   }
-                  className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-[#a599b8]">턱시도 컬러</label>
+                <label className="block text-[10px] text-[#8c7a70]">턱시도 컬러</label>
                 <input
                   type="color"
                   value={draft.groom.suitColor}
@@ -103,15 +100,15 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       groom: { ...draft.groom, suitColor: e.target.value },
                     })
                   }
-                  className="w-full h-7 bg-[#1f1833] border border-[#3d315e] mt-0.5 cursor-pointer"
+                  className="w-full h-7 bg-[#fffdf9] border border-[#d4b48c] rounded mt-0.5 cursor-pointer"
                 />
               </div>
             </div>
 
-            <div className="bg-[#120d1e] p-3 border border-[#ff5277]/50 space-y-2">
-              <div className="font-extrabold text-[#ff5277]">🪄 신부 정보</div>
+            <div className="bg-[#faf5ec] p-3 rounded-lg border border-[#e6d5b8] space-y-2">
+              <div className="font-bold text-[#b85d67]">신부 정보</div>
               <div>
-                <label className="block text-[10px] text-[#a599b8]">이름 (약칭)</label>
+                <label className="block text-[10px] text-[#8c7a70]">이름 (약칭)</label>
                 <input
                   type="text"
                   value={draft.bride.name}
@@ -121,11 +118,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       bride: { ...draft.bride, name: e.target.value },
                     })
                   }
-                  className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-[#a599b8]">전체 성함</label>
+                <label className="block text-[10px] text-[#8c7a70]">전체 성함</label>
                 <input
                   type="text"
                   value={draft.bride.fullName}
@@ -135,11 +132,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       bride: { ...draft.bride, fullName: e.target.value },
                     })
                   }
-                  className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-[#a599b8]">헤어 컬러</label>
+                <label className="block text-[10px] text-[#8c7a70]">헤어 컬러</label>
                 <input
                   type="color"
                   value={draft.bride.hairColor}
@@ -149,18 +146,17 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       bride: { ...draft.bride, hairColor: e.target.value },
                     })
                   }
-                  className="w-full h-7 bg-[#1f1833] border border-[#3d315e] mt-0.5 cursor-pointer"
+                  className="w-full h-7 bg-[#fffdf9] border border-[#d4b48c] rounded mt-0.5 cursor-pointer"
                 />
               </div>
             </div>
           </div>
 
-          {/* Wedding Date & Venue */}
-          <div className="bg-[#120d1e] p-3 border border-[#ffd541]/40 space-y-2.5">
-            <div className="font-extrabold text-[#ffd541]">🏰 예식 일시 & 장소</div>
+          <div className="bg-[#faf5ec] p-3 rounded-lg border border-[#e6d5b8] space-y-2.5">
+            <div className="font-bold text-[#3b2f2f]">예식 일시 & 웨딩홀</div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] text-[#a599b8]">표시 날짜</label>
+                <label className="block text-[10px] text-[#8c7a70]">표시 날짜</label>
                 <input
                   type="text"
                   value={draft.wedding.dateDisplay}
@@ -170,11 +166,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       wedding: { ...draft.wedding, dateDisplay: e.target.value },
                     })
                   }
-                  className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-[#a599b8]">표시 시간</label>
+                <label className="block text-[10px] text-[#8c7a70]">표시 시간</label>
                 <input
                   type="text"
                   value={draft.wedding.timeDisplay}
@@ -184,14 +180,14 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       wedding: { ...draft.wedding, timeDisplay: e.target.value },
                     })
                   }
-                  className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] text-[#a599b8]">웨딩홀 이름</label>
+                <label className="block text-[10px] text-[#8c7a70]">웨딩홀 이름</label>
                 <input
                   type="text"
                   value={draft.wedding.venueName}
@@ -201,11 +197,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       wedding: { ...draft.wedding, venueName: e.target.value },
                     })
                   }
-                  className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-[#a599b8]">단독홀/층수</label>
+                <label className="block text-[10px] text-[#8c7a70]">단독홀/층수</label>
                 <input
                   type="text"
                   value={draft.wedding.hallName}
@@ -215,13 +211,13 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       wedding: { ...draft.wedding, hallName: e.target.value },
                     })
                   }
-                  className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] text-[#a599b8]">도로명 주소</label>
+              <label className="block text-[10px] text-[#8c7a70]">도로명 주소</label>
               <input
                 type="text"
                 value={draft.wedding.addressRoad}
@@ -231,14 +227,13 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                     wedding: { ...draft.wedding, addressRoad: e.target.value },
                   })
                 }
-                className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1 text-white mt-0.5"
+                className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 text-[#3b2f2f] mt-0.5"
               />
             </div>
           </div>
 
-          {/* Headline */}
-          <div className="bg-[#120d1e] p-3 border border-[#38d9a9]/40 space-y-2">
-            <div className="font-extrabold text-[#38d9a9]">📜 초대장 메인 타이틀</div>
+          <div className="bg-[#faf5ec] p-3 rounded-lg border border-[#e6d5b8] space-y-2">
+            <div className="font-bold text-[#3b2f2f]">초대장 메인 문구</div>
             <input
               type="text"
               value={draft.invitationMessage.headline}
@@ -251,28 +246,27 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                   },
                 })
               }
-              className="w-full bg-[#1f1833] border border-[#3d315e] px-2 py-1.5 text-white"
+              className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1.5 text-[#3b2f2f]"
             />
           </div>
 
-          {/* Actions */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={handleReset}
-                className="pixel-btn bg-[#2e2448] text-[#ff8787] px-3 py-2 font-bold flex items-center gap-1"
+                className="px-3 py-2 rounded-lg bg-[#faf5ec] border border-[#d4b48c] text-[#7d6e65] font-semibold flex items-center gap-1"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> 기본값 복원
               </button>
               <button
                 type="button"
                 onClick={handleCopyJson}
-                className="pixel-btn bg-[#2e2448] text-[#ffd541] px-3 py-2 font-bold flex items-center gap-1"
+                className="px-3 py-2 rounded-lg bg-[#faf5ec] border border-[#d4b48c] text-[#5c4d47] font-semibold flex items-center gap-1"
               >
                 {copiedJson ? (
                   <>
-                    <Check className="w-3.5 h-3.5" /> JSON 복사됨
+                    <Check className="w-3.5 h-3.5 text-[#6b9071]" /> 복사 완료
                   </>
                 ) : (
                   <>
@@ -284,9 +278,9 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
             <button
               type="submit"
-              className="pixel-btn bg-[#38d9a9] text-[#120d1e] px-5 py-2 font-extrabold flex items-center gap-1.5"
+              className="px-5 py-2 rounded-lg bg-[#d97b84] text-white font-bold flex items-center gap-1.5 shadow-sm"
             >
-              <Save className="w-4 h-4" /> 변경사항 적용하기
+              <Save className="w-4 h-4" /> 적용하기
             </button>
           </div>
         </form>

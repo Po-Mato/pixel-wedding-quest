@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Eye, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WeddingConfig, GalleryItem } from '../../data/weddingConfig';
 import { PixelHeart, PixelSceneBanner } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
@@ -41,67 +41,63 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ config }) => {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Museum Header & 8-Bit Filter Toggle */}
-      <div className="pixel-box p-3.5 bg-[#1f1833] flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <span className="text-[10px] font-bold px-2 py-0.5 bg-[#4dabf7] text-[#120d1e]">
-            MAIN QUEST 03 · 기억의 박물관
-          </span>
-          <h3 className="text-sm sm:text-base font-extrabold text-[#ffd541] mt-1">
-            🖼️ 웨딩 스냅 & 16-Bit 도트 전시관
+    <div className="pixel-card p-5 sm:p-6 bg-[#fffdf9] space-y-5">
+      {/* Gallery Header & View Mode Switcher */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#efe6d8] pb-4">
+        <div className="text-center sm:text-left">
+          <div className="text-[11px] tracking-[0.25em] text-[#c59b6d] font-engSerif uppercase">
+            GALLERY
+          </div>
+          <h3 className="text-base sm:text-lg font-bold text-[#3b2f2f] mt-0.5">
+            우리의 순간들
           </h3>
         </div>
 
-        {/* Mode Switcher */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-center gap-1.5 font-sans">
           <button
             onClick={() => {
               soundEngine.playSelect();
               setViewMode('photo');
             }}
-            className={`pixel-btn px-2.5 py-1.5 text-xs font-bold flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1 transition-colors ${
               viewMode === 'photo'
-                ? 'bg-[#ffd541] text-[#120d1e]'
-                : 'bg-[#151024] text-[#a599b8]'
+                ? 'bg-[#3b2f2f] text-white border-[#3b2f2f]'
+                : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
             }`}
           >
-            <Eye className="w-3.5 h-3.5" /> HD 스냅사진
+            <Eye className="w-3.5 h-3.5" /> 웨딩 사진
           </button>
           <button
             onClick={() => {
               soundEngine.playSelect();
               setViewMode('pixel');
             }}
-            className={`pixel-btn px-2.5 py-1.5 text-xs font-bold flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1 transition-colors ${
               viewMode === 'pixel'
-                ? 'bg-[#ff5277] text-white'
-                : 'bg-[#151024] text-[#a599b8]'
+                ? 'bg-[#d97b84] text-white border-[#d97b84]'
+                : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
             }`}
           >
-            <Grid className="w-3.5 h-3.5" /> 16-Bit 도트화
+            <Grid className="w-3.5 h-3.5" /> 픽셀 일러스트
           </button>
         </div>
       </div>
 
-      {/* Featured Exhibition Frame */}
-      <div className="pixel-box-gold p-3 sm:p-4 bg-[#181229]">
-        <div className="flex items-center justify-between text-xs mb-2">
-          <span className="text-[#38d9a9] font-extrabold">
-            {activeItem.seasonTag} · {activeItem.questExp}
-          </span>
-          <span className="text-[#ffd541] font-bold">
-            STAGE {selectedIdx + 1} / {config.gallery.length}
+      {/* Featured Photo Frame */}
+      <div className="bg-[#faf5ec] p-3 sm:p-4 rounded-xl border border-[#e6d5b8]">
+        <div className="flex items-center justify-between text-[11px] text-[#8c7a70] font-sans mb-2">
+          <span className="font-semibold text-[#c59b6d]">{activeItem.seasonTag}</span>
+          <span>
+            {selectedIdx + 1} / {config.gallery.length}
           </span>
         </div>
 
-        {/* Main Image / Pixel Scene Viewport */}
-        <div className="relative aspect-[16/11] w-full bg-[#120d1e] border-2 border-[#ffd541] overflow-hidden">
+        <div className="relative aspect-[4/3] w-full bg-[#f3ede2] rounded-lg border border-[#d4b48c] overflow-hidden shadow-sm">
           {viewMode === 'pixel' || imgErrorMap[activeItem.id] ? (
             <div className="w-full h-full relative">
               <PixelSceneBanner theme={activeItem.pixelTheme} />
-              <div className="absolute top-2 right-2 bg-[#120d1e]/85 border border-[#ffd541] px-2 py-0.5 text-[10px] text-[#ffd541]">
-                👾 16-BIT PIXEL SCENE
+              <div className="absolute top-2.5 right-2.5 bg-[#fffdf9]/90 border border-[#d4b48c] px-2.5 py-0.5 rounded-full text-[10px] text-[#5c4d47] font-sans">
+                🎨 Pastel Pixel Art
               </div>
             </div>
           ) : (
@@ -115,46 +111,48 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ config }) => {
             />
           )}
 
-          {/* Left / Right Arcade Arrows */}
+          {/* Left / Right Navigation */}
           <button
             onClick={handlePrev}
             aria-label="이전 사진"
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#120d1e]/80 border border-[#ffd541] text-[#ffd541] flex items-center justify-center hover:bg-[#ffd541] hover:text-[#120d1e]"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#fffdf9]/85 border border-[#d4b48c] text-[#3b2f2f] flex items-center justify-center hover:bg-white shadow"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={handleNext}
             aria-label="다음 사진"
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#120d1e]/80 border border-[#ffd541] text-[#ffd541] flex items-center justify-center hover:bg-[#ffd541] hover:text-[#120d1e]"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#fffdf9]/85 border border-[#d4b48c] text-[#3b2f2f] flex items-center justify-center hover:bg-white shadow"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Caption & Like Button */}
-        <div className="mt-3 flex items-start justify-between gap-3">
+        {/* Caption & Heart Button */}
+        <div className="mt-3.5 flex items-start justify-between gap-3">
           <div>
-            <div className="text-[11px] text-[#a599b8]">{activeItem.subtitle}</div>
-            <h4 className="text-sm sm:text-base font-extrabold text-white">
+            <div className="text-[11px] text-[#8c7a70] font-sans">
+              {activeItem.subtitle}
+            </div>
+            <h4 className="text-sm sm:text-base font-bold text-[#3b2f2f] mt-0.5">
               {activeItem.title}
             </h4>
-            <p className="text-xs text-[#c3b8d9] mt-1 leading-relaxed">
+            <p className="text-xs text-[#5c4d47] mt-1 leading-relaxed">
               {activeItem.description}
             </p>
           </div>
 
           <button
             onClick={() => handleLike(activeItem.id)}
-            className="pixel-btn bg-[#2e2448] hover:bg-[#ff5277] text-white px-3 py-2 text-xs font-extrabold shrink-0 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-full bg-[#fffdf9] hover:bg-[#fcf0f1] border border-[#e2a3a9] text-[#b85d67] text-xs font-sans font-semibold shrink-0 flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
           >
-            <PixelHeart size={15} />
+            <PixelHeart size={14} color="#d97b84" />
             <span>{likesMap[activeItem.id] || 0}</span>
           </button>
         </div>
       </div>
 
-      {/* Thumbnail Grid */}
+      {/* Thumbnail Strip */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
         {config.gallery.map((item, idx) => {
           const isSelected = idx === selectedIdx;
@@ -165,10 +163,10 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ config }) => {
                 soundEngine.playBlip(640);
                 setSelectedIdx(idx);
               }}
-              className={`relative aspect-square overflow-hidden border-2 transition-transform ${
+              className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                 isSelected
-                  ? 'border-[#ffd541] scale-105 shadow-[0_0_8px_rgba(255,213,65,0.7)] z-10'
-                  : 'border-[#362b52] opacity-75 hover:opacity-100'
+                  ? 'border-[#d97b84] scale-105 shadow-md z-10'
+                  : 'border-[#e6d5b8] opacity-70 hover:opacity-100'
               }`}
             >
               {viewMode === 'pixel' || imgErrorMap[item.id] ? (
@@ -183,20 +181,9 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ config }) => {
                   className="w-full h-full object-cover"
                 />
               )}
-              <div className="absolute bottom-0 inset-x-0 bg-[#120d1e]/80 text-[9px] text-center py-0.5 text-[#ffd541] font-bold">
-                #{idx + 1}
-              </div>
             </button>
           );
         })}
-      </div>
-
-      {/* Curator Tip */}
-      <div className="bg-[#151024] border border-[#3d315e] p-2.5 text-center text-[11px] text-[#a599b8] flex items-center justify-center gap-1.5">
-        <Sparkles className="w-3.5 h-3.5 text-[#ffd541] shrink-0" />
-        <span>
-          우측 상단 <strong>[16-Bit 도트화]</strong> 버튼을 누르면 각 사진의 계절 테마에 맞춘 도트 아트로 감상할 수 있습니다!
-        </span>
       </div>
     </div>
   );

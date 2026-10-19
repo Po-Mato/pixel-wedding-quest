@@ -10,12 +10,12 @@ interface CharacterSpriteProps {
 }
 
 /**
- * 16x16 Crisp SVG Pixel Art Groom (턱시도 성기사 신랑)
+ * 16x16 Crisp SVG Pixel Art Groom (클래식 턱시도 신랑)
  */
 export const GroomSprite: React.FC<CharacterSpriteProps> = ({
   size = 64,
   className = '',
-  primaryColor = '#2b3a67',
+  primaryColor = '#34495e',
   hairColor = '#2c1e18',
   bounce = false,
 }) => {
@@ -27,45 +27,43 @@ export const GroomSprite: React.FC<CharacterSpriteProps> = ({
       shapeRendering="crispEdges"
       className={`pixelated ${bounce ? 'animate-floatSlow' : ''} ${className}`}
     >
-      {/* Shadow */}
-      <rect x="4" y="15" width="8" height="1" fill="rgba(0,0,0,0.35)" />
-      {/* Crown / Gold Hair Pin */}
-      <rect x="6" y="1" width="4" height="1" fill="#ffd541" />
+      {/* Soft Shadow */}
+      <rect x="4" y="15" width="8" height="1" fill="rgba(92,72,56,0.22)" />
       {/* Hair */}
       <rect x="4" y="2" width="8" height="2" fill={hairColor} />
       <rect x="3" y="3" width="2" height="3" fill={hairColor} />
       <rect x="11" y="3" width="2" height="3" fill={hairColor} />
       {/* Face */}
-      <rect x="4" y="4" width="8" height="5" fill="#ffe0bd" />
+      <rect x="4" y="4" width="8" height="5" fill="#ffead6" />
       {/* Eyes */}
-      <rect x="5" y="6" width="1" height="2" fill="#1a132b" />
-      <rect x="10" y="6" width="1" height="2" fill="#1a132b" />
-      {/* Blush */}
-      <rect x="4" y="7" width="1" height="1" fill="#ff8787" />
-      <rect x="11" y="7" width="1" height="1" fill="#ff8787" />
-      {/* Smile */}
-      <rect x="7" y="8" width="2" height="1" fill="#d96b6b" />
+      <rect x="5" y="6" width="1" height="2" fill="#3b2f2f" />
+      <rect x="10" y="6" width="1" height="2" fill="#3b2f2f" />
+      {/* Soft Blush */}
+      <rect x="4" y="7" width="1" height="1" fill="#f4a2a8" />
+      <rect x="11" y="7" width="1" height="1" fill="#f4a2a8" />
+      {/* Gentle Smile */}
+      <rect x="7" y="8" width="2" height="1" fill="#d97b84" />
       {/* Tuxedo Suit */}
       <rect x="4" y="9" width="8" height="5" fill={primaryColor} />
       <rect x="3" y="9" width="1" height="4" fill={primaryColor} />
       <rect x="12" y="9" width="1" height="4" fill={primaryColor} />
-      {/* White Shirt & Red Bowtie */}
+      {/* Crisp White Shirt & Champagne Bowtie */}
       <rect x="6" y="9" width="4" height="4" fill="#ffffff" />
-      <rect x="7" y="9" width="2" height="1" fill="#ff5277" />
-      {/* Boutonniere Flower */}
-      <rect x="5" y="10" width="1" height="1" fill="#ff5277" />
+      <rect x="7" y="9" width="2" height="1" fill="#c59b6d" />
+      {/* Rose Boutonniere */}
+      <rect x="5" y="10" width="1" height="1" fill="#e899a0" />
       {/* Hands */}
-      <rect x="3" y="13" width="1" height="1" fill="#ffe0bd" />
-      <rect x="12" y="13" width="1" height="1" fill="#ffe0bd" />
-      {/* Shoes */}
-      <rect x="5" y="14" width="2" height="1" fill="#1b1b1b" />
-      <rect x="9" y="14" width="2" height="1" fill="#1b1b1b" />
+      <rect x="3" y="13" width="1" height="1" fill="#ffead6" />
+      <rect x="12" y="13" width="1" height="1" fill="#ffead6" />
+      {/* Dress Shoes */}
+      <rect x="5" y="14" width="2" height="1" fill="#2c221e" />
+      <rect x="9" y="14" width="2" height="1" fill="#2c221e" />
     </svg>
   );
 };
 
 /**
- * 16x16 Crisp SVG Pixel Art Bride (티아라 & 부케 아크메이지 신부)
+ * 16x16 Crisp SVG Pixel Art Bride (순백의 베일 & 부케 신부)
  */
 export const BrideSprite: React.FC<CharacterSpriteProps> = ({
   size = 64,
@@ -82,42 +80,42 @@ export const BrideSprite: React.FC<CharacterSpriteProps> = ({
       shapeRendering="crispEdges"
       className={`pixelated ${bounce ? 'animate-floatSlow' : ''} ${className}`}
     >
-      {/* Shadow */}
-      <rect x="3" y="15" width="10" height="1" fill="rgba(0,0,0,0.35)" />
-      {/* Veil background */}
-      <rect x="2" y="3" width="12" height="9" fill="rgba(255,255,255,0.45)" />
-      {/* Tiara */}
-      <rect x="6" y="1" width="4" height="1" fill="#ffd541" />
-      <rect x="7" y="0" width="2" height="1" fill="#ff5277" />
+      {/* Soft Shadow */}
+      <rect x="3" y="15" width="10" height="1" fill="rgba(92,72,56,0.22)" />
+      {/* Sheer Veil */}
+      <rect x="2" y="3" width="12" height="9" fill="rgba(255,255,255,0.65)" />
+      {/* Pearl & Gold Tiara */}
+      <rect x="6" y="1" width="4" height="1" fill="#d4af7a" />
+      <rect x="7" y="0" width="2" height="1" fill="#fffdf9" />
       {/* Hair */}
       <rect x="4" y="2" width="8" height="2" fill={hairColor} />
       <rect x="3" y="3" width="2" height="6" fill={hairColor} />
       <rect x="11" y="3" width="2" height="6" fill={hairColor} />
       {/* Face */}
-      <rect x="4" y="4" width="8" height="5" fill="#ffe4c8" />
+      <rect x="4" y="4" width="8" height="5" fill="#ffefe0" />
       {/* Eyes */}
-      <rect x="5" y="6" width="1" height="2" fill="#1a132b" />
-      <rect x="10" y="6" width="1" height="2" fill="#1a132b" />
+      <rect x="5" y="6" width="1" height="2" fill="#3b2f2f" />
+      <rect x="10" y="6" width="1" height="2" fill="#3b2f2f" />
       {/* Blush */}
-      <rect x="4" y="7" width="1" height="1" fill="#ff7597" />
-      <rect x="11" y="7" width="1" height="1" fill="#ff7597" />
+      <rect x="4" y="7" width="1" height="1" fill="#f4a2a8" />
+      <rect x="11" y="7" width="1" height="1" fill="#f4a2a8" />
       {/* Smile */}
-      <rect x="7" y="8" width="2" height="1" fill="#e8647c" />
-      {/* Wedding Dress */}
+      <rect x="7" y="8" width="2" height="1" fill="#d97b84" />
+      {/* Silk Wedding Gown */}
       <rect x="4" y="9" width="8" height="2" fill={primaryColor} />
       <rect x="3" y="11" width="10" height="4" fill={primaryColor} />
-      <rect x="4" y="13" width="8" height="1" fill="#e9ecf5" />
-      {/* Bouquet (Pink & Mint flowers) */}
-      <rect x="6" y="10" width="4" height="2" fill="#38d9a9" />
-      <rect x="6" y="10" width="1" height="1" fill="#ff5277" />
-      <rect x="8" y="10" width="1" height="1" fill="#ffd541" />
-      <rect x="7" y="11" width="2" height="1" fill="#ff8787" />
+      <rect x="4" y="13" width="8" height="1" fill="#f5ebe1" />
+      {/* Pastel Rose & Eucalyptus Bouquet */}
+      <rect x="6" y="10" width="4" height="2" fill="#84a98c" />
+      <rect x="6" y="10" width="1" height="1" fill="#e899a0" />
+      <rect x="8" y="10" width="1" height="1" fill="#fffdf9" />
+      <rect x="7" y="11" width="2" height="1" fill="#f4a2a8" />
     </svg>
   );
 };
 
 /**
- * 16x16 Crisp SVG Pixel Art Pet Cat ('모찌' 링 베어러 치즈냥이)
+ * 16x16 Crisp SVG Pixel Art Pet Cat ('모찌' 반려묘)
  */
 export const PetCatSprite: React.FC<{ size?: number; className?: string }> = ({
   size = 44,
@@ -130,30 +128,30 @@ export const PetCatSprite: React.FC<{ size?: number; className?: string }> = ({
     shapeRendering="crispEdges"
     className={`pixelated ${className}`}
   >
-    <rect x="4" y="14" width="8" height="1" fill="rgba(0,0,0,0.3)" />
+    <rect x="4" y="14" width="8" height="1" fill="rgba(92,72,56,0.2)" />
     {/* Ears */}
-    <rect x="4" y="4" width="2" height="2" fill="#ffa94d" />
-    <rect x="10" y="4" width="2" height="2" fill="#ffa94d" />
+    <rect x="4" y="4" width="2" height="2" fill="#e6a15c" />
+    <rect x="10" y="4" width="2" height="2" fill="#e6a15c" />
     {/* Head */}
-    <rect x="4" y="6" width="8" height="5" fill="#ffc078" />
-    <rect x="7" y="6" width="2" height="1" fill="#f76707" />
+    <rect x="4" y="6" width="8" height="5" fill="#f7c58e" />
+    <rect x="7" y="6" width="2" height="1" fill="#d98a3c" />
     {/* Eyes */}
-    <rect x="5" y="8" width="1" height="1" fill="#1a132b" />
-    <rect x="10" y="8" width="1" height="1" fill="#1a132b" />
+    <rect x="5" y="8" width="1" height="1" fill="#3b2f2f" />
+    <rect x="10" y="8" width="1" height="1" fill="#3b2f2f" />
     {/* Pink Nose */}
-    <rect x="7" y="9" width="2" height="1" fill="#ff8787" />
-    {/* Red Ribbon */}
-    <rect x="6" y="11" width="4" height="1" fill="#ff5277" />
-    <rect x="7" y="11" width="2" height="1" fill="#ffd541" />
+    <rect x="7" y="9" width="2" height="1" fill="#e899a0" />
+    {/* Blush Ribbon */}
+    <rect x="6" y="11" width="4" height="1" fill="#d97b84" />
+    <rect x="7" y="11" width="2" height="1" fill="#e6d5b8" />
     {/* Body */}
-    <rect x="5" y="12" width="6" height="2" fill="#ffe8cc" />
+    <rect x="5" y="12" width="6" height="2" fill="#fff3e0" />
     {/* Tail */}
-    <rect x="11" y="10" width="2" height="3" fill="#ffa94d" />
+    <rect x="11" y="10" width="2" height="3" fill="#e6a15c" />
   </svg>
 );
 
 /**
- * 16x16 Guest Avatar Class Sprites (6 Classes)
+ * 16x16 Guest Avatar Class Sprites (Soft Pastel Garden Guests)
  */
 export const GuestAvatarSprite: React.FC<{
   avatar: AvatarClassId;
@@ -166,13 +164,13 @@ export const GuestAvatarSprite: React.FC<{
 
   const config: Record<
     Exclude<AvatarClassId, 'cat'>,
-    { hat: string; body: string; accent: string; weapon: string }
+    { hat: string; body: string; accent: string; prop: string }
   > = {
-    knight: { hat: '#4dabf7', body: '#339af0', accent: '#ffd541', weapon: '#dee2e6' },
-    mage: { hat: '#ae3ec9', body: '#862e9c', accent: '#ffd541', weapon: '#ff5277' },
-    archer: { hat: '#2f9e44', body: '#40c057', accent: '#ffd541', weapon: '#a9e34b' },
-    bard: { hat: '#f59f00', body: '#ffd43b', accent: '#ff5277', weapon: '#ffa94d' },
-    healer: { hat: '#ff8787', body: '#fff0f6', accent: '#ff5277', weapon: '#ffd541' },
+    knight: { hat: '#5c4033', body: '#6c8ebf', accent: '#f5ebe1', prop: '#84a98c' },
+    mage: { hat: '#4a3525', body: '#e5989b', accent: '#fffdf9', prop: '#ffb5a7' },
+    archer: { hat: '#3d2b1f', body: '#84a98c', accent: '#f5ebe1', prop: '#d4af7a' },
+    bard: { hat: '#5c3c24', body: '#d4a373', accent: '#fffdf9', prop: '#e899a0' },
+    healer: { hat: '#4a3222', body: '#b5838d', accent: '#fffdf9', prop: '#f4a2a8' },
   };
 
   const c = config[avatar];
@@ -185,36 +183,35 @@ export const GuestAvatarSprite: React.FC<{
       shapeRendering="crispEdges"
       className={`pixelated ${className}`}
     >
-      <rect x="4" y="15" width="8" height="1" fill="rgba(0,0,0,0.35)" />
-      {/* Hat / Helmet */}
-      <rect x="5" y="1" width="6" height="2" fill={c.hat} />
+      <rect x="4" y="15" width="8" height="1" fill="rgba(92,72,56,0.2)" />
+      {/* Hair / Hat */}
+      <rect x="5" y="2" width="6" height="1" fill={c.hat} />
       <rect x="4" y="3" width="8" height="2" fill={c.hat} />
-      <rect x="7" y="2" width="2" height="1" fill={c.accent} />
       {/* Face */}
-      <rect x="4" y="5" width="8" height="4" fill="#ffe0bd" />
-      <rect x="5" y="6" width="1" height="2" fill="#1a132b" />
-      <rect x="10" y="6" width="1" height="2" fill="#1a132b" />
-      <rect x="4" y="7" width="1" height="1" fill="#ff8787" />
-      <rect x="11" y="7" width="1" height="1" fill="#ff8787" />
-      {/* Outfit */}
+      <rect x="4" y="5" width="8" height="4" fill="#ffead6" />
+      <rect x="5" y="6" width="1" height="2" fill="#3b2f2f" />
+      <rect x="10" y="6" width="1" height="2" fill="#3b2f2f" />
+      <rect x="4" y="7" width="1" height="1" fill="#f4a2a8" />
+      <rect x="11" y="7" width="1" height="1" fill="#f4a2a8" />
+      {/* Pastel Guest Outfit */}
       <rect x="4" y="9" width="8" height="5" fill={c.body} />
       <rect x="6" y="9" width="4" height="3" fill={c.accent} />
-      {/* Class Weapon / Prop */}
-      <rect x="12" y="7" width="2" height="6" fill={c.weapon} />
-      {/* Boots */}
-      <rect x="5" y="14" width="2" height="1" fill="#2b1e16" />
-      <rect x="9" y="14" width="2" height="1" fill="#2b1e16" />
+      {/* Small Flower / Camera / Music Note Prop */}
+      <rect x="12" y="9" width="2" height="3" fill={c.prop} />
+      {/* Shoes */}
+      <rect x="5" y="14" width="2" height="1" fill="#4a3728" />
+      <rect x="9" y="14" width="2" height="1" fill="#4a3728" />
     </svg>
   );
 };
 
 /**
- * Pixel Art Heart Icon
+ * Pixel Art Heart Icon (Soft Bridal Rose)
  */
 export const PixelHeart: React.FC<{ size?: number; className?: string; color?: string }> = ({
-  size = 20,
+  size = 18,
   className = '',
-  color = '#ff5277',
+  color = '#d97b84',
 }) => (
   <svg
     width={size}
@@ -235,7 +232,7 @@ export const PixelHeart: React.FC<{ size?: number; className?: string; color?: s
 );
 
 /**
- * Pixel Art Diamond Ring Icon
+ * Pixel Art Diamond Ring Icon (Champagne Gold & Pearl)
  */
 export const PixelRing: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
@@ -248,32 +245,36 @@ export const PixelRing: React.FC<{ size?: number; className?: string }> = ({
     shapeRendering="crispEdges"
     className={`pixelated inline-block ${className}`}
   >
-    {/* Diamond */}
-    <rect x="5" y="1" width="2" height="1" fill="#e3fafc" />
-    <rect x="4" y="2" width="4" height="2" fill="#66d9e8" />
+    <rect x="5" y="1" width="2" height="1" fill="#ffffff" />
+    <rect x="4" y="2" width="4" height="2" fill="#dbe9f4" />
     <rect x="5" y="2" width="1" height="1" fill="#ffffff" />
-    {/* Gold Band */}
-    <rect x="3" y="4" width="6" height="1" fill="#ffd541" />
-    <rect x="2" y="5" width="2" height="4" fill="#ffd541" />
-    <rect x="8" y="5" width="2" height="4" fill="#ffd541" />
-    <rect x="3" y="9" width="6" height="2" fill="#ffd541" />
+    <rect x="3" y="4" width="6" height="1" fill="#d4af7a" />
+    <rect x="2" y="5" width="2" height="4" fill="#d4af7a" />
+    <rect x="8" y="5" width="2" height="4" fill="#d4af7a" />
+    <rect x="3" y="9" width="6" height="2" fill="#d4af7a" />
   </svg>
 );
 
 /**
- * Custom Pixel Art Scene Banner Renderer for Gallery items (when in 8-Bit Art mode)
+ * Pastel Watercolor-like Pixel Scene Banner for Gallery
  */
 export const PixelSceneBanner: React.FC<{
-  theme: 'cherry_blossom' | 'starry_camp' | 'sunset_beach' | 'royal_castle' | 'autumn_cafe' | 'snow_village';
+  theme:
+    | 'cherry_blossom'
+    | 'starry_camp'
+    | 'sunset_beach'
+    | 'royal_castle'
+    | 'autumn_cafe'
+    | 'snow_village';
   className?: string;
 }> = ({ theme, className = '' }) => {
   const palettes = {
-    cherry_blossom: { sky1: '#3b2454', sky2: '#ff87ab', ground: '#40916c', accent: '#ffb3c6' },
-    sunset_beach: { sky1: '#3d1e4d', sky2: '#ff7b54', ground: '#4dabf7', accent: '#ffd541' },
-    starry_camp: { sky1: '#0f0c24', sky2: '#241b4d', ground: '#2d6a4f', accent: '#ffd541' },
-    royal_castle: { sky1: '#1d2d50', sky2: '#4361ee', ground: '#e9ecef', accent: '#ff5277' },
-    autumn_cafe: { sky1: '#4a2511', sky2: '#d96b27', ground: '#8c4a27', accent: '#ffd541' },
-    snow_village: { sky1: '#1a2a4a', sky2: '#48cae4', ground: '#f8f9fa', accent: '#ff5277' },
+    cherry_blossom: { sky1: '#fceef0', sky2: '#f9dcc4', ground: '#a3b18a', accent: '#f4a2a8' },
+    sunset_beach: { sky1: '#f9dcc4', sky2: '#f4a261', ground: '#90bede', accent: '#e9c46a' },
+    starry_camp: { sky1: '#2b3a55', sky2: '#4a5775', ground: '#6b9071', accent: '#f3d59b' },
+    royal_castle: { sky1: '#eaf2f8', sky2: '#fdfefe', ground: '#d5e2d8', accent: '#d97b84' },
+    autumn_cafe: { sky1: '#faedcd', sky2: '#e9edc9', ground: '#ccd5ae', accent: '#d4a373' },
+    snow_village: { sky1: '#e2eafc', sky2: '#edf2fb', ground: '#ffffff', accent: '#e899a0' },
   };
   const p = palettes[theme];
 
@@ -283,35 +284,29 @@ export const PixelSceneBanner: React.FC<{
       shapeRendering="crispEdges"
       className={`w-full h-full pixelated ${className}`}
     >
-      {/* Sky gradient blocks */}
-      <rect x="0" y="0" width="64" height="14" fill={p.sky1} />
-      <rect x="0" y="14" width="64" height="14" fill={p.sky2} />
-      {/* Stars / Petals */}
-      <rect x="8" y="4" width="1" height="1" fill="#ffffff" />
-      <rect x="18" y="8" width="1" height="1" fill={p.accent} />
-      <rect x="48" y="5" width="2" height="2" fill={p.accent} />
-      <rect x="54" y="10" width="1" height="1" fill="#ffffff" />
-      <rect x="28" y="3" width="1" height="1" fill="#ffffff" />
-      {/* Moon / Sun */}
-      <rect x="42" y="6" width="6" height="6" fill="#ffd541" />
-      {/* Distant Castle / Mountains */}
-      <rect x="10" y="20" width="12" height="8" fill="#221b36" />
-      <rect x="14" y="16" width="4" height="4" fill="#221b36" />
-      <rect x="44" y="22" width="14" height="6" fill="#221b36" />
+      <rect x="0" y="0" width="64" height="16" fill={p.sky1} />
+      <rect x="0" y="16" width="64" height="12" fill={p.sky2} />
+      {/* Soft clouds / petals */}
+      <rect x="8" y="6" width="8" height="2" fill="#ffffff" opacity="0.8" />
+      <rect x="10" y="4" width="4" height="2" fill="#ffffff" opacity="0.8" />
+      <rect x="44" y="7" width="10" height="2" fill="#ffffff" opacity="0.8" />
+      <rect x="18" y="10" width="1" height="1" fill={p.accent} />
+      <rect x="48" y="12" width="1" height="1" fill={p.accent} />
+      {/* White Garden Arch */}
+      <rect x="23" y="14" width="18" height="14" fill="rgba(255,255,255,0.7)" />
+      <rect x="25" y="16" width="14" height="12" fill={p.sky2} />
+      <rect x="23" y="13" width="18" height="2" fill={p.accent} />
       {/* Ground */}
       <rect x="0" y="28" width="64" height="12" fill={p.ground} />
-      <rect x="0" y="28" width="64" height="2" fill={p.accent} opacity="0.6" />
-      {/* Groom & Bride Mini Silhouette in Center */}
-      {/* Groom */}
-      <rect x="26" y="21" width="4" height="3" fill="#ffe0bd" />
-      <rect x="26" y="20" width="4" height="1" fill="#2c1e18" />
-      <rect x="26" y="24" width="4" height="5" fill="#2b3a67" />
-      {/* Heart between them */}
-      <rect x="31" y="18" width="2" height="2" fill="#ff5277" />
-      {/* Bride */}
-      <rect x="34" y="21" width="4" height="3" fill="#ffe0bd" />
-      <rect x="34" y="20" width="4" height="1" fill="#ffd541" />
-      <rect x="33" y="24" width="6" height="5" fill="#ffffff" />
+      <rect x="0" y="28" width="64" height="1" fill="#ffffff" opacity="0.6" />
+      {/* Couple Silhouette under Arch */}
+      <rect x="27" y="21" width="3" height="3" fill="#ffead6" />
+      <rect x="27" y="20" width="3" height="1" fill="#2c1e18" />
+      <rect x="27" y="24" width="3" height="5" fill="#34495e" />
+      <rect x="31" y="19" width="2" height="2" fill="#d97b84" />
+      <rect x="34" y="21" width="3" height="3" fill="#ffefe0" />
+      <rect x="34" y="20" width="3" height="1" fill="#3b2314" />
+      <rect x="33" y="24" width="5" height="5" fill="#ffffff" />
     </svg>
   );
 };
