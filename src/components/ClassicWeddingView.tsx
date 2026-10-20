@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
 import { WeddingConfig, GuestbookEntry, QUEST_BUILDINGS } from '../data/weddingConfig';
+import { PIXEL_ASSETS } from './PixelSprites';
 import { StorySection } from './sections/StorySection';
 import { CeremonySection } from './sections/CeremonySection';
 import { GallerySection } from './sections/GallerySection';
@@ -28,12 +29,13 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   onSwitchToGardenMode,
 }) => {
   const [showBonusEvent, setShowBonusEvent] = useState(false);
+  const [heroStyle, setHeroStyle] = useState<'pixel' | 'photo'>('pixel');
 
   return (
     <div className="space-y-5">
       {/* Classic Editorial Hero Cover Card */}
       <div className="pixel-card bg-[#fffdf9] overflow-hidden text-center">
-        <div className="pt-8 pb-5 px-6">
+        <div className="pt-8 pb-4 px-6">
           <div className="text-[11px] tracking-[0.32em] text-[#c59b6d] font-engSerif uppercase">
             THE MARRIAGE OF
           </div>
@@ -45,15 +47,57 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           <p className="text-xs text-[#8c7a70] mt-2 font-engSerif italic tracking-wider">
             Saturday, May 22, 2027 · 1:00 PM
           </p>
+
+          {/* Cover Illustration / Photo Switch */}
+          <div className="flex justify-center mt-3 font-sans">
+            <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e6d5b8]">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playBlip();
+                  setHeroStyle('pixel');
+                }}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
+                  heroStyle === 'pixel'
+                    ? 'bg-[#d97b84] text-white shadow-2xs'
+                    : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                }`}
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>픽셀 웨딩 일러스트</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playBlip();
+                  setHeroStyle('photo');
+                }}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
+                  heroStyle === 'photo'
+                    ? 'bg-[#3b2f2f] text-white shadow-2xs'
+                    : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                }`}
+              >
+                <ImageIcon className="w-3 h-3" />
+                <span>웨딩 포토</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Full-bleed Arch Photo inside Classic Cover */}
+        {/* Full-bleed Arch Photo / Pixel Illustration inside Classic Cover */}
         <div className="px-6">
           <div className="relative mx-auto max-w-[340px] aspect-[3/3.7] rounded-t-full rounded-b-xl overflow-hidden border border-[#e2d4c0] shadow-sm">
             <img
-              src={config.gallery[0]?.imageUrl}
+              src={
+                heroStyle === 'pixel'
+                  ? PIXEL_ASSETS.weddingCover
+                  : config.gallery[0]?.imageUrl
+              }
               alt="Wedding Main"
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover ${
+                heroStyle === 'pixel' ? 'pixelated' : ''
+              }`}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
             <div className="absolute bottom-4 inset-x-4 text-white text-xs tracking-widest font-engSerif">

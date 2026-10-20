@@ -156,14 +156,9 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Groom Card */}
-          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-lg p-4 flex flex-col items-center text-center">
-            <div className="w-28 h-28 rounded-full bg-[#fffdf9] border border-[#d4b48c] flex items-center justify-center mb-3 shadow-sm overflow-hidden">
-              <GroomSprite
-                size={108}
-                primaryColor={config.groom.suitColor}
-                hairColor={config.groom.hairColor}
-                bounce
-              />
+          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 flex flex-col items-center text-center">
+            <div className="w-32 h-36 rounded-t-full rounded-b-2xl bg-gradient-to-b from-[#fffdf9] to-[#f4ece0] border border-[#d4b48c] flex items-end justify-center pt-2 mb-3 shadow-xs overflow-hidden">
+              <GroomSprite size={126} variant="portrait" bounce />
             </div>
             <span className="text-[11px] text-[#6b9071] font-sans font-semibold">
               GROOM · {config.groom.jobClass}
@@ -174,20 +169,15 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
             <div className="text-xs text-[#7d6e65] mt-1 font-sans">
               {config.groom.mbti}
             </div>
-            <p className="mt-3 text-xs text-[#5c4d47] italic bg-[#fffdf9] p-2.5 rounded border border-[#efe6d8] w-full">
+            <p className="mt-3 text-xs text-[#5c4d47] italic bg-[#fffdf9] p-2.5 rounded-lg border border-[#efe6d8] w-full">
               {config.groom.quote}
             </p>
           </div>
 
           {/* Bride Card */}
-          <div className="bg-[#fcf5f5] border border-[#ebd2d4] rounded-lg p-4 flex flex-col items-center text-center">
-            <div className="w-28 h-28 rounded-full bg-[#fffdf9] border border-[#e2a3a9] flex items-center justify-center mb-3 shadow-sm overflow-hidden">
-              <BrideSprite
-                size={108}
-                primaryColor={config.bride.dressColor}
-                hairColor={config.bride.hairColor}
-                bounce
-              />
+          <div className="bg-[#fcf5f5] border border-[#ebd2d4] rounded-xl p-4 flex flex-col items-center text-center">
+            <div className="w-32 h-36 rounded-t-full rounded-b-2xl bg-gradient-to-b from-[#fffdf9] to-[#fae8eb] border border-[#e2a3a9] flex items-end justify-center pt-2 mb-3 shadow-xs overflow-hidden">
+              <BrideSprite size={126} variant="portrait" bounce />
             </div>
             <span className="text-[11px] text-[#d97b84] font-sans font-semibold">
               BRIDE · {config.bride.jobClass}
@@ -198,21 +188,23 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
             <div className="text-xs text-[#7d6e65] mt-1 font-sans">
               {config.bride.mbti}
             </div>
-            <p className="mt-3 text-xs text-[#5c4d47] italic bg-[#fffdf9] p-2.5 rounded border border-[#f5e1e3] w-full">
+            <p className="mt-3 text-xs text-[#5c4d47] italic bg-[#fffdf9] p-2.5 rounded-lg border border-[#f5e1e3] w-full">
               {config.bride.quote}
             </p>
           </div>
         </div>
 
         {/* Little Pet Companion Note */}
-        <div className="mt-4 bg-[#faf5ec] border border-[#e6d5b8] rounded-lg p-3 flex items-center justify-between">
+        <div className="mt-4 bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <PetCatSprite size={56} />
+            <div className="w-14 h-14 rounded-full bg-[#fffdf9] border border-[#d4b48c] flex items-center justify-center shrink-0 overflow-hidden">
+              <PetCatSprite size={48} />
+            </div>
             <div className="text-left">
               <div className="text-xs font-bold text-[#3b2f2f]">
                 반려묘 {config.pet.name} · {config.pet.title}
               </div>
-              <div className="text-[11px] text-[#7d6e65] font-sans">
+              <div className="text-[11px] text-[#7d6e65] font-sans mt-0.5">
                 픽셀 정원에서 두 사람의 뒤를 졸졸 따라다니며 하객분들을 맞이합니다.
               </div>
             </div>

@@ -1,7 +1,14 @@
-import React from 'react';
-import { Volume2, BookOpen, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { Volume2, BookOpen, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { WeddingConfig } from '../data/weddingConfig';
-import { GroomSprite, BrideSprite, PetCatSprite, PixelHeart, PixelRing } from './PixelSprites';
+import {
+  GroomSprite,
+  BrideSprite,
+  PetCatSprite,
+  PixelHeart,
+  PixelRing,
+  PIXEL_ASSETS,
+} from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
 
 interface TitleScreenProps {
@@ -15,10 +22,12 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   onStartWorldMode,
   onStartClassicMode,
 }) => {
+  const [coverType, setCoverType] = useState<'pixel' | 'photo'>('pixel');
+
   return (
     <div className="pixel-card p-6 sm:p-8 bg-[#fffdf9] text-center relative overflow-hidden">
       {/* Top English Editorial Header */}
-      <div className="space-y-1 mb-5">
+      <div className="space-y-1 mb-4">
         <div className="text-[11px] tracking-[0.3em] text-[#c59b6d] font-engSerif uppercase">
           WEDDING INVITATION
         </div>
@@ -28,35 +37,71 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         </div>
       </div>
 
+      {/* Cover Style Toggle Pill */}
+      <div className="flex justify-center mb-3 font-sans">
+        <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e6d5b8]">
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playBlip();
+              setCoverType('pixel');
+            }}
+            className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
+              coverType === 'pixel'
+                ? 'bg-[#d97b84] text-white shadow-2xs'
+                : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+            }`}
+          >
+            <Sparkles className="w-3 h-3" />
+            <span>픽셀 웨딩 일러스트</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playBlip();
+              setCoverType('photo');
+            }}
+            className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
+              coverType === 'photo'
+                ? 'bg-[#3b2f2f] text-white shadow-2xs'
+                : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+            }`}
+          >
+            <ImageIcon className="w-3 h-3" />
+            <span>웨딩 포토</span>
+          </button>
+        </div>
+      </div>
+
       {/* Arched Bridal Cover Frame */}
-      <div className="relative mx-auto max-w-[310px] aspect-[3/3.8] rounded-t-full rounded-b-2xl border-2 border-[#d4b48c] bg-[#faf5ec] p-2 shadow-sm overflow-hidden">
+      <div className="relative mx-auto max-w-[320px] aspect-[3/3.9] rounded-t-full rounded-b-2xl border-2 border-[#d4b48c] bg-[#faf5ec] p-2 shadow-sm overflow-hidden">
         <div className="relative w-full h-full rounded-t-full rounded-b-xl overflow-hidden bg-[#f3ede2]">
           <img
-            src={config.gallery[0]?.imageUrl}
+            src={
+              coverType === 'pixel'
+                ? PIXEL_ASSETS.weddingCover
+                : config.gallery[0]?.imageUrl
+            }
             alt="Wedding Cover"
-            className="w-full h-full object-cover object-center brightness-[0.97]"
+            className={`w-full h-full object-cover object-center transition-all duration-500 ${
+              coverType === 'pixel' ? 'pixelated' : 'brightness-[0.97]'
+            }`}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#2b211e]/65 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#2b211e]/55 via-transparent to-transparent" />
 
-          {/* High-Res 144x144 Pastel Pixel Couple Badge at Bottom of Arch */}
-          <div className="absolute bottom-3 inset-x-3 bg-[#fffdf9]/94 backdrop-blur-sm border border-[#e6d5b8] rounded-xl py-2 px-3 flex items-center justify-center gap-2 shadow-sm">
-            <GroomSprite
-              size={82}
-              primaryColor={config.groom.suitColor}
-              hairColor={config.groom.hairColor}
-              bounce
-            />
-            <div className="flex flex-col items-center">
-              <PixelRing size={22} />
-              <PixelHeart size={14} color="#d97b84" className="mt-1" />
+          {/* Floating Couple Portrait Badge at Bottom of Arch */}
+          <div className="absolute bottom-2.5 inset-x-2.5 bg-[#fffdf9]/92 backdrop-blur-xs border border-[#e6d5b8] rounded-xl py-1.5 px-3 flex items-center justify-center gap-2.5 shadow-sm">
+            <div className="w-14 h-14 rounded-full bg-[#faf5ec] border border-[#d4b48c] overflow-hidden flex items-center justify-center shrink-0">
+              <GroomSprite size={54} variant="portrait" bounce />
             </div>
-            <BrideSprite
-              size={82}
-              primaryColor={config.bride.dressColor}
-              hairColor={config.bride.hairColor}
-              bounce
-            />
-            <PetCatSprite size={48} className="hidden xs:block -ml-1" />
+            <div className="flex flex-col items-center">
+              <PixelRing size={20} />
+              <PixelHeart size={13} color="#d97b84" className="mt-0.5" />
+            </div>
+            <div className="w-14 h-14 rounded-full bg-[#fcf5f5] border border-[#e2a3a9] overflow-hidden flex items-center justify-center shrink-0">
+              <BrideSprite size={54} variant="portrait" bounce />
+            </div>
+            <PetCatSprite size={42} className="hidden xs:block -ml-1" />
           </div>
         </div>
       </div>
