@@ -345,7 +345,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         trailRef.current[Math.min(16, trailRef.current.length - 1)] || posRef.current;
 
       // Offset Bride slightly to the right of Groom so they stroll side-by-side
-      const brideFootX = (brideTrail.x / 100) * W + 38;
+      const brideFootX = (brideTrail.x / 100) * W + 42;
       const brideFootY = (brideTrail.y / 100) * H + 2;
 
       const catFootX = (catTrail.x / 100) * W - 40;
@@ -376,45 +376,42 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         );
       }
 
-      // Draw Groom (110x380 natural ratio -> 32x110)
+      // 3-head-tall chibi couple: fixed display height, width from each sprite's natural ratio
+      const CHIBI_H = 96;
+      const drawChibi = (img: HTMLImageElement, footX: number, footY: number, bob: number) => {
+        const w = Math.round((CHIBI_H * img.naturalWidth) / img.naturalHeight);
+        ctx.drawImage(
+          img,
+          Math.round(footX - w / 2),
+          Math.round(footY - CHIBI_H - bob),
+          w,
+          CHIBI_H
+        );
+      };
+
+      // Draw Groom
       if (assetsRef.current.groom) {
-        const groomW = 32;
-        const groomH = 110;
-        ctx.drawImage(
-          assetsRef.current.groom,
-          Math.round(groomFootX - 6 - groomW / 2),
-          Math.round(groomFootY - groomH - walkBob),
-          groomW,
-          groomH
-        );
+        drawChibi(assetsRef.current.groom, groomFootX - 6, groomFootY, walkBob);
       }
 
-      // Draw Bride (230x380 natural ratio -> 66x109)
+      // Draw Bride
       if (assetsRef.current.bride) {
-        const brideW = 66;
-        const brideH = 109;
-        ctx.drawImage(
-          assetsRef.current.bride,
-          Math.round(brideFootX - brideW / 2),
-          Math.round(brideFootY - brideH - walkBob * 0.9),
-          brideW,
-          brideH
-        );
+        drawChibi(assetsRef.current.bride, brideFootX, brideFootY, walkBob * 0.9);
       }
 
-      // Floating Heart between Groom & Bride
+      // Floating Heart between Groom & Bride (at head height)
       ctx.fillStyle = '#d97b84';
       ctx.font = 'bold 15px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(
         '♥',
-        Math.round((groomFootX + brideFootX) / 2 - 2),
-        Math.round(groomFootY - 82 - walkBob)
+        Math.round((groomFootX - 6 + brideFootX) / 2),
+        Math.round(groomFootY - CHIBI_H - 4 - walkBob + Math.sin(tick * 0.1) * 2)
       );
 
       // Couple Overhead Name Tag
       const centerCoupleX = (groomFootX + brideFootX) / 2;
-      const tagY = groomFootY - 134 - walkBob;
+      const tagY = groomFootY - CHIBI_H - 34 - walkBob;
       ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
       ctx.fillRect(centerCoupleX - 58, tagY, 116, 23);
       ctx.strokeStyle = '#d97b84';

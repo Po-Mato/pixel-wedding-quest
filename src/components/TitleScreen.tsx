@@ -87,10 +87,16 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               coverType === 'pixel' ? 'pixelated' : 'brightness-[0.97]'
             }`}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#2b211e]/55 via-transparent to-transparent" />
+          {coverType === 'photo' && (
+            <div className="absolute inset-0 bg-gradient-to-t from-[#2b211e]/45 via-transparent to-transparent" />
+          )}
+        </div>
+      </div>
 
-          {/* Floating Couple Portrait Badge at Bottom of Arch */}
-          <div className="absolute bottom-2.5 inset-x-2.5 bg-[#fffdf9]/92 backdrop-blur-xs border border-[#e6d5b8] rounded-xl py-1.5 px-3 flex items-center justify-center gap-2.5 shadow-sm">
+      {/* Couple Portrait Badge overlapping the bottom edge of the arch (keeps the illustration unobstructed) */}
+      <div className="relative z-10 -mt-7 flex justify-center">
+        <div>
+          <div className="bg-[#fffdf9] border border-[#e6d5b8] rounded-full py-1.5 px-3 flex items-center justify-center gap-2.5 shadow-sm">
             <div className="w-14 h-14 rounded-full bg-[#faf5ec] border border-[#d4b48c] overflow-hidden flex items-center justify-center shrink-0">
               <GroomSprite size={54} variant="portrait" bounce />
             </div>
