@@ -4,8 +4,9 @@ import {
   QuestBuildingId,
   WeddingConfig,
   GuestbookEntry,
+  AvatarClassId,
 } from '../data/weddingConfig';
-import { PIXEL_ASSETS } from './PixelSprites';
+import { PIXEL_ASSETS, GUEST_SPRITES } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
 
 interface VillageCanvasProps {
@@ -37,12 +38,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Start the couple in the sunlit plaza just south of the central fountain
-  const posRef = useRef<{ x: number; y: number }>({ x: 50, y: 66 });
+  // Start the couple on the south path, just outside the fountain plaza
+  const posRef = useRef<{ x: number; y: number }>({ x: 50, y: 72 });
   const targetPosRef = useRef<{ x: number; y: number } | null>(null);
   const pendingQuestRef = useRef<QuestBuildingId | null>(null);
   const trailRef = useRef<TrailPoint[]>(
-    Array.from({ length: 28 }, () => ({ x: 50, y: 66 }))
+    Array.from({ length: 28 }, () => ({ x: 50, y: 72 }))
   );
   const keysRef = useRef<Record<string, boolean>>({});
   const dpadDirRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
@@ -59,25 +60,28 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     groom: HTMLImageElement | null;
     bride: HTMLImageElement | null;
     cat: HTMLImageElement | null;
+    guests: Partial<Record<AvatarClassId, HTMLImageElement>>;
   }>({
     map: null,
     groom: null,
     bride: null,
     cat: null,
+    guests: {},
   });
 
   useEffect(() => {
-    const loadImg = (src: string, key: keyof typeof assetsRef.current) => {
+    const loadImg = (src: string, onLoad: (img: HTMLImageElement) => void) => {
       const img = new Image();
       img.src = src;
-      img.onload = () => {
-        assetsRef.current[key] = img;
-      };
+      img.onload = () => onLoad(img);
     };
-    loadImg(PIXEL_ASSETS.weddingGardenMap, 'map');
-    loadImg(PIXEL_ASSETS.groomSprite, 'groom');
-    loadImg(PIXEL_ASSETS.brideSprite, 'bride');
-    loadImg(PIXEL_ASSETS.catSprite, 'cat');
+    loadImg(PIXEL_ASSETS.weddingGardenMap, (img) => (assetsRef.current.map = img));
+    loadImg(PIXEL_ASSETS.groomSprite, (img) => (assetsRef.current.groom = img));
+    loadImg(PIXEL_ASSETS.brideSprite, (img) => (assetsRef.current.bride = img));
+    loadImg(PIXEL_ASSETS.catSprite, (img) => (assetsRef.current.cat = img));
+    (Object.keys(GUEST_SPRITES) as AvatarClassId[]).forEach((id) =>
+      loadImg(GUEST_SPRITES[id].sprite, (img) => (assetsRef.current.guests[id] = img))
+    );
   }, []);
 
   useEffect(() => {
@@ -331,7 +335,43 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         drawPavilionBadge(b, bx, by, !!visitedQuests[b.id], closest?.id === b.id);
       });
 
-      // 5. Draw Couple & Kitten Walking Together with Natural Aspect Ratio!
+      // 5. Draw recent guestbook writers as chibi guests mingling around the fountain plaza
+      const npcSpots = [
+        { x: 36, y: 47 },
+        { x: 64, y: 47 },
+        { x: 37, y: 61 },
+        { x: 63, y: 61 },
+      ];
+      const recentGuests = guestbook.slice(0, npcSpots.length);
+      const GUEST_H = 66;
+      const guestHeads: { x: number; y: number }[] = [];
+      recentGuests.forEach((g, idx) => {
+        const spot = npcSpots[idx];
+        const fx = (spot.x / 100) * W;
+        const fy = (spot.y / 100) * H;
+        const img = assetsRef.current.guests[g.avatar] || assetsRef.current.guests.knight;
+        const h = g.avatar === 'cat' ? 40 : GUEST_H;
+        const bob = Math.max(0, Math.sin(tick * 0.08 + idx * 1.7)) * 2.5;
+        ctx.fillStyle = 'rgba(59, 47, 47, 0.2)';
+        ctx.beginPath();
+        ctx.ellipse(fx, fy, 15, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (img) {
+          const w = Math.round((h * img.naturalWidth) / img.naturalHeight);
+          // face toward the fountain: mirror guests standing on the right side
+          ctx.save();
+          if (spot.x > 50) {
+            ctx.translate(fx, 0);
+            ctx.scale(-1, 1);
+            ctx.translate(-fx, 0);
+          }
+          ctx.drawImage(img, Math.round(fx - w / 2), Math.round(fy - h - bob), w, h);
+          ctx.restore();
+        }
+        guestHeads.push({ x: fx, y: fy - h - bob });
+      });
+
+      // 6. Draw Couple & Kitten Walking Together with Natural Aspect Ratio!
       const walkBob = isMoving
         ? Math.abs(Math.sin(tick * 0.24)) * 5
         : Math.sin(tick * 0.06) * 1.5;
@@ -363,10 +403,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       ctx.ellipse(brideFootX, brideFootY, 24, 7, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Draw Kitten '모찌' (178x220 natural ratio -> 36x45)
+      // Draw Kitten '모찌' (chibi, natural aspect ratio)
       if (assetsRef.current.cat) {
-        const catW = 36;
-        const catH = 45;
+        const catH = 48;
+        const catW = Math.round(
+          (catH * assetsRef.current.cat.naturalWidth) / assetsRef.current.cat.naturalHeight
+        );
         ctx.drawImage(
           assetsRef.current.cat,
           Math.round(catFootX - catW / 2),
@@ -426,33 +468,46 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         tagY + 16
       );
 
-      // 6. Floating Guestbook Blessing Toast near Plaza Fountain
-      const recentGuests = guestbook.slice(0, 5);
+      // 7. Speech bubble above the guest who is currently "talking"
       if (recentGuests.length > 0) {
         const activeIdx = npcBubbleIndex % recentGuests.length;
         const activeGuest = recentGuests[activeIdx];
+        const head = guestHeads[activeIdx];
         const snippet =
-          activeGuest.message.length > 18
-            ? activeGuest.message.slice(0, 18) + '…'
+          activeGuest.message.length > 16
+            ? activeGuest.message.slice(0, 16) + '…'
             : activeGuest.message;
-        const bubbleText = `💬 ${activeGuest.name}: "${snippet}"`;
+        const bubbleText = `${activeGuest.name}: "${snippet}"`;
         ctx.font = 'bold 14px "Pretendard", sans-serif';
-        const bw = Math.min(440, ctx.measureText(bubbleText).width + 26);
-        const bx = W / 2;
-        const by = H * 0.39;
+        const bw = Math.min(420, ctx.measureText(bubbleText).width + 24);
+        const bx = Math.max(bw / 2 + 8, Math.min(W - bw / 2 - 8, head.x));
+        const by = head.y - 12;
 
-        ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
-        ctx.fillRect(bx - bw / 2, by - 14, bw, 26);
+        ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
+        ctx.fillRect(bx - bw / 2, by - 26, bw, 26);
         ctx.strokeStyle = '#c59b6d';
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(bx - bw / 2, by - 14, bw, 26);
+        ctx.strokeRect(bx - bw / 2, by - 26, bw, 26);
+        // bubble tail pointing at the speaker
+        ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
+        ctx.beginPath();
+        ctx.moveTo(head.x - 6, by - 1);
+        ctx.lineTo(head.x + 6, by - 1);
+        ctx.lineTo(head.x, by + 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(head.x - 6, by);
+        ctx.lineTo(head.x, by + 8);
+        ctx.lineTo(head.x + 6, by);
+        ctx.stroke();
 
         ctx.fillStyle = '#3b2f2f';
         ctx.textAlign = 'center';
-        ctx.fillText(bubbleText, bx, by + 4);
+        ctx.fillText(bubbleText, bx, by - 8);
       }
 
-      // 7. Drifting Spring Cherry Blossom Petals
+      // 8. Drifting Spring Cherry Blossom Petals
       petals.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;

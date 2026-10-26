@@ -113,7 +113,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                       : 'bg-[#f4efe6] border-[#e2d4c0] opacity-75 hover:opacity-100'
                   }`}
                 >
-                  <GuestAvatarSprite avatar={cls.id} size={36} />
+                  <GuestAvatarSprite avatar={cls.id} size={48} />
                   <span className="text-[10px] font-semibold text-[#3b2f2f] text-center leading-tight">
                     {cls.name}
                   </span>
@@ -279,9 +279,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               key={item.id}
               className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-3.5 flex items-start gap-3"
             >
-              <div className="w-11 h-11 rounded-full bg-[#fffdf9] border border-[#d4b48c] flex items-center justify-center shrink-0">
-                <GuestAvatarSprite avatar={item.avatar} size={34} />
-              </div>
+              <GuestAvatarSprite avatar={item.avatar} size={46} />
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-1 font-sans">

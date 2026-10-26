@@ -16,6 +16,11 @@ export const PIXEL_ASSETS = {
   weddingGardenMap: `${PIXEL_ASSET_BASE}/wedding-garden-map.jpg`,
 };
 
+const guestAsset = (id: string) => ({
+  sprite: `${PIXEL_ASSET_BASE}/guest-${id}-sprite.png`,
+  portrait: `${PIXEL_ASSET_BASE}/guest-${id}-portrait.png`,
+});
+
 interface CharacterSpriteProps {
   size?: number;
   className?: string;
@@ -97,56 +102,33 @@ export const PetCatSprite: React.FC<{ size?: number; className?: string }> = ({
 };
 
 /**
- * Elegant High-Resolution Guest Avatar Sprites for RSVP & Guestbook
+ * 3-head-tall chibi guest characters (방명록 하객 캐릭터)
  */
+export const GUEST_SPRITES: Record<AvatarClassId, { sprite: string; portrait: string }> = {
+  knight: guestAsset('knight'),
+  mage: guestAsset('mage'),
+  archer: guestAsset('archer'),
+  bard: guestAsset('bard'),
+  healer: guestAsset('healer'),
+  cat: guestAsset('cat'),
+};
+
 export const GuestAvatarSprite: React.FC<{
   avatar: AvatarClassId;
   size?: number;
   className?: string;
 }> = ({ avatar, size = 48, className = '' }) => {
-  const metaMap: Record<
-    AvatarClassId,
-    { src: string; badge: string; bg: string; border: string }
-  > = {
-    knight: {
-      src: PIXEL_ASSETS.groomPortrait,
-      badge: '🥂',
-      bg: '#eef4f8',
-      border: '#b8cde0',
-    },
-    mage: {
-      src: PIXEL_ASSETS.bridePortrait,
-      badge: '💐',
-      bg: '#fcf0f2',
-      border: '#e8b4bc',
-    },
-    archer: {
-      src: PIXEL_ASSETS.catSprite,
-      badge: '📸',
-      bg: '#fdf6ec',
-      border: '#dfc49b',
-    },
-    bard: {
-      src: PIXEL_ASSETS.groomPortrait,
-      badge: '🎵',
-      bg: '#f3f0fa',
-      border: '#c7b8e0',
-    },
-    healer: {
-      src: PIXEL_ASSETS.bridePortrait,
-      badge: '🌿',
-      bg: '#eef6f0',
-      border: '#a8cbb1',
-    },
-    cat: {
-      src: PIXEL_ASSETS.catSprite,
-      badge: '🐾',
-      bg: '#fbf5e6',
-      border: '#d9bc7a',
-    },
+  const bgMap: Record<AvatarClassId, { bg: string; border: string }> = {
+    knight: { bg: '#eef4ee', border: '#a8cbb1' },
+    mage: { bg: '#fcf0f2', border: '#e8b4bc' },
+    archer: { bg: '#fdf6ec', border: '#dfc49b' },
+    bard: { bg: '#fbf5e6', border: '#d9bc7a' },
+    healer: { bg: '#fdf0ea', border: '#eab49f' },
+    cat: { bg: '#f1f2f5', border: '#b9bfcc' },
   };
 
-  const meta = metaMap[avatar] || metaMap.knight;
+  const meta = bgMap[avatar] || bgMap.knight;
+  const src = (GUEST_SPRITES[avatar] || GUEST_SPRITES.knight).portrait;
 
   return (
     <div
@@ -156,16 +138,13 @@ export const GuestAvatarSprite: React.FC<{
         backgroundColor: meta.bg,
         borderColor: meta.border,
       }}
-      className={`relative rounded-full border flex items-center justify-center overflow-visible select-none ${className}`}
+      className={`relative rounded-full border overflow-hidden flex items-end justify-center select-none shrink-0 ${className}`}
     >
       <img
-        src={meta.src}
+        src={src}
         alt={`${avatar} 하객 캐릭터`}
-        className="w-[88%] h-[88%] rounded-full object-cover object-top pixelated"
+        className="w-[96%] h-[96%] object-contain object-bottom pixelated"
       />
-      <span className="absolute -bottom-1 -right-1 text-[11px] leading-none bg-[#fffdf9] rounded-full px-1 py-0.5 border border-[#e2d4c0] shadow-2xs">
-        {meta.badge}
-      </span>
     </div>
   );
 };
