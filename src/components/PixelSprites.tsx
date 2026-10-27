@@ -14,6 +14,9 @@ export const PIXEL_ASSETS = {
   catSprite: `${PIXEL_ASSET_BASE}/cat-sprite.png`,
   weddingCover: `${PIXEL_ASSET_BASE}/wedding-cover-pixel.jpg`,
   weddingGardenMap: `${PIXEL_ASSET_BASE}/wedding-garden-map.jpg`,
+  weddingChapelMap: `${PIXEL_ASSET_BASE}/wedding-chapel-map.jpg`,
+  weddingMemoryMap: `${PIXEL_ASSET_BASE}/wedding-memory-map.jpg`,
+  weddingReceptionMap: `${PIXEL_ASSET_BASE}/wedding-reception-map.jpg`,
 };
 
 const guestAsset = (id: string) => ({
@@ -230,26 +233,30 @@ export const PixelSceneBanner: React.FC<{
     snow_village: 'brightness(1.08) saturate(0.82) hue-rotate(10deg)',
   };
 
-  const useGardenBg =
-    theme === 'royal_castle' || theme === 'autumn_cafe' || theme === 'starry_camp';
+  const bgByTheme: Record<string, string> = {
+    cherry_blossom: PIXEL_ASSETS.weddingCover,
+    sunset_beach: PIXEL_ASSETS.weddingMemoryMap,
+    starry_camp: PIXEL_ASSETS.weddingReceptionMap,
+    royal_castle: PIXEL_ASSETS.weddingChapelMap,
+    autumn_cafe: PIXEL_ASSETS.weddingMemoryMap,
+    snow_village: PIXEL_ASSETS.weddingGardenMap,
+  };
+
+  const showCoupleOverlay = theme !== 'cherry_blossom';
 
   return (
     <div
       className={`relative w-full h-full overflow-hidden flex items-end justify-center ${className}`}
     >
       <img
-        src={
-          useGardenBg
-            ? PIXEL_ASSETS.weddingGardenMap
-            : PIXEL_ASSETS.weddingCover
-        }
+        src={bgByTheme[theme] || PIXEL_ASSETS.weddingCover}
         alt="웨딩 픽셀 일러스트"
         style={{ filter: filterByTheme[theme] || 'none' }}
         className="absolute inset-0 w-full h-full object-cover object-center pixelated"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-[#2b211e]/35 via-transparent to-transparent" />
 
-      {useGardenBg && (
+      {showCoupleOverlay && (
         <div className="relative z-10 flex items-end justify-center gap-1 pb-2">
           <GroomSprite size={92} variant="full" bounce />
           <PixelHeart size={16} color="#d97b84" className="mb-10" />

@@ -327,6 +327,7 @@ export function App() {
               visitedQuests={visitedQuests}
               guestbook={guestbook}
               onOpenQuest={handleOpenQuest}
+              onUnlockTitle={setEarnedTitle}
             />
           )}
 

@@ -7,6 +7,52 @@ export type QuestBuildingId =
   | 'rsvp'
   | 'minigame';
 
+export type GardenMapId = 'garden' | 'chapel' | 'memory' | 'reception';
+
+export interface MapLandmark {
+  id: string;
+  questId?: QuestBuildingId;
+  specialAction?:
+    | 'virgin_road'
+    | 'piano_melody'
+    | 'memory_spring'
+    | 'memory_autumn'
+    | 'memory_winter'
+    | 'cake_toast';
+  name: string;
+  shortName: string;
+  npcName: string;
+  badge: string;
+  x: number;
+  y: number;
+  color: string;
+  description: string;
+  storySnippet?: string;
+}
+
+export interface MapPortal {
+  id: string;
+  targetMap: GardenMapId;
+  label: string;
+  direction: 'north' | 'south' | 'east' | 'west';
+  x: number;
+  y: number;
+  spawnX: number;
+  spawnY: number;
+}
+
+export interface GardenMapConfig {
+  id: GardenMapId;
+  tabLabel: string;
+  icon: string;
+  title: string;
+  subtitle: string;
+  particleType: 'petals' | 'sunbeams' | 'seasons' | 'fireflies';
+  defaultSpawn: { x: number; y: number };
+  landmarks: MapLandmark[];
+  portals: MapPortal[];
+}
+
 export type AvatarClassId = 'knight' | 'mage' | 'archer' | 'bard' | 'healer' | 'cat';
 
 export interface GuestbookEntry {
@@ -236,6 +282,341 @@ export const QUEST_BUILDINGS: {
     color: '#b5838d',
     description: '참석 여부(RSVP)와 따뜻한 축하 방명록을 남겨주시면 정원에 소중히 기록됩니다.',
   },
+];
+
+export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
+  garden: {
+    id: 'garden',
+    tabLabel: '웨딩 가든',
+    icon: '🌿',
+    title: '보타닉 웨딩 가든 (메인 정원)',
+    subtitle: '북쪽 채플, 서쪽 추억 산책로, 동쪽 별빛 리셉션으로 길이 이어집니다',
+    particleType: 'petals',
+    defaultSpawn: { x: 50, y: 72 },
+    landmarks: [
+      {
+        id: 'garden-story',
+        questId: 'story',
+        name: '💌 초대의 정원 (모시는 글)',
+        shortName: '모시는글',
+        npcName: '북서쪽 로즈 파빌리온',
+        badge: 'INVITATION',
+        x: 15,
+        y: 20,
+        color: '#d97b84',
+        description: '소중한 분들을 모시는 초대의 글과 두 사람의 이야기를 확인합니다.',
+      },
+      {
+        id: 'garden-gallery',
+        questId: 'gallery',
+        name: '🎞️ 온실 갤러리 (웨딩 포토)',
+        shortName: '갤러리',
+        npcName: '북동쪽 가든 파빌리온',
+        badge: 'GALLERY',
+        x: 85,
+        y: 20,
+        color: '#6b9071',
+        description: '두 사람의 사계절 웨딩 스냅과 픽셀 일러스트를 감상합니다.',
+      },
+      {
+        id: 'garden-minigame',
+        questId: 'minigame',
+        name: '⛲ 백조의 분수대 (작은 이벤트)',
+        shortName: '미니게임',
+        npcName: '중앙 대리석 분수대',
+        badge: 'EVENT',
+        x: 50,
+        y: 51,
+        color: '#749bc2',
+        description: '부케 받기 미니게임과 신랑·신부 퀴즈를 즐겨보세요.',
+      },
+      {
+        id: 'garden-location',
+        questId: 'location',
+        name: '🧭 가든 스테이션 (오시는 길)',
+        shortName: '오시는길',
+        npcName: '남서쪽 가든 파빌리온',
+        badge: 'LOCATION',
+        x: 15,
+        y: 80,
+        color: '#84a98c',
+        description: '네이버·카카오·티맵 길찾기와 대중교통, 주차 안내를 확인합니다.',
+      },
+      {
+        id: 'garden-gift',
+        questId: 'gift',
+        name: '🌷 마음 전하실 곳 (축의금 안내)',
+        shortName: '마음전하기',
+        npcName: '남동쪽 축복 파빌리온',
+        badge: 'BLESSING',
+        x: 85,
+        y: 80,
+        color: '#d4a373',
+        description: '따뜻한 축하의 마음을 전하실 수 있는 계좌 안내입니다.',
+      },
+      {
+        id: 'garden-rsvp',
+        questId: 'rsvp',
+        name: '📖 방명록 & 참석 안내 (RSVP)',
+        shortName: '방명록·참석',
+        npcName: '남쪽 플로럴 가든 게이트',
+        badge: 'GUESTBOOK',
+        x: 50,
+        y: 88,
+        color: '#b5838d',
+        description: '참석 여부(RSVP)와 축하 방명록을 남길 수 있습니다.',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-to-chapel',
+        targetMap: 'chapel',
+        label: '🕊️ 채플 홀 입장',
+        direction: 'north',
+        x: 50,
+        y: 22,
+        spawnX: 50,
+        spawnY: 74,
+      },
+      {
+        id: 'portal-to-memory',
+        targetMap: 'memory',
+        label: '🌸 추억 산책로',
+        direction: 'west',
+        x: 9,
+        y: 51,
+        spawnX: 82,
+        spawnY: 50,
+      },
+      {
+        id: 'portal-to-reception',
+        targetMap: 'reception',
+        label: '✨ 별빛 리셉션',
+        direction: 'east',
+        x: 91,
+        y: 51,
+        spawnX: 20,
+        spawnY: 51,
+      },
+    ],
+  },
+  chapel: {
+    id: 'chapel',
+    tabLabel: '본식 채플',
+    icon: '🕊️',
+    title: '글래스하우스 웨딩 채플 내부',
+    subtitle: '꽃길 버진로드를 따라 본식 단상으로 행진해 보세요',
+    particleType: 'sunbeams',
+    defaultSpawn: { x: 50, y: 74 },
+    landmarks: [
+      {
+        id: 'chapel-altar',
+        questId: 'ceremony',
+        specialAction: 'virgin_road',
+        name: '🔔 로즈 아치 본식 단상 (예식 일시 & 식순)',
+        shortName: '예식일시·단상',
+        npcName: '글래스하우스 메인 채플 홀',
+        badge: 'WEDDING ALTAR',
+        x: 50,
+        y: 26,
+        color: '#d97b84',
+        description: '두 사람이 서약을 나누는 본식 단상입니다. 예식 일정과 식순을 확인하세요.',
+        storySnippet: '💍 “오늘 이 자리에서 평생의 봄날을 약속합니다.”',
+      },
+      {
+        id: 'chapel-piano',
+        specialAction: 'piano_melody',
+        name: '🎹 화이트 그랜드 피아노 (웨딩 세레나데)',
+        shortName: '웨딩피아노',
+        npcName: '채플 좌측 연주석',
+        badge: 'SERENADE',
+        x: 24,
+        y: 27,
+        color: '#c59b6d',
+        description: '맑은 오르골 웨딩 선율이 울려 퍼지는 화이트 그랜드 피아노입니다.',
+        storySnippet: '🎶 감미로운 웨딩 행진곡 선율이 온실 가득 울려 퍼집니다.',
+      },
+      {
+        id: 'chapel-easels',
+        questId: 'gallery',
+        name: '🖼️ 온실 포토 회랑 (웨딩 스냅 이젤)',
+        shortName: '웨딩스냅',
+        npcName: '채플 우측 포토 갤러리',
+        badge: 'GALLERY',
+        x: 78,
+        y: 27,
+        color: '#6b9071',
+        description: '금빛 이젤 위에 전시된 두 사람의 웨딩 포토를 감상합니다.',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-chapel-to-garden',
+        targetMap: 'garden',
+        label: '🌿 정원으로 나가기',
+        direction: 'south',
+        x: 50,
+        y: 92,
+        spawnX: 50,
+        spawnY: 32,
+      },
+    ],
+  },
+  memory: {
+    id: 'memory',
+    tabLabel: '추억 산책로',
+    icon: '🌸',
+    title: '사계절 추억의 산책로',
+    subtitle: '2023년 첫 봄부터 겨울밤의 약속까지, 네 번의 사계절을 걸어보세요',
+    particleType: 'seasons',
+    defaultSpawn: { x: 50, y: 52 },
+    landmarks: [
+      {
+        id: 'memory-spring',
+        specialAction: 'memory_spring',
+        questId: 'story',
+        name: '☕ 첫 번째 봄 : 창가 카페 (2023. 05)',
+        shortName: '첫만남 카페',
+        npcName: '설레던 여섯 시간의 대화',
+        badge: '2023 SPRING',
+        x: 22,
+        y: 28,
+        color: '#d97b84',
+        description: '처음 마주 앉아 여섯 시간 동안 웃음이 끊이지 않던 봄날의 카페입니다.',
+        storySnippet: '☕ “따스한 오월의 오후, 처음 마주 앉아 여섯 시간 동안 대화를 나누었죠.”',
+      },
+      {
+        id: 'memory-autumn',
+        specialAction: 'memory_autumn',
+        name: '☔ 두 번째 가을 : 제주 수국과 우산 (2024. 10)',
+        shortName: '제주 빗길',
+        npcName: '빗소리와 깊어진 믿음',
+        badge: '2024 AUTUMN',
+        x: 20,
+        y: 68,
+        color: '#749bc2',
+        description: '갑작스러운 제주도의 비에도 하나의 우산을 나누어 쓰며 서로를 챙기던 바닷길입니다.',
+        storySnippet: '☔ “갑작스러운 비에도 서로의 어깨를 먼저 감싸주던 순간, 평생을 확신했어요.”',
+      },
+      {
+        id: 'memory-winter',
+        specialAction: 'memory_winter',
+        name: '💍 네 번째 겨울 : 별빛 트리의 약속 (2026. 12)',
+        shortName: '겨울 프로포즈',
+        npcName: '겨울밤의 사진첩과 반지',
+        badge: '2026 WINTER',
+        x: 76,
+        y: 28,
+        color: '#c59b6d',
+        description: '사계절의 사진을 엮은 앨범과 반지로 평생의 동반자가 되어달라 고백한 곳입니다.',
+        storySnippet: '💍 “함께 걸어온 계절의 사진첩과 반지를 건네며, 평생의 동반자가 되어달라 고백했습니다.”',
+      },
+      {
+        id: 'memory-photo',
+        questId: 'gallery',
+        name: '📸 다섯 번째 봄 : 야외 스냅 정자 (2027. 05)',
+        shortName: '스냅 포토존',
+        npcName: '부부로 여는 새로운 계절',
+        badge: 'PHOTO ZONE',
+        x: 82,
+        y: 78,
+        color: '#6b9071',
+        description: '두 사람의 사계절 웨딩 스냅과 픽셀 일러스트 앨범을 열어봅니다.',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-memory-to-garden',
+        targetMap: 'garden',
+        label: '🌿 웨딩 가든으로',
+        direction: 'east',
+        x: 91,
+        y: 48,
+        spawnX: 20,
+        spawnY: 51,
+      },
+    ],
+  },
+  reception: {
+    id: 'reception',
+    tabLabel: '별빛 리셉션',
+    icon: '✨',
+    title: '별빛 가든 리셉션 (피로연 광장)',
+    subtitle: '축복의 소원나무에 방명록을 남기고 샴페인 건배를 나눠보세요',
+    particleType: 'fireflies',
+    defaultSpawn: { x: 50, y: 74 },
+    landmarks: [
+      {
+        id: 'reception-wishing-tree',
+        questId: 'rsvp',
+        name: '🌳 축복의 소원나무 (방명록 & 참석 의사)',
+        shortName: '소원나무·방명록',
+        npcName: '북쪽 소원나무 단상',
+        badge: 'WISHING TREE',
+        x: 50,
+        y: 25,
+        color: '#d97b84',
+        description: '하객분들의 따뜻한 축하 메시지와 참석 의사(RSVP)가 소원 리본으로 걸리는 나무입니다.',
+      },
+      {
+        id: 'reception-cake',
+        specialAction: 'cake_toast',
+        questId: 'minigame',
+        name: '🎂 3단 웨딩 케이크 & 샴페인 타워',
+        shortName: '샴페인 건배',
+        npcName: '중앙 만찬 테이블',
+        badge: 'CELEBRATION',
+        x: 50,
+        y: 47,
+        color: '#c59b6d',
+        description: '가까이 다가가 축하 건배를 올리고 작은 이벤트에도 참여해 보세요!',
+        storySnippet: '🥂 “민준 ♥ 서연 두 사람의 빛나는 앞날을 위하여, 건배!”',
+      },
+      {
+        id: 'reception-gift',
+        questId: 'gift',
+        name: '🌷 축복의 리셉션 데스크 (마음 전하실 곳)',
+        shortName: '마음전하기',
+        npcName: '남동쪽 리셉션 파빌리온',
+        badge: 'BLESSING',
+        x: 86,
+        y: 80,
+        color: '#d4a373',
+        description: '신랑·신부 및 혼주분들께 축하의 마음을 전하실 수 있는 계좌 안내입니다.',
+      },
+      {
+        id: 'reception-location',
+        questId: 'location',
+        name: '🧭 귀가 셔틀 & 주차 안내소 (오시는 길)',
+        shortName: '교통·주차안내',
+        npcName: '남서쪽 가든 파빌리온',
+        badge: 'SHUTTLE & PARKING',
+        x: 14,
+        y: 80,
+        color: '#84a98c',
+        description: '예식장 위치 및 무료 주차 등록, 전용 셔틀버스 안내를 확인합니다.',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-reception-to-garden',
+        targetMap: 'garden',
+        label: '🌿 웨딩 가든으로',
+        direction: 'west',
+        x: 15,
+        y: 49,
+        spawnX: 80,
+        spawnY: 51,
+      },
+    ],
+  },
+};
+
+export const GARDEN_MAP_ORDER: GardenMapId[] = [
+  'garden',
+  'chapel',
+  'memory',
+  'reception',
 ];
 
 export const DEFAULT_WEDDING_CONFIG: WeddingConfig = {
