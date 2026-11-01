@@ -17,6 +17,8 @@ export const PIXEL_ASSETS = {
   weddingChapelMap: `${PIXEL_ASSET_BASE}/wedding-chapel-map.jpg`,
   weddingMemoryMap: `${PIXEL_ASSET_BASE}/wedding-memory-map.jpg`,
   weddingReceptionMap: `${PIXEL_ASSET_BASE}/wedding-reception-map.jpg`,
+  joystickBase: `${PIXEL_ASSET_BASE}/joystick-base.png`,
+  joystickThumb: `${PIXEL_ASSET_BASE}/joystick-thumb.png`,
 };
 
 const guestAsset = (id: string) => ({
