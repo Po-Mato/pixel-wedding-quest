@@ -16,7 +16,7 @@ export const InGameVirtualJoystick: React.FC<InGameVirtualJoystickProps> = ({
   });
   const [isActive, setIsActive] = useState(false);
 
-  const MAX_TRAVEL = 26;
+  const MAX_TRAVEL = 23;
 
   const updateFromClientPoint = (clientX: number, clientY: number) => {
     const el = baseRef.current;
@@ -104,8 +104,8 @@ export const InGameVirtualJoystick: React.FC<InGameVirtualJoystickProps> = ({
       onLostPointerCapture={(e) => {
         resetJoystick(e.pointerId);
       }}
-      className={`relative w-[92px] h-[92px] sm:w-[100px] sm:h-[100px] select-none touch-none grid place-items-center cursor-grab active:cursor-grabbing transition-transform ${
-        isActive ? 'scale-[1.04]' : ' opacity-95 hover:opacity-100'
+      className={`relative w-[80px] h-[80px] sm:w-[86px] sm:h-[86px] select-none touch-none grid place-items-center cursor-grab active:cursor-grabbing transition-transform ${
+        isActive ? 'scale-[1.05]' : 'opacity-95 hover:opacity-100'
       }`}
       style={{
         filter: isActive
@@ -135,7 +135,7 @@ export const InGameVirtualJoystick: React.FC<InGameVirtualJoystickProps> = ({
           filter:
             'saturate(1.15) contrast(1.06) drop-shadow(0 2px 0 #743e52) drop-shadow(0 0 4px rgba(255, 248, 218, 0.92))',
         }}
-        className="relative z-10 w-[38px] h-[38px] sm:w-[42px] sm:h-[42px] object-contain pointer-events-none select-none pixelated transition-transform duration-40 ease-out"
+        className="relative z-10 w-[34px] h-[34px] sm:w-[36px] sm:h-[36px] object-contain pointer-events-none select-none pixelated transition-transform duration-40 ease-out"
       />
     </div>
   );

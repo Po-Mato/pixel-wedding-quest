@@ -506,19 +506,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const floatY = Math.sin(tick * 0.07 + lm.x) * 3.5;
       const badgeW = 30;
       const badgeH = 24;
-      const isJoystickCorner = lm.y >= 66 && lm.x < 32;
-      const isRightLowCorner = lm.y >= 74 && lm.x > 70;
-      const labelY = isJoystickCorner
-        ? y - 66
-        : isRightLowCorner
-        ? y - 38
-        : lm.y > 84
-        ? y - 34
-        : y + 26;
-      const badgeY =
-        isJoystickCorner || isRightLowCorner || lm.y > 84
-          ? labelY - 28 + floatY
-          : y - 56 + floatY;
+      const labelY = lm.y > 84 ? y - 34 : y + 26;
+      const badgeY = lm.y > 84 ? labelY - 28 + floatY : y - 56 + floatY;
 
       ctx.fillStyle = isVisited ? '#6b9071' : '#fffdf9';
       ctx.fillRect(x - badgeW / 2, badgeY, badgeW, badgeH);
@@ -1241,11 +1230,11 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         </div>
       </div>
 
-      {/* Interactive Pixel World Canvas Frame with In-Screen Virtual Joystick & HUD */}
+      {/* 1:1 Interactive Pixel World Canvas Frame (100% Unobstructed View) */}
       <div className="relative pixel-card overflow-hidden bg-[#bdd2b6]">
-        {/* Top In-Game HUD Bar: Map Title Pill (Left) + Compass Auto-Guide Button (Right) */}
-        <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between gap-2 pointer-events-none">
-          <div className="bg-[#fffdf9] border-2 border-[#d4b48c] px-3 py-1 rounded-full text-[11px] text-[#5c4d47] flex items-center gap-1.5 shadow-md min-w-0 truncate">
+        {/* Top Minimal Map Title Pill */}
+        <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between gap-2 pointer-events-none">
+          <div className="bg-[#fffdf9]/95 border border-[#d4b48c] px-3 py-1 rounded-full text-[11px] text-[#5c4d47] flex items-center gap-1.5 shadow-sm min-w-0 truncate">
             <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse shrink-0" />
             <strong className="text-[#3b2f2f] shrink-0">
               {activeMapConfig.icon} {activeMapConfig.tabLabel}
@@ -1254,23 +1243,11 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               · {activeMapConfig.subtitle}
             </span>
           </div>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleGuideNextSpot();
-            }}
-            title="다음 추천 코스 자동 산책"
-            className="pointer-events-auto w-9 h-9 rounded-full bg-[#fffdf9] hover:bg-white border-2 border-[#c59b6d] shadow-md flex items-center justify-center text-[#d97b84] active:scale-95 transition-transform shrink-0"
-          >
-            <Compass className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Story / Memory Toast Overlay when visiting special spots */}
-        {activeStoryToast && !nearbyLandmark && !nearbyPortal && (
-          <div className="absolute top-14 left-3 right-3 z-20 bg-[#fffdf9] border-2 border-[#d97b84] rounded-xl px-3.5 py-2.5 shadow-lg flex items-center justify-between gap-2 animate-fadeIn">
+        {activeStoryToast && (
+          <div className="absolute top-12 left-3 right-3 z-10 bg-[#fffdf9]/95 border-2 border-[#d97b84] rounded-xl px-3.5 py-2 shadow-md flex items-center justify-between gap-2 animate-fadeIn">
             <div className="min-w-0">
               <div className="text-[10px] font-sans font-bold text-[#d97b84] tracking-wider">
                 {activeStoryToast.badge} · {activeStoryToast.title}
@@ -1295,140 +1272,116 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             mapTransitionFade ? 'opacity-40' : 'opacity-100'
           }`}
         />
-
-        {/* IN-GAME BOTTOM CONTROL DOCK: Left = Wedding Compass Virtual Joystick, Right = Compact Context Action / Invitation Dock */}
-        <div
-          className="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex items-end justify-between gap-2 pointer-events-none"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Bottom-Left: On-Screen Wedding Compass Virtual Joystick */}
-          <div className="pointer-events-auto shrink-0">
-            <InGameVirtualJoystick onVectorChange={handleJoystickVectorChange} />
-          </div>
-
-          {/* Bottom-Right: Compact Contextual Portal / Landmark Action Pill OR Quick Action Dock */}
-          <div className="pointer-events-auto flex items-end justify-end shrink-0">
-            {nearbyPortal ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  travelToMap(
-                    nearbyPortal.targetMap,
-                    nearbyPortal.spawnX,
-                    nearbyPortal.spawnY
-                  );
-                }}
-                className="bg-[#3b2f2f] text-[#fffdf9] border-2 border-[#c59b6d] rounded-2xl px-3 py-2 flex items-center gap-2 shadow-lg active:scale-95 transition-transform font-sans"
-              >
-                <div className="text-left">
-                  <div className="text-[9px] text-[#e6d5b8] font-bold tracking-wider">
-                    다음 맵 이동
-                  </div>
-                  <div className="text-xs font-bold text-white">
-                    {nearbyPortal.label}
-                  </div>
-                </div>
-                <span className="px-2 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold">
-                  입장 ▶
-                </span>
-              </button>
-            ) : nearbyLandmark ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  activateLandmark(nearbyLandmark);
-                }}
-                className="bg-[#fffdf9] text-[#3b2f2f] border-2 border-[#d97b84] rounded-2xl px-3 py-2 flex items-center gap-2 shadow-lg active:scale-95 transition-transform font-sans"
-              >
-                <div className="text-left">
-                  <div className="text-[9px] text-[#c59b6d] font-bold tracking-wider">
-                    가까운 장소
-                  </div>
-                  <div className="text-xs font-bold text-[#3b2f2f]">
-                    {nearbyLandmark.shortName}
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold">
-                  {nearbyLandmark.questId ? '열기 ▶' : '감상 ✨'}
-                </span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-1.5 font-sans">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleGuideNextSpot();
-                  }}
-                  className="px-3 py-2 rounded-2xl bg-[#fffdf9] hover:bg-white border-2 border-[#c59b6d] text-[#3b2f2f] text-[11px] font-bold shadow-lg flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
-                >
-                  <Compass className="w-4 h-4 text-[#d97b84]" />
-                  <span>추천코스</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    soundEngine.playSelect();
-                    onOpenQuest('story');
-                  }}
-                  className="px-3.5 py-2 rounded-2xl bg-[#fffdf9] hover:bg-white border-2 border-[#d97b84] text-[#b85d67] text-[11px] font-bold shadow-lg flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
-                >
-                  <BookOpen className="w-4 h-4 text-[#d97b84]" />
-                  <span>초대장</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
-      {/* Live Guest Emoji Blessing Bar */}
-      <div className="pixel-card px-3 py-2 bg-[#fffdf9] flex items-center justify-between gap-2 font-sans">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[11px] font-bold text-[#5c4d47] shrink-0">
-            🎉 실시간 축복 보내기
-          </span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#fcf0f1] text-[#b85d67] border border-[#e2a3a9] font-bold">
-            ♥ {blessingCount}
-          </span>
+      {/* BOTTOM STICKY CONSOLE BAR: Immediately below 1:1 Canvas + Sticky at Viewport Bottom */}
+      <div className="sticky bottom-2 z-30 pixel-card bg-[#fffdf9] border-2 border-[#c59b6d] px-3.5 py-2.5 shadow-lg rounded-2xl flex items-center justify-between gap-3">
+        {/* Left: Wedding Compass Virtual Joystick */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <InGameVirtualJoystick onVectorChange={handleJoystickVectorChange} />
         </div>
 
-        <div className="flex items-center gap-1">
-          {REACTION_EMOJIS.map((item) => (
+        {/* Right: Live Emoji Reactions + Contextual Portal/Landmark Action Dock */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between gap-2 font-sans">
+          {/* Upper Row: Live Blessing Emoji Reactions */}
+          <div className="flex items-center justify-between gap-1 bg-[#faf5ec] px-2.5 py-1 rounded-full border border-[#e6d5b8]">
+            <span className="text-[10px] font-bold text-[#b85d67] shrink-0">
+              축복 ♥ {blessingCount}
+            </span>
+            <div className="flex items-center gap-1">
+              {REACTION_EMOJIS.map((item) => (
+                <button
+                  key={item.emoji}
+                  type="button"
+                  onClick={() => spawnFloatingReaction(item.emoji)}
+                  title={`${item.label} 축복 보내기`}
+                  className="w-6 h-6 rounded-full bg-[#fffdf9] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] flex items-center justify-center text-xs transition-transform"
+                >
+                  {item.emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lower Row: Contextual Portal / Landmark Prompt OR Recommended Course & Invitation */}
+          {nearbyPortal ? (
             <button
-              key={item.emoji}
               type="button"
-              onClick={() => spawnFloatingReaction(item.emoji)}
-              title={`${item.label} 축복 보내기`}
-              className="px-2 py-1 rounded-full bg-[#faf5ec] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] hover:border-[#d97b84] text-xs flex items-center gap-0.5 transition-all"
+              onClick={() =>
+                travelToMap(
+                  nearbyPortal.targetMap,
+                  nearbyPortal.spawnX,
+                  nearbyPortal.spawnY
+                )
+              }
+              className="w-full bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] border border-[#c59b6d] rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
             >
-              <span>{item.emoji}</span>
-              <span className="text-[10px] text-[#5c4d47] font-semibold hidden sm:inline">
-                {item.label}
+              <div className="min-w-0 text-left">
+                <div className="text-[9px] text-[#e6d5b8] font-bold tracking-wider">
+                  PORTAL · 다음 맵 이동
+                </div>
+                <div className="text-xs font-bold text-white truncate">
+                  {nearbyPortal.label}
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold shrink-0">
+                입장하기 ▶
               </span>
             </button>
-          ))}
+          ) : nearbyLandmark ? (
+            <button
+              type="button"
+              onClick={() => activateLandmark(nearbyLandmark)}
+              className="w-full bg-[#fcf0f1] hover:bg-[#f9dfe2] text-[#3b2f2f] border border-[#d97b84] rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
+            >
+              <div className="min-w-0 text-left">
+                <div className="text-[9px] text-[#b85d67] font-bold tracking-wider truncate">
+                  {nearbyLandmark.badge} · {nearbyLandmark.npcName}
+                </div>
+                <div className="text-xs font-bold text-[#3b2f2f] truncate">
+                  {nearbyLandmark.name}
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold shrink-0">
+                {nearbyLandmark.questId ? '열어보기 ▶' : '감상하기 ✨'}
+              </span>
+            </button>
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={handleGuideNextSpot}
+                className="py-2 px-2.5 rounded-xl bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#3b2f2f] text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
+              >
+                <Compass className="w-3.5 h-3.5 text-[#d97b84] shrink-0" />
+                <span className="truncate">추천코스</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playSelect();
+                  onOpenQuest('story');
+                }}
+                className="py-2 px-2.5 rounded-xl bg-[#d97b84] hover:bg-[#c56871] border border-[#b85d67] text-white text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform shadow-xs"
+              >
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">초대장 열기</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Current Map Landmarks & Connected Portals Quick Menu */}
-      <div className="pixel-card p-3 bg-[#fffdf9] space-y-2.5">
+      {/* Compact Quick-Jump Spot Chips (Current Map Landmarks & Portals) */}
+      <div className="pixel-card px-3 py-2.5 bg-[#fffdf9] space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[#5c4d47] font-bold">
-            {activeMapConfig.icon} [{activeMapConfig.tabLabel}] 주요 스팟 바로가기
+          <span className="text-[11px] text-[#5c4d47] font-bold">
+            {activeMapConfig.icon} [{activeMapConfig.tabLabel}] 스팟 바로가기
           </span>
-          <button
-            type="button"
-            onClick={handleGuideNextSpot}
-            className="text-[11px] text-[#b85d67] hover:text-[#d97b84] font-sans font-bold flex items-center gap-1"
-          >
-            <Compass className="w-3.5 h-3.5" />
-            <span>🧭 다음 추천 코스 자동 산책</span>
-          </button>
+          <span className="text-[10px] text-[#8c7a70] font-sans">
+            터치 시 자동 길찾기 산책
+          </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
@@ -1440,7 +1393,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               <button
                 key={lm.id}
                 onClick={() => walkToLandmark(lm)}
-                className={`px-2.5 py-2 rounded-md border text-[11px] font-medium flex items-center gap-1.5 transition-all text-left ${
+                className={`px-2.5 py-1.5 rounded-md border text-[11px] font-medium flex items-center gap-1.5 transition-all text-left ${
                   done
                     ? 'bg-[#edf3ee] text-[#4d6b53] border-[#a3bfa8]'
                     : 'bg-[#faf5ec] text-[#4a3b32] border-[#e2d4c0] hover:border-[#c59b6d]'
@@ -1458,7 +1411,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             <button
               key={p.id}
               onClick={() => walkToPortal(p)}
-              className="px-2.5 py-2 rounded-md border border-[#d97b84] bg-[#fcf3f3] hover:bg-[#f9e5e7] text-[#3b2f2f] text-[11px] font-sans font-bold flex items-center justify-between gap-1 transition-all"
+              className="px-2.5 py-1.5 rounded-md border border-[#d97b84] bg-[#fcf3f3] hover:bg-[#f9e5e7] text-[#3b2f2f] text-[11px] font-sans font-bold flex items-center justify-between gap-1 transition-all"
             >
               <span className="truncate">{p.label}</span>
               <span className="text-[#d97b84] shrink-0">이동 ▶</span>
