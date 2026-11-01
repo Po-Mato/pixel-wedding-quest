@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { Camera, Compass, BookOpen } from 'lucide-react';
+import { Camera, Compass, BookOpen, Sparkles, MessageCircle, X } from 'lucide-react';
 import {
   GARDEN_MAPS,
   GARDEN_MAP_ORDER,
@@ -12,11 +12,27 @@ import {
   GuestbookEntry,
   AvatarClassId,
 } from '../data/weddingConfig';
+import {
+  WORLD_SECRET_PROPS,
+  SECRET_AURA_REWARDS,
+  SecretPropItem,
+  SecretRewardId,
+  NPC_DIALOGUE_CHOICES,
+  ActiveNpcTarget,
+  NpcChoiceId,
+  getAffinityStageLabel,
+  resolveNpcAffinityReply,
+  ZONE_MINI_QUESTS,
+  ZoneMiniQuestItem,
+} from '../data/worldExtras';
 import { PIXEL_ASSETS, GUEST_SPRITES } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
 import {
+  TILE_GRID_SIZE,
+  TileCoord,
+  worldToTile,
   findWalkablePath,
-  resolveObstacleCollision,
+  getNextStepTile,
 } from '../utils/worldNavigation';
 import { PhotoBoothModal } from './sections/PhotoBoothModal';
 import { InGameVirtualJoystick } from './InGameVirtualJoystick';
@@ -73,6 +89,10 @@ const REACTION_EMOJIS = [
   { emoji: '✨', label: '축복' },
 ];
 
+const STORAGE_SECRETS_KEY = 'pixel_wedding_quest_secrets_v1';
+const STORAGE_AURA_KEY = 'pixel_wedding_quest_aura_v1';
+const STORAGE_AFFINITY_KEY = 'pixel_wedding_quest_affinity_v1';
+
 export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   config,
   visitedQuests,
@@ -93,6 +113,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const [visitedMemories, setVisitedMemories] = useState<Record<string, boolean>>({});
   const [mapTransitionFade, setMapTransitionFade] = useState<boolean>(false);
   const [showPhotoBooth, setShowPhotoBooth] = useState<boolean>(false);
+  const [showSecretBook, setShowSecretBook] = useState<boolean>(false);
   const [blessingCount, setBlessingCount] = useState<number>(128);
   const [activeStoryToast, setActiveStoryToast] = useState<{
     badge: string;
@@ -100,25 +121,101 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     text: string;
   } | null>(null);
 
-  // Couple position, A* path queue & directional state
-  const posRef = useRef<{ x: number; y: number }>({ x: 50, y: 72 });
-  const pathQueueRef = useRef<{ x: number; y: number }[]>([]);
+  // Secret Props Collection & Equipped Aura State
+  const [discoveredSecrets, setDiscoveredSecrets] = useState<Record<string, boolean>>(
+    () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_SECRETS_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch {
+        // ignore
+      }
+      return {};
+    }
+  );
+  const discoveredSecretsRef = useRef<Record<string, boolean>>(discoveredSecrets);
+  useEffect(() => {
+    discoveredSecretsRef.current = discoveredSecrets;
+    try {
+      localStorage.setItem(STORAGE_SECRETS_KEY, JSON.stringify(discoveredSecrets));
+    } catch {
+      // ignore
+    }
+  }, [discoveredSecrets]);
+
+  const [equippedAura, setEquippedAura] = useState<SecretRewardId>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_AURA_KEY) as SecretRewardId | null;
+      if (saved) return saved;
+    } catch {
+      // ignore
+    }
+    return 'none';
+  });
+  const equippedAuraRef = useRef<SecretRewardId>(equippedAura);
+  useEffect(() => {
+    equippedAuraRef.current = equippedAura;
+    try {
+      localStorage.setItem(STORAGE_AURA_KEY, equippedAura);
+    } catch {
+      // ignore
+    }
+  }, [equippedAura]);
+
+  // NPC & Pet Cat '모찌' Dialogue & Affinity State
+  const [npcAffinities, setNpcAffinities] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_AFFINITY_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return {};
+  });
+  const [talkedToAnyNpc, setTalkedToAnyNpc] = useState<boolean>(false);
+  const [activeDialogueNpc, setActiveDialogueNpc] = useState<ActiveNpcTarget | null>(
+    null
+  );
+  const [dialogueReplyText, setDialogueReplyText] = useState<string>('');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_AFFINITY_KEY, JSON.stringify(npcAffinities));
+    } catch {
+      // ignore
+    }
+  }, [npcAffinities]);
+
+  // Couple Tile-Grid Position & A* Tile Queue State
+  const initialSpawnTile = worldToTile(50, 72);
+  const posRef = useRef<{ x: number; y: number }>({
+    x: initialSpawnTile.x,
+    y: initialSpawnTile.y,
+  });
+  const currentTileRef = useRef<TileCoord>(initialSpawnTile);
+  const pathQueueRef = useRef<TileCoord[]>([]);
   const facingDirRef = useRef<1 | -1>(1);
   const pendingLandmarkRef = useRef<MapLandmark | null>(null);
   const pendingPortalRef = useRef<MapPortal | null>(null);
+  const pendingSecretRef = useRef<SecretPropItem | null>(null);
   const portalCooldownRef = useRef<number>(0);
 
   const trailRef = useRef<TrailPoint[]>(
-    Array.from({ length: 28 }, () => ({ x: 50, y: 72 }))
+    Array.from({ length: 28 }, () => ({
+      x: initialSpawnTile.x,
+      y: initialSpawnTile.y,
+    }))
   );
   const footstepsRef = useRef<FootstepPuff[]>([]);
   const reactionsRef = useRef<FloatingReaction[]>([]);
+  const liveNpcsRef = useRef<ActiveNpcTarget[]>([]);
   const keysRef = useRef<Record<string, boolean>>({});
   const dpadDirRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const stepSoundCooldownRef = useRef<number>(0);
 
   const [nearbyLandmark, setNearbyLandmark] = useState<MapLandmark | null>(null);
   const [nearbyPortal, setNearbyPortal] = useState<MapPortal | null>(null);
+  const [nearbySecret, setNearbySecret] = useState<SecretPropItem | null>(null);
   const [npcBubbleIndex, setNpcBubbleIndex] = useState<number>(0);
 
   // Preload all 4 Map Backgrounds + Chibi Character Sprites
@@ -158,39 +255,42 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   }, []);
 
   // Spawn floating emoji reactions on the canvas
-  const spawnFloatingReaction = useCallback((emoji: string, fromBroadcast = false) => {
-    if (!fromBroadcast) {
-      soundEngine.playCoin();
-    }
-    setBlessingCount((c) => c + 1);
-
-    const basePx = posRef.current.x;
-    const basePy = posRef.current.y;
-    for (let i = 0; i < 4; i++) {
-      reactionsRef.current.push({
-        id: Date.now() + Math.random(),
-        emoji,
-        x: basePx + (Math.random() - 0.5) * 28,
-        y: basePy - 8 - i * 3,
-        vx: (Math.random() - 0.5) * 0.22,
-        vy: -0.42 - Math.random() * 0.25,
-        alpha: 1,
-        scale: 0.95 + Math.random() * 0.35,
-      });
-    }
-
-    if (!fromBroadcast) {
-      try {
-        if (typeof BroadcastChannel !== 'undefined') {
-          const bc = new BroadcastChannel('pixel_wedding_quest_live_channel');
-          bc.postMessage({ type: 'EMOJI_REACTION', emoji });
-          bc.close();
-        }
-      } catch {
-        // ignore
+  const spawnFloatingReaction = useCallback(
+    (emoji: string, fromBroadcast = false, customOrigin?: { x: number; y: number }) => {
+      if (!fromBroadcast) {
+        soundEngine.playCoin();
       }
-    }
-  }, []);
+      setBlessingCount((c) => c + 1);
+
+      const basePx = customOrigin?.x ?? posRef.current.x;
+      const basePy = customOrigin?.y ?? posRef.current.y;
+      for (let i = 0; i < 4; i++) {
+        reactionsRef.current.push({
+          id: Date.now() + Math.random(),
+          emoji,
+          x: basePx + (Math.random() - 0.5) * 24,
+          y: basePy - 8 - i * 3,
+          vx: (Math.random() - 0.5) * 0.22,
+          vy: -0.42 - Math.random() * 0.25,
+          alpha: 1,
+          scale: 0.95 + Math.random() * 0.35,
+        });
+      }
+
+      if (!fromBroadcast) {
+        try {
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('pixel_wedding_quest_live_channel');
+            bc.postMessage({ type: 'EMOJI_REACTION', emoji });
+            bc.close();
+          }
+        } catch {
+          // ignore
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return;
@@ -214,12 +314,58 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     };
   }, [spawnFloatingReaction]);
 
-  // Switch map helper (used by both portals and the top World Map Tab Bar)
+  // Discover a Sparkling Secret Prop & Auto-Equip Unlocked Aura
+  const activateSecretProp = useCallback(
+    (prop: SecretPropItem) => {
+      soundEngine.playFanfare();
+      setActiveStoryToast({
+        badge: `SECRET DISCOVERED · ${prop.icon}`,
+        title: prop.title,
+        text: prop.storyText,
+      });
+
+      setDiscoveredSecrets((prev) => {
+        const isNew = !prev[prop.id];
+        const next = { ...prev, [prop.id]: true };
+        const count = Object.keys(next).length;
+
+        if (isNew) {
+          if (count === 1 && equippedAuraRef.current === 'none') {
+            setEquippedAura('petal_aura');
+          } else if (count === 3) {
+            setEquippedAura('lantern_aura');
+          } else if (count >= 5) {
+            setEquippedAura('wedding_crown');
+          }
+          if (onUnlockTitle) {
+            onUnlockTitle(
+              count >= 5 ? '👑 로얄 가든 아키비스트' : '🔍 웨딩 비밀 탐험가'
+            );
+          }
+          try {
+            confetti({
+              particleCount: 40,
+              spread: 65,
+              origin: { y: 0.6 },
+              colors: ['#e899a0', '#d4af7a', '#fffdf9'],
+            });
+          } catch {
+            // ignore
+          }
+        }
+        return next;
+      });
+    },
+    [onUnlockTitle]
+  );
+
+  // Switch map helper (snaps spawn to tile grid)
   const travelToMap = useCallback(
     (targetMap: GardenMapId, spawnX?: number, spawnY?: number) => {
       const destConfig = GARDEN_MAPS[targetMap];
       const sx = spawnX ?? destConfig.defaultSpawn.x;
       const sy = spawnY ?? destConfig.defaultSpawn.y;
+      const snapped = worldToTile(sx, sy);
 
       soundEngine.playSelect();
       setMapTransitionFade(true);
@@ -230,16 +376,23 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       currentMapRef.current = targetMap;
       setCurrentMapId(targetMap);
       setVisitedMaps((prev) => ({ ...prev, [targetMap]: true }));
-      posRef.current = { x: sx, y: sy };
-      trailRef.current = Array.from({ length: 28 }, () => ({ x: sx, y: sy }));
+      posRef.current = { x: snapped.x, y: snapped.y };
+      currentTileRef.current = snapped;
+      trailRef.current = Array.from({ length: 28 }, () => ({
+        x: snapped.x,
+        y: snapped.y,
+      }));
       pathQueueRef.current = [];
       footstepsRef.current = [];
       pendingLandmarkRef.current = null;
       pendingPortalRef.current = null;
+      pendingSecretRef.current = null;
       portalCooldownRef.current = 45;
       setNearbyLandmark(null);
       setNearbyPortal(null);
+      setNearbySecret(null);
       setActiveStoryToast(null);
+      setActiveDialogueNpc(null);
     },
     []
   );
@@ -259,30 +412,25 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         if (
           landmark.specialAction === 'memory_spring' ||
           landmark.specialAction === 'memory_autumn' ||
-          landmark.specialAction === 'memory_winter'
+          landmark.specialAction === 'memory_winter' ||
+          landmark.specialAction === 'piano_melody' ||
+          landmark.specialAction === 'virgin_road' ||
+          landmark.specialAction === 'cake_toast'
         ) {
-          soundEngine.playCoin();
           setVisitedMemories((prev) => {
             const next = { ...prev, [landmark.id]: true };
             const count = Object.keys(next).length;
             if (count >= 3 && onUnlockTitle) {
               onUnlockTitle('🎗️ 사계절의 증인');
-              try {
-                confetti({
-                  particleCount: 45,
-                  spread: 65,
-                  origin: { y: 0.6 },
-                  colors: ['#e899a0', '#d4af7a', '#84a98c'],
-                });
-              } catch {
-                // ignore
-              }
             }
             return next;
           });
-        } else if (
+        }
+
+        if (
           landmark.specialAction === 'virgin_road' ||
-          landmark.specialAction === 'cake_toast'
+          landmark.specialAction === 'cake_toast' ||
+          landmark.specialAction === 'piano_melody'
         ) {
           soundEngine.playFanfare();
           if (onUnlockTitle && landmark.specialAction === 'cake_toast') {
@@ -290,16 +438,16 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           }
           try {
             confetti({
-              particleCount: 50,
-              spread: 70,
+              particleCount: 45,
+              spread: 68,
               origin: { y: 0.58 },
               colors: ['#e899a0', '#d4af7a', '#fffdf9'],
             });
           } catch {
             // ignore
           }
-        } else if (landmark.specialAction === 'piano_melody') {
-          soundEngine.playFanfare();
+        } else {
+          soundEngine.playCoin();
         }
       }
 
@@ -328,6 +476,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         if (nearbyPortal) {
           e.preventDefault();
           travelToMap(nearbyPortal.targetMap, nearbyPortal.spawnX, nearbyPortal.spawnY);
+        } else if (nearbySecret && !discoveredSecretsRef.current[nearbySecret.id]) {
+          e.preventDefault();
+          activateSecretProp(nearbySecret);
         } else if (nearbyLandmark) {
           e.preventDefault();
           activateLandmark(nearbyLandmark);
@@ -343,7 +494,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [nearbyLandmark, nearbyPortal, activateLandmark, travelToMap]);
+  }, [
+    nearbyLandmark,
+    nearbyPortal,
+    nearbySecret,
+    activateLandmark,
+    activateSecretProp,
+    travelToMap,
+  ]);
 
   const walkToLandmark = useCallback((lm: MapLandmark) => {
     soundEngine.playBlip(700);
@@ -358,6 +516,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     );
     pendingLandmarkRef.current = lm;
     pendingPortalRef.current = null;
+    pendingSecretRef.current = null;
   }, []);
 
   const walkToPortal = useCallback((portal: MapPortal) => {
@@ -371,7 +530,56 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     );
     pendingPortalRef.current = portal;
     pendingLandmarkRef.current = null;
+    pendingSecretRef.current = null;
   }, []);
+
+  const walkToSecretProp = useCallback((prop: SecretPropItem) => {
+    soundEngine.playBlip(740);
+    pathQueueRef.current = findWalkablePath(
+      posRef.current.x,
+      posRef.current.y,
+      prop.x,
+      prop.y,
+      currentMapRef.current
+    );
+    pendingSecretRef.current = prop;
+    pendingLandmarkRef.current = null;
+    pendingPortalRef.current = null;
+  }, []);
+
+  // Open 3-Choice Dialogue Modal with a Guest NPC or Pet Cat '모찌'
+  const openNpcDialogue = useCallback((npc: ActiveNpcTarget) => {
+    soundEngine.playSelect();
+    setActiveDialogueNpc(npc);
+    setDialogueReplyText(`“${npc.initialMessage}”`);
+    setTalkedToAnyNpc(true);
+  }, []);
+
+  const handleSelectDialogueChoice = (choiceId: NpcChoiceId) => {
+    if (!activeDialogueNpc) return;
+    const choiceMeta =
+      NPC_DIALOGUE_CHOICES.find((c) => c.id === choiceId) || NPC_DIALOGUE_CHOICES[0];
+
+    const currentPts = npcAffinities[activeDialogueNpc.id] || 0;
+    const nextPts = Math.min(3, currentPts + 1);
+    setNpcAffinities((prev) => ({
+      ...prev,
+      [activeDialogueNpc.id]: nextPts,
+    }));
+    setTalkedToAnyNpc(true);
+
+    const reply = resolveNpcAffinityReply(activeDialogueNpc, choiceId, nextPts);
+    setDialogueReplyText(reply);
+
+    spawnFloatingReaction(choiceMeta.emoji, false, {
+      x: activeDialogueNpc.x,
+      y: activeDialogueNpc.y,
+    });
+
+    if (nextPts >= 3 && onUnlockTitle) {
+      onUnlockTitle('💬 하객들의 인기스타');
+    }
+  };
 
   // Smart "Next Recommended Course" Auto-Guide Button
   const handleGuideNextSpot = useCallback(() => {
@@ -386,7 +594,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       return;
     }
 
-    // Otherwise guide to a portal whose target map wasn't visited yet, or the first landmark
+    const undiscoveredProp = WORLD_SECRET_PROPS.find(
+      (s) => s.mapId === currentMapRef.current && !discoveredSecretsRef.current[s.id]
+    );
+    if (undiscoveredProp) {
+      walkToSecretProp(undiscoveredProp);
+      return;
+    }
+
     const unvisitedPortal =
       mapConfig.portals.find((p) => !visitedMaps[p.targetMap]) || mapConfig.portals[0];
     if (unvisitedPortal) {
@@ -394,7 +609,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     } else if (mapConfig.landmarks[0]) {
       walkToLandmark(mapConfig.landmarks[0]);
     }
-  }, [visitedQuests, visitedMemories, visitedMaps, walkToLandmark, walkToPortal]);
+  }, [
+    visitedQuests,
+    visitedMemories,
+    visitedMaps,
+    walkToLandmark,
+    walkToPortal,
+    walkToSecretProp,
+  ]);
 
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -405,7 +627,35 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
     const mapConfig = GARDEN_MAPS[currentMapRef.current];
 
-    // 1. Check if user tapped a Portal Gate
+    // 1. Check if user tapped a Secret Prop on this map
+    const tappedSecret = WORLD_SECRET_PROPS.find(
+      (s) =>
+        s.mapId === currentMapRef.current &&
+        Math.hypot(clickX - s.x, clickY - s.y) < 8.5
+    );
+    if (tappedSecret) {
+      const distFromPlayer = Math.hypot(
+        posRef.current.x - tappedSecret.x,
+        posRef.current.y - tappedSecret.y
+      );
+      if (distFromPlayer < 15) {
+        activateSecretProp(tappedSecret);
+      } else {
+        walkToSecretProp(tappedSecret);
+      }
+      return;
+    }
+
+    // 2. Check if user tapped a Guest NPC or Pet Cat '모찌'
+    const tappedNpc = liveNpcsRef.current.find(
+      (npc) => Math.hypot(clickX - npc.x, clickY - (npc.y - 4)) < 8.5
+    );
+    if (tappedNpc) {
+      openNpcDialogue(tappedNpc);
+      return;
+    }
+
+    // 3. Check if user tapped a Portal Gate
     const tappedPortal = mapConfig.portals.find((p) => {
       const dist = Math.hypot(clickX - p.x, clickY - p.y);
       return dist < 11.5;
@@ -423,7 +673,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       return;
     }
 
-    // 2. Check if user tapped a Landmark
+    // 4. Check if user tapped a Landmark
     const tappedLandmark = mapConfig.landmarks.find((lm) => {
       const dist = Math.hypot(clickX - lm.x, clickY - lm.y);
       return dist < 13.5;
@@ -450,6 +700,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       );
       pendingLandmarkRef.current = null;
       pendingPortalRef.current = null;
+      pendingSecretRef.current = null;
     }
   };
 
@@ -464,6 +715,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     canvas.width = W;
     canvas.height = H;
     ctx.imageSmoothingEnabled = false;
+
+    const TILE_PX_W = ((92 - 8) / (TILE_GRID_SIZE - 1) / 100) * W;
+    const TILE_PX_H = ((93 - 14) / (TILE_GRID_SIZE - 1) / 100) * H;
 
     const particles: Particle[] = Array.from({ length: 34 }, (_, i) => ({
       x: Math.random() * W,
@@ -579,6 +833,50 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       ctx.fillText(text, clampedX, pillY + 18);
     };
 
+    const drawSecretProp = (
+      prop: SecretPropItem,
+      isFound: boolean,
+      isNear: boolean
+    ) => {
+      const sx = Math.round((prop.x / 100) * W);
+      const sy = Math.round((prop.y / 100) * H);
+      const bob = Math.sin(tick * 0.09 + prop.x) * 3;
+
+      ctx.save();
+      // Glowing mystery aura circle on ground
+      ctx.fillStyle = isFound
+        ? 'rgba(107, 144, 113, 0.25)'
+        : 'rgba(255, 232, 163, 0.45)';
+      ctx.beginPath();
+      ctx.arc(sx, sy + 4, isNear ? 24 : 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = isFound ? '#6b9071' : '#d4af37';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy + 4, (isNear ? 24 : 18) + Math.sin(tick * 0.12) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Floating Prop Pill
+      ctx.fillStyle = isFound ? '#edf3ee' : '#fffdf9';
+      ctx.fillRect(sx - 18, sy - 18 + bob, 36, 28);
+      ctx.strokeStyle = isFound ? '#6b9071' : '#d4af37';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx - 18, sy - 18 + bob, 36, 28);
+
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(prop.icon, sx, sy + 2 + bob);
+
+      // Sparkle star above undiscovered prop
+      if (!isFound) {
+        ctx.fillStyle = tick % 24 < 12 ? '#d97b84' : '#d4af37';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText('✦', sx + 16, sy - 18 + bob);
+      }
+      ctx.restore();
+    };
+
     const render = () => {
       tick++;
       if (portalCooldownRef.current > 0) {
@@ -588,7 +886,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const activeMapId = currentMapRef.current;
       const mapConfig = GARDEN_MAPS[activeMapId];
 
-      // 1. Update Movement (D-Pad / Analog Joystick / Keyboard / A* Path Queue)
+      // 1. Update Smooth Tile-Grid Movement!
       let dx = dpadDirRef.current.dx;
       let dy = dpadDirRef.current.dy;
 
@@ -597,53 +895,107 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       if (keysRef.current['ArrowUp'] || keysRef.current['w'] || keysRef.current['W']) dy -= 1;
       if (keysRef.current['ArrowDown'] || keysRef.current['s'] || keysRef.current['S']) dy += 1;
 
-      const speed = 0.52;
+      const tileStepSpeed = 0.48; // Smooth interpolation speed from tile center to tile center
       let isMoving = false;
-      const prevX = posRef.current.x;
-      const prevY = posRef.current.y;
 
-      if (dx !== 0 || dy !== 0) {
-        pathQueueRef.current = [];
+      // If user is pushing joystick/keyboard, queue the next single tile step whenever current step finishes
+      if (Math.hypot(dx, dy) > 0.14) {
         pendingLandmarkRef.current = null;
         pendingPortalRef.current = null;
-        const len = Math.max(1, Math.hypot(dx, dy));
-        const nextX = prevX + (dx / len) * speed;
-        const nextY = prevY + (dy / len) * speed;
-        posRef.current = resolveObstacleCollision(
-          prevX,
-          prevY,
-          nextX,
-          nextY,
-          activeMapId
-        );
-        if (Math.abs(dx) > 0.08) {
-          facingDirRef.current = dx < 0 ? -1 : 1;
+        pendingSecretRef.current = null;
+
+        if (pathQueueRef.current.length > 1) {
+          pathQueueRef.current = [pathQueueRef.current[0]];
         }
-        isMoving = true;
-      } else if (pathQueueRef.current.length > 0) {
-        const nextWaypoint = pathQueueRef.current[0];
+
+        if (pathQueueRef.current.length === 0) {
+          const currTile = worldToTile(posRef.current.x, posRef.current.y);
+          const nextTile = getNextStepTile(
+            currTile.col,
+            currTile.row,
+            dx,
+            dy,
+            activeMapId
+          );
+          if (nextTile) {
+            pathQueueRef.current = [nextTile];
+          }
+        }
+      }
+
+      // Advance smoothly along the queued tile steps
+      if (pathQueueRef.current.length > 0) {
+        const targetTile = pathQueueRef.current[0];
         const dist = Math.hypot(
-          nextWaypoint.x - posRef.current.x,
-          nextWaypoint.y - posRef.current.y
+          targetTile.x - posRef.current.x,
+          targetTile.y - posRef.current.y
         );
-        if (dist > 1.25) {
-          const stepX = ((nextWaypoint.x - posRef.current.x) / dist) * (speed * 1.28);
-          const stepY = ((nextWaypoint.y - posRef.current.y) / dist) * (speed * 1.28);
+
+        if (dist > tileStepSpeed) {
+          const stepX = ((targetTile.x - posRef.current.x) / dist) * tileStepSpeed;
+          const stepY = ((targetTile.y - posRef.current.y) / dist) * tileStepSpeed;
           posRef.current = {
             x: posRef.current.x + stepX,
             y: posRef.current.y + stepY,
           };
-          if (Math.abs(stepX) > 0.04) {
+          if (Math.abs(stepX) > 0.03) {
             facingDirRef.current = stepX < 0 ? -1 : 1;
           }
           isMoving = true;
         } else {
+          // Arrived cleanly at the exact center of targetTile!
+          posRef.current = { x: targetTile.x, y: targetTile.y };
+          currentTileRef.current = targetTile;
           pathQueueRef.current.shift();
+          isMoving = pathQueueRef.current.length > 0;
+
+          // Synchronized tile-step footfall sound & petal/dust puff
+          if (tick - stepSoundCooldownRef.current > 8) {
+            soundEngine.playStep();
+            stepSoundCooldownRef.current = tick;
+          }
+
+          const puffColor =
+            activeMapId === 'reception'
+              ? '#ffe8a3'
+              : activeMapId === 'chapel'
+              ? '#fff6dc'
+              : '#ffd6e0';
+          footstepsRef.current.push({
+            x: (targetTile.x / 100) * W,
+            y: (targetTile.y / 100) * H + 2,
+            vx: (Math.random() - 0.5) * 0.35,
+            vy: -0.22,
+            alpha: 0.85,
+            size: 5,
+            color: puffColor,
+          });
+
+          // If user is still holding joystick/keys, immediately chain the next tile step for zero-pause smooth grid walking!
+          if (pathQueueRef.current.length === 0 && Math.hypot(dx, dy) > 0.14) {
+            const chained = getNextStepTile(
+              targetTile.col,
+              targetTile.row,
+              dx,
+              dy,
+              activeMapId
+            );
+            if (chained) {
+              pathQueueRef.current.push(chained);
+              isMoving = true;
+            }
+          }
+
+          // If final destination tile reached, trigger pending portal / secret / landmark
           if (pathQueueRef.current.length === 0) {
             if (pendingPortalRef.current) {
               const p = pendingPortalRef.current;
               pendingPortalRef.current = null;
               travelToMap(p.targetMap, p.spawnX, p.spawnY);
+            } else if (pendingSecretRef.current) {
+              const s = pendingSecretRef.current;
+              pendingSecretRef.current = null;
+              activateSecretProp(s);
             } else if (pendingLandmarkRef.current) {
               const lm = pendingLandmarkRef.current;
               pendingLandmarkRef.current = null;
@@ -656,30 +1008,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       if (isMoving) {
         trailRef.current.unshift({ x: posRef.current.x, y: posRef.current.y });
         if (trailRef.current.length > 28) trailRef.current.pop();
-
-        // Spawn delicate footstep surface puffs every few ticks
-        if (tick % 6 === 0) {
-          const puffColor =
-            activeMapId === 'reception'
-              ? '#ffe8a3'
-              : activeMapId === 'chapel'
-              ? '#fff6dc'
-              : '#ffd6e0';
-          footstepsRef.current.push({
-            x: (posRef.current.x / 100) * W + (Math.random() - 0.5) * 18,
-            y: (posRef.current.y / 100) * H + 2,
-            vx: (Math.random() - 0.5) * 0.4,
-            vy: -0.25 - Math.random() * 0.2,
-            alpha: 0.85,
-            size: 5,
-            color: puffColor,
-          });
-        }
-
-        if (tick - stepSoundCooldownRef.current > 15) {
-          soundEngine.playStep();
-          stepSoundCooldownRef.current = tick;
-        }
+      } else {
+        currentTileRef.current = worldToTile(posRef.current.x, posRef.current.y);
       }
 
       // Check proximity to Portals
@@ -698,7 +1028,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         closestPortal &&
         minPortalDist < 5.2 &&
         portalCooldownRef.current === 0 &&
-        (dx !== 0 || dy !== 0)
+        Math.hypot(dx, dy) > 0.14
       ) {
         travelToMap(
           closestPortal.targetMap,
@@ -706,6 +1036,19 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           closestPortal.spawnY
         );
       }
+
+      // Check proximity to Secret Props on current map
+      let closestSecret: SecretPropItem | null = null;
+      let minSecretDist = 11.5;
+      for (const s of WORLD_SECRET_PROPS) {
+        if (s.mapId !== activeMapId) continue;
+        const d = Math.hypot(posRef.current.x - s.x, posRef.current.y - s.y);
+        if (d < minSecretDist) {
+          minSecretDist = d;
+          closestSecret = s;
+        }
+      }
+      setNearbySecret((prev) => (prev?.id !== closestSecret?.id ? closestSecret : prev));
 
       // Check proximity to Landmarks
       let closestLandmark: MapLandmark | null = null;
@@ -740,32 +1083,69 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.fillRect(0, 0, W, H);
       }
 
-      // 3. Draw A* Dotted Path Preview & Destination Ripple Marker
+      // 3. Draw Tile-Grid Stepping Stones (`▢ → ▢ → ▢`) & Current Standing Tile Highlight!
+      const standTile = currentTileRef.current;
+      const stx = (standTile.x / 100) * W;
+      const sty = (standTile.y / 100) * H;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(197, 155, 109, 0.42)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(
+        Math.round(stx - TILE_PX_W / 2 + 2),
+        Math.round(sty - TILE_PX_H / 2 + 2),
+        Math.round(TILE_PX_W - 4),
+        Math.round(TILE_PX_H - 4)
+      );
+
       if (pathQueueRef.current.length > 0) {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(217, 123, 132, 0.82)';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([6, 6]);
-        ctx.beginPath();
-        ctx.moveTo((posRef.current.x / 100) * W, (posRef.current.y / 100) * H);
-        for (const wp of pathQueueRef.current) {
-          ctx.lineTo((wp.x / 100) * W, (wp.y / 100) * H);
-        }
-        ctx.stroke();
-        ctx.restore();
+        pathQueueRef.current.forEach((tile, idx) => {
+          const tx = (tile.x / 100) * W;
+          const ty = (tile.y / 100) * H;
+          const isFinal = idx === pathQueueRef.current.length - 1;
 
-        const finalGoal = pathQueueRef.current[pathQueueRef.current.length - 1];
-        const tx = (finalGoal.x / 100) * W;
-        const ty = (finalGoal.y / 100) * H;
-        ctx.strokeStyle = '#d97b84';
-        ctx.lineWidth = 2.5;
-        const r = 7 + (tick % 14) * 0.7;
-        ctx.beginPath();
-        ctx.arc(tx, ty, r, 0, Math.PI * 2);
-        ctx.stroke();
+          ctx.fillStyle = isFinal
+            ? 'rgba(217, 123, 132, 0.34)'
+            : 'rgba(255, 253, 249, 0.38)';
+          ctx.fillRect(
+            Math.round(tx - TILE_PX_W / 2 + 3),
+            Math.round(ty - TILE_PX_H / 2 + 3),
+            Math.round(TILE_PX_W - 6),
+            Math.round(TILE_PX_H - 6)
+          );
+
+          ctx.strokeStyle = isFinal
+            ? '#d97b84'
+            : 'rgba(217, 123, 132, 0.72)';
+          ctx.lineWidth = isFinal ? 2.5 : 1.8;
+          ctx.strokeRect(
+            Math.round(tx - TILE_PX_W / 2 + 3),
+            Math.round(ty - TILE_PX_H / 2 + 3),
+            Math.round(TILE_PX_W - 6),
+            Math.round(TILE_PX_H - 6)
+          );
+
+          ctx.fillStyle = '#d97b84';
+          if (isFinal) {
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('♥', Math.round(tx), Math.round(ty + 4));
+          } else {
+            ctx.fillRect(Math.round(tx - 2), Math.round(ty - 2), 4, 4);
+          }
+        });
       }
+      ctx.restore();
 
-      // 4. Draw Landmarks & Portals
+      // 4. Draw Sparkling Secret Props on Current Map
+      WORLD_SECRET_PROPS.filter((s) => s.mapId === activeMapId).forEach((prop) => {
+        drawSecretProp(
+          prop,
+          !!discoveredSecretsRef.current[prop.id],
+          closestSecret?.id === prop.id
+        );
+      });
+
+      // 5. Draw Landmarks & Portals
       mapConfig.landmarks.forEach((lm) => {
         const bx = (lm.x / 100) * W;
         const by = (lm.y / 100) * H;
@@ -779,7 +1159,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         drawPortalGate(p, closestPortal?.id === p.id);
       });
 
-      // 5. Draw Footstep Surface Puffs
+      // 6. Draw Footstep Surface Puffs
       for (let i = footstepsRef.current.length - 1; i >= 0; i--) {
         const fp = footstepsRef.current[i];
         fp.x += fp.vx;
@@ -796,10 +1176,11 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.restore();
       }
 
-      // 6. Collect All Actors (Guest NPCs + Pet Cat '모찌' + Groom + Bride) and Y-Depth Sort!
+      // 7. Collect All Actors (Guest NPCs + Pet Cat '모찌' + Groom + Bride) and Y-Depth Sort!
       const GUEST_H = 66;
       const CHIBI_H = 96;
       const guestHeads: { x: number; y: number; name: string; msg: string }[] = [];
+      const currentFrameNpcs: ActiveNpcTarget[] = [];
 
       interface DepthRenderable {
         footY: number;
@@ -827,12 +1208,24 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           const cheerJump = onVirginRoad
             ? Math.abs(Math.sin(tick * 0.18 + idx)) * 6
             : Math.max(0, Math.sin(tick * 0.08 + idx * 1.5)) * 2.5;
+          const npcName = guestbook[idx]?.name || `하객 ${idx + 1}`;
+          const npcMsg = guestbook[idx]?.message || spot.cheer;
+
+          currentFrameNpcs.push({
+            id: `chapel-npc-${idx}`,
+            name: npcName,
+            roleTitle: '본식 채플 축복 하객',
+            avatar: spot.avatar,
+            initialMessage: npcMsg,
+            x: spot.x,
+            y: spot.y,
+          });
 
           guestHeads.push({
             x: fx,
             y: fy - h - cheerJump,
-            name: guestbook[idx]?.name || '하객',
-            msg: guestbook[idx]?.message || spot.cheer,
+            name: npcName,
+            msg: npcMsg,
           });
 
           depthList.push({
@@ -895,6 +1288,16 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           const h = g.avatar === 'cat' ? 40 : GUEST_H;
           const bob = Math.max(0, Math.sin(tick * 0.08 + idx * 1.7)) * 2.5;
 
+          currentFrameNpcs.push({
+            id: `guest-npc-${g.id}`,
+            name: g.name,
+            roleTitle: g.titleBadge || '정원 산책 하객',
+            avatar: g.avatar,
+            initialMessage: g.message,
+            x: spot.x,
+            y: spot.y,
+          });
+
           guestHeads.push({
             x: fx,
             y: fy - h - bob,
@@ -933,9 +1336,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
       // Couple & Kitten coordinates
       const walkBob = isMoving
-        ? Math.abs(Math.sin(tick * 0.24)) * 5.2
+        ? Math.abs(Math.sin(tick * 0.26)) * 5.2
         : Math.sin(tick * 0.06) * 1.5;
-      const strideTilt = isMoving ? Math.sin(tick * 0.24) * 0.038 : 0;
+      const strideTilt = isMoving ? Math.sin(tick * 0.26) * 0.038 : 0;
 
       const groomFootX = (posRef.current.x / 100) * W;
       const groomFootY = (posRef.current.y / 100) * H;
@@ -950,6 +1353,18 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
       const catFootX = (catTrail.x / 100) * W - 40;
       const catFootY = (catTrail.y / 100) * H + 6;
+
+      // Register Pet Cat '모찌' as a tappable dialogue companion too!
+      currentFrameNpcs.push({
+        id: 'companion-mochi',
+        name: config.pet.name,
+        roleTitle: config.pet.title,
+        avatar: 'mochi',
+        initialMessage: '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾',
+        x: (catFootX / W) * 100,
+        y: (catFootY / H) * 100,
+      });
+      liveNpcsRef.current = currentFrameNpcs;
 
       // Add Pet Cat '모찌' to depth list
       depthList.push({
@@ -982,10 +1397,44 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         },
       });
 
-      // Add Chibi Couple (Groom + Bride) to depth list
+      // Add Chibi Couple (Groom + Bride) + Equipped Secret Aura/Crown to depth list!
       depthList.push({
         footY: Math.max(groomFootY, brideFootY),
         draw: () => {
+          const centerCoupleX = (groomFootX - 6 + brideFootX) / 2;
+          const centerCoupleY = (groomFootY + brideFootY) / 2;
+          const activeAura = equippedAuraRef.current;
+
+          // Ground Aura Layer (Lantern Aura)
+          if (activeAura === 'lantern_aura') {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.75)';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([8, 5]);
+            ctx.beginPath();
+            ctx.ellipse(
+              centerCoupleX,
+              centerCoupleY - 2,
+              54 + Math.sin(tick * 0.08) * 3,
+              20,
+              0,
+              0,
+              Math.PI * 2
+            );
+            ctx.stroke();
+
+            for (let i = 0; i < 4; i++) {
+              const ang = tick * 0.05 + (i * Math.PI) / 2;
+              const ox = centerCoupleX + Math.cos(ang) * 52;
+              const oy = centerCoupleY - 12 + Math.sin(ang) * 18;
+              ctx.fillStyle = '#ffe8a3';
+              ctx.beginPath();
+              ctx.arc(ox, oy, 4, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+
           ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
           ctx.beginPath();
           ctx.ellipse(groomFootX - 6, groomFootY, 16, 6, 0, 0, Math.PI * 2);
@@ -1035,21 +1484,44 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             );
           }
 
+          // Orbiting Petal Aura Layer
+          if (activeAura === 'petal_aura') {
+            ctx.save();
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            for (let i = 0; i < 4; i++) {
+              const ang = tick * 0.06 + (i * Math.PI) / 2;
+              const px = centerCoupleX + Math.cos(ang) * 48;
+              const py = centerCoupleY - 46 + Math.sin(ang) * 22;
+              ctx.fillText('🌸', px, py);
+            }
+            ctx.restore();
+          }
+
+          // Royal Wedding Crown Aura Layer
+          if (activeAura === 'wedding_crown') {
+            ctx.save();
+            ctx.font = 'bold 15px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('👑', groomFootX - 6, groomFootY - CHIBI_H - 6 - walkBob);
+            ctx.fillText('👑', brideFootX, brideFootY - CHIBI_H - 6 - walkBob * 0.9);
+            ctx.restore();
+          }
+
           // Floating Heart between Groom & Bride
           ctx.fillStyle = '#d97b84';
           ctx.font = 'bold 15px sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(
             '♥',
-            Math.round((groomFootX - 6 + brideFootX) / 2),
+            Math.round(centerCoupleX),
             Math.round(
               groomFootY - CHIBI_H - 4 - walkBob + Math.sin(tick * 0.1) * 2
             )
           );
 
           // Couple Overhead Name Tag
-          const centerCoupleX = (groomFootX + brideFootX) / 2;
-          const tagY = groomFootY - CHIBI_H - 34 - walkBob;
+          const tagY = groomFootY - CHIBI_H - 36 - walkBob;
           ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
           ctx.fillRect(centerCoupleX - 58, tagY, 116, 23);
           ctx.strokeStyle = '#d97b84';
@@ -1070,7 +1542,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       depthList.sort((a, b) => a.footY - b.footY);
       depthList.forEach((actor) => actor.draw());
 
-      // 7. Speech bubble above the active speaker NPC
+      // 8. Speech bubble above the active speaker NPC
       if (guestHeads.length > 0) {
         const activeIdx = npcBubbleIndex % guestHeads.length;
         const speaker = guestHeads[activeIdx];
@@ -1105,7 +1577,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.fillText(bubbleText, bx, by - 8);
       }
 
-      // 8. Live Floating Emoji Reactions
+      // 9. Live Floating Emoji Reactions
       for (let i = reactionsRef.current.length - 1; i >= 0; i--) {
         const r = reactionsRef.current[i];
         r.x += r.vx;
@@ -1125,7 +1597,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.restore();
       }
 
-      // 9. Map-Specific Ambient Particles (Petals / Sunbeams / Seasonal / Fireflies)
+      // 10. Map-Specific Ambient Particles (Petals / Sunbeams / Seasonal / Fireflies)
       particles.forEach((p) => {
         if (mapConfig.particleType === 'fireflies') {
           p.x += Math.sin(tick * 0.03 + p.phase) * 0.45;
@@ -1168,6 +1640,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     guestbook,
     npcBubbleIndex,
     activateLandmark,
+    activateSecretProp,
     travelToMap,
   ]);
 
@@ -1175,30 +1648,90 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     dpadDirRef.current = { dx, dy };
   }, []);
 
+  // Evaluate Zone Mini-Quest completion for current map
+  const isMiniQuestStepDone = (step: ZoneMiniQuestItem): boolean => {
+    if (step.id === 'mq-garden-story') return !!visitedQuests.story;
+    if (step.id === 'mq-garden-secret')
+      return !!(
+        discoveredSecrets['secret-garden-mailbox'] ||
+        discoveredSecrets['secret-garden-bench']
+      );
+    if (step.id === 'mq-garden-npc') return talkedToAnyNpc;
+    if (step.id === 'mq-chapel-piano') return !!visitedMemories['chapel-piano'];
+    if (step.id === 'mq-chapel-altar')
+      return !!(visitedQuests.ceremony || visitedMemories['chapel-altar']);
+    if (step.id === 'mq-chapel-secret')
+      return !!(
+        discoveredSecrets['secret-chapel-sheetmusic'] ||
+        discoveredSecrets['secret-chapel-bouquet']
+      );
+    if (step.id === 'mq-memory-spring') return !!visitedMemories['memory-spring'];
+    if (step.id === 'mq-memory-winter') return !!visitedMemories['memory-winter'];
+    if (step.id === 'mq-memory-secret')
+      return !!(
+        discoveredSecrets['secret-memory-receipt'] ||
+        discoveredSecrets['secret-memory-snowglobe']
+      );
+    if (step.id === 'mq-reception-cake') return !!visitedMemories['reception-cake'];
+    if (step.id === 'mq-reception-tree') return !!visitedQuests.rsvp;
+    if (step.id === 'mq-reception-secret')
+      return !!(
+        discoveredSecrets['secret-reception-lantern'] ||
+        discoveredSecrets['secret-reception-macaron']
+      );
+    return false;
+  };
+
+  const handleMiniQuestClick = (step: ZoneMiniQuestItem) => {
+    soundEngine.playBlip(680);
+    pathQueueRef.current = findWalkablePath(
+      posRef.current.x,
+      posRef.current.y,
+      step.targetX,
+      step.targetY,
+      currentMapRef.current
+    );
+  };
+
   const activeMapConfig = GARDEN_MAPS[currentMapId];
+  const activeMiniQuest = ZONE_MINI_QUESTS[currentMapId];
   const exploredMapCount = Object.values(visitedMaps).filter(Boolean).length;
+  const discoveredCount = Object.keys(discoveredSecrets).length;
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Top World Map Switcher Bar (4 Connected Maps) */}
+    <div className="flex flex-col gap-2.5">
+      {/* Top World Map Switcher Bar (4 Connected Maps + Secret Collection & Photo Booth) */}
       <div className="pixel-card p-2.5 bg-[#fffdf9] space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-[#3b2f2f]">
-              🗺️ 웨딩 월드맵 이동 ({exploredMapCount}/4 맵 탐방)
-            </span>
+        <div className="flex items-center justify-between gap-1 px-0.5">
+          <span className="text-xs font-bold text-[#3b2f2f] truncate">
+            🗺️ 웨딩 월드 ({exploredMapCount}/4 맵)
+          </span>
+
+          <div className="flex items-center gap-1.5 shrink-0 font-sans">
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                setShowSecretBook(true);
+              }}
+              className="px-2.5 py-0.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#5c4d47] text-[11px] font-bold flex items-center gap-1 transition-colors"
+            >
+              <Sparkles className="w-3 h-3 text-[#d97b84]" />
+              <span>비밀소품 {discoveredCount}/8</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                setShowPhotoBooth(true);
+              }}
+              className="px-2.5 py-0.5 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#e2a3a9] text-[#b85d67] text-[11px] font-bold flex items-center gap-1 transition-colors"
+            >
+              <Camera className="w-3 h-3" />
+              <span>포토부스</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playSelect();
-              setShowPhotoBooth(true);
-            }}
-            className="px-2.5 py-0.5 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#e2a3a9] text-[#b85d67] text-[11px] font-sans font-bold flex items-center gap-1 transition-colors"
-          >
-            <Camera className="w-3 h-3" />
-            <span>📸 픽셀 포토부스</span>
-          </button>
         </div>
 
         <div className="grid grid-cols-4 gap-1.5 font-sans">
@@ -1228,26 +1761,51 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             );
           })}
         </div>
+
+        {/* Map-Specific Mini-Quest Checklist Strip */}
+        <div className="pt-1 border-t border-[#efe6d8] flex items-center gap-1.5 overflow-x-auto font-sans">
+          <span className="text-[10px] font-bold text-[#c59b6d] shrink-0">
+            {activeMiniQuest.title}:
+          </span>
+          {activeMiniQuest.steps.map((step) => {
+            const done = isMiniQuestStepDone(step);
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => handleMiniQuestClick(step)}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 flex items-center gap-1 transition-all ${
+                  done
+                    ? 'bg-[#edf3ee] text-[#4d6b53] border-[#a3bfa8]'
+                    : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0] hover:border-[#c59b6d]'
+                }`}
+              >
+                <span>{done ? '✓' : step.icon}</span>
+                <span>{step.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 1:1 Interactive Pixel World Canvas Frame (100% Unobstructed View) */}
       <div className="relative pixel-card overflow-hidden bg-[#bdd2b6]">
         {/* Top Minimal Map Title Pill */}
         <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between gap-2 pointer-events-none">
-          <div className="bg-[#fffdf9]/95 border border-[#d4b48c] px-3 py-1 rounded-full text-[11px] text-[#5c4d47] flex items-center gap-1.5 shadow-sm min-w-0 truncate">
+          <div className="bg-[#fffdf9] border border-[#d4b48c] px-3 py-1 rounded-full text-[11px] text-[#5c4d47] flex items-center gap-1.5 shadow-sm min-w-0 truncate">
             <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse shrink-0" />
             <strong className="text-[#3b2f2f] shrink-0">
               {activeMapConfig.icon} {activeMapConfig.tabLabel}
             </strong>
             <span className="text-[#8c7a70] truncate hidden sm:inline">
-              · {activeMapConfig.subtitle}
+              · 타일 그리드 산책 모드
             </span>
           </div>
         </div>
 
-        {/* Story / Memory Toast Overlay when visiting special spots */}
-        {activeStoryToast && (
-          <div className="absolute top-12 left-3 right-3 z-10 bg-[#fffdf9]/95 border-2 border-[#d97b84] rounded-xl px-3.5 py-2 shadow-md flex items-center justify-between gap-2 animate-fadeIn">
+        {/* Story / Secret Toast Overlay when visiting special spots */}
+        {activeStoryToast && !activeDialogueNpc && (
+          <div className="absolute top-12 left-3 right-3 z-10 bg-[#fffdf9] border-2 border-[#d97b84] rounded-xl px-3.5 py-2 shadow-md flex items-center justify-between gap-2 animate-fadeIn">
             <div className="min-w-0">
               <div className="text-[10px] font-sans font-bold text-[#d97b84] tracking-wider">
                 {activeStoryToast.badge} · {activeStoryToast.title}
@@ -1262,6 +1820,75 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             >
               닫기 ✕
             </button>
+          </div>
+        )}
+
+        {/* Interactive 3-Choice NPC / Pet Cat '모찌' Dialogue Overlay */}
+        {activeDialogueNpc && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-x-3 bottom-3 z-20 bg-[#fffdf9] border-2 border-[#c59b6d] rounded-2xl p-3 shadow-xl space-y-2.5 animate-fadeIn font-sans"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img
+                  src={
+                    activeDialogueNpc.avatar === 'mochi'
+                      ? PIXEL_ASSETS.catSprite
+                      : GUEST_SPRITES[activeDialogueNpc.avatar].portrait
+                  }
+                  alt={activeDialogueNpc.name}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-[#d97b84] bg-[#faf5ec] shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-[#3b2f2f] truncate">
+                      {activeDialogueNpc.name}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#fcf0f1] text-[#d97b84] font-bold">
+                      {
+                        getAffinityStageLabel(
+                          npcAffinities[activeDialogueNpc.id] || 1
+                        ).hearts
+                      }{' '}
+                      {
+                        getAffinityStageLabel(
+                          npcAffinities[activeDialogueNpc.id] || 1
+                        ).label
+                      }
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-[#8c7a70] truncate">
+                    {activeDialogueNpc.roleTitle}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveDialogueNpc(null)}
+                className="p-1 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#7d6e65]"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl px-3 py-2 text-xs text-[#3b2f2f] font-serif leading-relaxed">
+              {dialogueReplyText}
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              {NPC_DIALOGUE_CHOICES.map((ch) => (
+                <button
+                  key={ch.id}
+                  type="button"
+                  onClick={() => handleSelectDialogueChoice(ch.id)}
+                  className="py-1.5 px-2 rounded-lg bg-[#fffdf9] hover:bg-[#fcf0f1] border border-[#d4b48c] hover:border-[#d97b84] text-[11px] font-bold text-[#3b2f2f] truncate active:scale-95 transition-all"
+                >
+                  {ch.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1281,13 +1908,31 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           <InGameVirtualJoystick onVectorChange={handleJoystickVectorChange} />
         </div>
 
-        {/* Right: Live Emoji Reactions + Contextual Portal/Landmark Action Dock */}
+        {/* Right: Live Emoji Reactions + Contextual Portal/Secret/Landmark Action Dock */}
         <div className="flex-1 min-w-0 flex flex-col justify-between gap-2 font-sans">
-          {/* Upper Row: Live Blessing Emoji Reactions */}
+          {/* Upper Row: Live Blessing Emoji Reactions + NPC Talk Button */}
           <div className="flex items-center justify-between gap-1 bg-[#faf5ec] px-2.5 py-1 rounded-full border border-[#e6d5b8]">
-            <span className="text-[10px] font-bold text-[#b85d67] shrink-0">
-              축복 ♥ {blessingCount}
-            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const target =
+                  liveNpcsRef.current[0] || {
+                    id: 'companion-mochi',
+                    name: config.pet.name,
+                    roleTitle: config.pet.title,
+                    avatar: 'mochi' as const,
+                    initialMessage:
+                      '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾',
+                    x: posRef.current.x,
+                    y: posRef.current.y,
+                  };
+                openNpcDialogue(target);
+              }}
+              className="text-[10px] font-bold text-[#b85d67] hover:text-[#d97b84] flex items-center gap-1 shrink-0"
+            >
+              <MessageCircle className="w-3 h-3" />
+              <span>대화·축복 ♥{blessingCount}</span>
+            </button>
             <div className="flex items-center gap-1">
               {REACTION_EMOJIS.map((item) => (
                 <button
@@ -1303,7 +1948,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             </div>
           </div>
 
-          {/* Lower Row: Contextual Portal / Landmark Prompt OR Recommended Course & Invitation */}
+          {/* Lower Row: Contextual Portal / Secret Prop / Landmark Prompt OR Recommended Course & Invitation */}
           {nearbyPortal ? (
             <button
               type="button"
@@ -1326,6 +1971,24 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               </div>
               <span className="px-2.5 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold shrink-0">
                 입장하기 ▶
+              </span>
+            </button>
+          ) : nearbySecret && !discoveredSecrets[nearbySecret.id] ? (
+            <button
+              type="button"
+              onClick={() => activateSecretProp(nearbySecret)}
+              className="w-full bg-[#fff8e7] hover:bg-[#faefd4] text-[#3b2f2f] border-2 border-[#d4af37] rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
+            >
+              <div className="min-w-0 text-left">
+                <div className="text-[9px] text-[#b8860b] font-bold tracking-wider truncate">
+                  ✦ 반짝이는 비밀 소품 발견!
+                </div>
+                <div className="text-xs font-bold text-[#3b2f2f] truncate">
+                  {nearbySecret.icon} {nearbySecret.title}
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-[#d4af37] text-white text-[11px] font-bold shrink-0">
+                살펴보기 ✦
               </span>
             </button>
           ) : nearbyLandmark ? (
@@ -1380,7 +2043,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             {activeMapConfig.icon} [{activeMapConfig.tabLabel}] 스팟 바로가기
           </span>
           <span className="text-[10px] text-[#8c7a70] font-sans">
-            터치 시 자동 길찾기 산책
+            터치 시 타일 발판을 따라 이동
           </span>
         </div>
 
@@ -1419,6 +2082,132 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Secret Prop Collection Book & Aura Equip Modal */}
+      {showSecretBook && (
+        <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+          <div className="pixel-card w-full max-w-[480px] max-h-[88vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn font-sans">
+            <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between">
+              <div>
+                <div className="text-[10px] tracking-widest font-bold text-[#c59b6d]">
+                  WORLD SECRET ARCHIVE · {discoveredCount}/8 발견
+                </div>
+                <h3 className="text-sm sm:text-base font-bold text-[#3b2f2f] font-serif">
+                  ✨ 웨딩 월드 비밀 소품 도감 & 오라 장착
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowSecretBook(false)}
+                className="px-2.5 py-1 rounded-full bg-[#faf5ec] border border-[#d4b48c] text-xs font-bold text-[#5c4d47]"
+              >
+                닫기 ✕
+              </button>
+            </div>
+
+            <div className="p-3.5 overflow-y-auto flex-1 space-y-4">
+              {/* Equipable Aura Rewards */}
+              <div className="bg-[#fffdf9] p-3 rounded-xl border border-[#e6d5b8] space-y-2">
+                <div className="text-xs font-bold text-[#3b2f2f]">
+                  👑 캐릭터 코스메틱 오라 장착 (발견 수에 따라 해금)
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEngine.playSelect();
+                      setEquippedAura('none');
+                    }}
+                    className={`p-2 rounded-lg border text-left text-xs font-bold ${
+                      equippedAura === 'none'
+                        ? 'bg-[#3b2f2f] text-white border-[#3b2f2f]'
+                        : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0]'
+                    }`}
+                  >
+                    기본 모습 (오라 해제)
+                  </button>
+
+                  {SECRET_AURA_REWARDS.map((reward) => {
+                    const unlocked = discoveredCount >= reward.requiredCount;
+                    const active = equippedAura === reward.id;
+                    return (
+                      <button
+                        key={reward.id}
+                        type="button"
+                        disabled={!unlocked}
+                        onClick={() => {
+                          if (!unlocked) return;
+                          soundEngine.playFanfare();
+                          setEquippedAura(reward.id);
+                        }}
+                        className={`p-2 rounded-lg border text-left transition-all ${
+                          active
+                            ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold'
+                            : unlocked
+                            ? 'bg-[#faf5ec] text-[#3b2f2f] border-[#c59b6d] hover:bg-[#f3e9d8] font-semibold'
+                            : 'bg-[#f5efe6] text-[#b0a298] border-[#e2d4c0] opacity-60 cursor-not-allowed'
+                        }`}
+                      >
+                        <div className="text-xs truncate">{reward.name}</div>
+                        <div className="text-[10px] opacity-85 truncate">
+                          {unlocked
+                            ? '장착 가능'
+                            : `비밀 ${reward.requiredCount}개 발견 필요`}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 8 Secret Props List */}
+              <div className="space-y-2">
+                {WORLD_SECRET_PROPS.map((prop) => {
+                  const found = !!discoveredSecrets[prop.id];
+                  const mapMeta = GARDEN_MAPS[prop.mapId];
+                  return (
+                    <div
+                      key={prop.id}
+                      className={`p-3 rounded-xl border flex items-start justify-between gap-2.5 ${
+                        found
+                          ? 'bg-[#fffdf9] border-[#c59b6d]'
+                          : 'bg-[#faf5ec] border-[#e2d4c0]'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-[#c59b6d]">
+                          {mapMeta.icon} {mapMeta.tabLabel} ·{' '}
+                          {found ? '✓ 발견 완료' : '미발견 힌트'}
+                        </div>
+                        <div className="text-xs font-bold text-[#3b2f2f] mt-0.5">
+                          {prop.icon} {found ? prop.title : '??? (반짝이는 소품)'}
+                        </div>
+                        <p className="text-[11px] text-[#6e5d53] mt-1 leading-relaxed font-serif">
+                          {found ? prop.storyText : `힌트: ${prop.clueLabel}`}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSecretBook(false);
+                          if (currentMapRef.current !== prop.mapId) {
+                            travelToMap(prop.mapId, prop.x, Math.min(90, prop.y + 6));
+                          } else {
+                            walkToSecretProp(prop);
+                          }
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#e2a3a9] text-[#b85d67] text-[10px] font-bold shrink-0"
+                      >
+                        찾아가기 ▶
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPhotoBooth && (
         <PhotoBoothModal
