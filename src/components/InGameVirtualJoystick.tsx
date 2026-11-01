@@ -63,6 +63,11 @@ export const InGameVirtualJoystick: React.FC<InGameVirtualJoystickProps> = ({
     onVectorChange(0, 0);
   };
 
+  const isUp = isActive && thumbOffset.y < -5;
+  const isDown = isActive && thumbOffset.y > 5;
+  const isLeft = isActive && thumbOffset.x < -5;
+  const isRight = isActive && thumbOffset.x > 5;
+
   return (
     <div
       ref={baseRef}
@@ -104,25 +109,75 @@ export const InGameVirtualJoystick: React.FC<InGameVirtualJoystickProps> = ({
       onLostPointerCapture={(e) => {
         resetJoystick(e.pointerId);
       }}
-      className={`relative w-[80px] h-[80px] sm:w-[86px] sm:h-[86px] select-none touch-none grid place-items-center cursor-grab active:cursor-grabbing transition-transform ${
-        isActive ? 'scale-[1.05]' : 'opacity-95 hover:opacity-100'
+      className={`relative w-[80px] h-[80px] sm:w-[84px] sm:h-[84px] select-none touch-none grid place-items-center cursor-grab active:cursor-grabbing transition-transform duration-150 ${
+        isActive ? 'scale-[1.04]' : 'hover:scale-[1.02]'
       }`}
       style={{
         filter: isActive
-          ? 'drop-shadow(0 0 10px rgba(217, 123, 132, 0.55))'
-          : 'drop-shadow(0 3px 6px rgba(42, 30, 28, 0.35))',
+          ? 'drop-shadow(0 3px 10px rgba(217, 123, 132, 0.38))'
+          : 'drop-shadow(0 2px 5px rgba(197, 155, 109, 0.25))',
       }}
     >
-      {/* Wedding Compass Filigree Base */}
+      {/* Pastel Wedding Ivory & Champagne Joystick Base */}
       <img
         src={PIXEL_ASSETS.joystickBase}
         alt=""
         aria-hidden="true"
         draggable={false}
-        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none pixelated"
+        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
       />
 
-      {/* Rose-Quartz Gem Thumb Knob */}
+      {/* Interactive Cardinal Direction Highlights when tilting */}
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute top-[6px] text-[8px] leading-none transition-all duration-100 ${
+          isUp
+            ? 'text-[#d97b84] scale-125 drop-shadow-[0_0_4px_rgba(217,123,132,0.65)]'
+            : 'text-transparent'
+        }`}
+      >
+        ▲
+      </span>
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute bottom-[6px] text-[8px] leading-none transition-all duration-100 ${
+          isDown
+            ? 'text-[#d97b84] scale-125 drop-shadow-[0_0_4px_rgba(217,123,132,0.65)]'
+            : 'text-transparent'
+        }`}
+      >
+        ▼
+      </span>
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute left-[6px] text-[8px] leading-none transition-all duration-100 ${
+          isLeft
+            ? 'text-[#d97b84] scale-125 drop-shadow-[0_0_4px_rgba(217,123,132,0.65)]'
+            : 'text-transparent'
+        }`}
+      >
+        ◀
+      </span>
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute right-[6px] text-[8px] leading-none transition-all duration-100 ${
+          isRight
+            ? 'text-[#d97b84] scale-125 drop-shadow-[0_0_4px_rgba(217,123,132,0.65)]'
+            : 'text-transparent'
+        }`}
+      >
+        ▶
+      </span>
+
+      {/* Soft Blush-Rose Active Socket Glow */}
+      {isActive && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute w-[36px] h-[36px] rounded-full bg-[#d97b84]/15 border border-[#d97b84]/35 animate-pulse"
+        />
+      )}
+
+      {/* Blush-Rose Pixel Heart Thumb Knob */}
       <img
         src={PIXEL_ASSETS.joystickThumb}
         alt=""
@@ -132,10 +187,11 @@ export const InGameVirtualJoystick: React.FC<InGameVirtualJoystickProps> = ({
           transform: `translate(${thumbOffset.x.toFixed(1)}px, ${thumbOffset.y.toFixed(
             1
           )}px)`,
-          filter:
-            'saturate(1.15) contrast(1.06) drop-shadow(0 2px 0 #743e52) drop-shadow(0 0 4px rgba(255, 248, 218, 0.92))',
+          filter: isActive
+            ? 'drop-shadow(0 3px 6px rgba(158, 71, 82, 0.45))'
+            : 'drop-shadow(0 2px 3px rgba(158, 71, 82, 0.3))',
         }}
-        className="relative z-10 w-[34px] h-[34px] sm:w-[36px] sm:h-[36px] object-contain pointer-events-none select-none pixelated transition-transform duration-40 ease-out"
+        className="relative z-10 w-[36px] h-[36px] sm:w-[38px] sm:h-[38px] object-contain pointer-events-none select-none transition-transform duration-40 ease-out"
       />
     </div>
   );
