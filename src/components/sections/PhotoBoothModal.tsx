@@ -88,7 +88,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   const [selectedFrame, setSelectedFrame] = useState<FrameStyleId>('ivory');
   const [guestName, setGuestName] = useState<string>('소중한 하객');
   const [blessingText, setBlessingText] = useState<string>(
-    '민준 ♥ 서연 두 사람의 찬란한 봄날을 축복합니다!'
+    `${config.groom.name} ♥ ${config.bride.name} 두 사람의 찬란한 봄날을 축복합니다!`
   );
   const [flashActive, setFlashActive] = useState<boolean>(false);
   const [snappedCount, setSnappedCount] = useState<number>(0);
@@ -328,7 +328,8 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     ctx.fillStyle = frame.accent;
     ctx.font = 'bold 14px "Cinzel", serif';
     ctx.textAlign = 'center';
-    ctx.fillText('OUR SPRING WEDDING MEMORIES · 2027. 05. 22', W / 2, capCenterY);
+    const dateFormatted = `${config.wedding.year}. ${String(config.wedding.month).padStart(2, '0')}. ${String(config.wedding.day).padStart(2, '0')}`;
+    ctx.fillText(`OUR SPRING WEDDING MEMORIES · ${dateFormatted}`, W / 2, capCenterY);
 
     ctx.fillStyle = frame.textPrimary;
     ctx.font = 'bold 28px "Gowun Batang", serif';

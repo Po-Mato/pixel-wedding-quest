@@ -47,7 +47,51 @@ export function App() {
   const [config, setConfig] = useState<WeddingConfig>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_CONFIG_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as WeddingConfig;
+        // Migrate legacy placeholder '김민준 / 이서연' defaults or sync short names if fullName was edited
+        const groomFullName =
+          parsed.groom?.fullName === '김민준'
+            ? DEFAULT_WEDDING_CONFIG.groom.fullName
+            : parsed.groom?.fullName || DEFAULT_WEDDING_CONFIG.groom.fullName;
+        const brideFullName =
+          parsed.bride?.fullName === '이서연'
+            ? DEFAULT_WEDDING_CONFIG.bride.fullName
+            : parsed.bride?.fullName || DEFAULT_WEDDING_CONFIG.bride.fullName;
+        const groomName =
+          !parsed.groom?.name || parsed.groom.name === '민준'
+            ? groomFullName.length >= 2
+              ? groomFullName.slice(-2)
+              : groomFullName
+            : parsed.groom.name;
+        const brideName =
+          !parsed.bride?.name || parsed.bride.name === '서연'
+            ? brideFullName.length >= 2
+              ? brideFullName.slice(-2)
+              : brideFullName
+            : parsed.bride.name;
+        const isLegacyVenue =
+          parsed.wedding?.venueName === '아르카디아 보타닉 가든 채플';
+        return {
+          ...DEFAULT_WEDDING_CONFIG,
+          ...parsed,
+          groom: {
+            ...DEFAULT_WEDDING_CONFIG.groom,
+            ...parsed.groom,
+            fullName: groomFullName,
+            name: groomName,
+          },
+          bride: {
+            ...DEFAULT_WEDDING_CONFIG.bride,
+            ...parsed.bride,
+            fullName: brideFullName,
+            name: brideName,
+          },
+          wedding: isLegacyVenue
+            ? DEFAULT_WEDDING_CONFIG.wedding
+            : { ...DEFAULT_WEDDING_CONFIG.wedding, ...parsed.wedding },
+        };
+      }
     } catch {
       // fallback
     }
@@ -138,6 +182,28 @@ export function App() {
       localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(config));
     } catch {
       // ignore
+    }
+
+    // Dynamically sync browser tab <title> & OpenGraph meta tags with couple names and wedding date
+    const y = config.wedding.year;
+    const m = String(config.wedding.month).padStart(2, '0');
+    const d = String(config.wedding.day).padStart(2, '0');
+    const dateDot = `${y}. ${m}. ${d}`;
+    document.title = `${config.groom.fullName} ♥ ${config.bride.fullName} 모바일 청첩장 | ${dateDot}`;
+
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) {
+      ogTitle.setAttribute(
+        'content',
+        `${config.groom.fullName} ♥ ${config.bride.fullName} 결혼합니다 | ${dateDot}`
+      );
+    }
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) {
+      ogDesc.setAttribute(
+        'content',
+        `${config.wedding.dateDisplay} ${config.wedding.timeDisplay} · ${config.wedding.venueName} ${config.wedding.hallName} | 소중한 분들을 초대합니다`
+      );
     }
   }, [config]);
 
@@ -415,7 +481,9 @@ export function App() {
           >
             <strong className="text-[#3b2f2f]">{config.groom.fullName}</strong>{' '}
             <span className="text-[#d97b84]">♥</span>{' '}
-            <strong className="text-[#3b2f2f]">{config.bride.fullName}</strong> · 2027. 05. 22
+            <strong className="text-[#3b2f2f]">{config.bride.fullName}</strong> ·{' '}
+            {config.wedding.year}. {String(config.wedding.month).padStart(2, '0')}.{' '}
+            {String(config.wedding.day).padStart(2, '0')}
           </div>
 
           <button

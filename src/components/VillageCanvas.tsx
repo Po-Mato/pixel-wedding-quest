@@ -1404,7 +1404,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             37,
             62,
             48,
-            '멍멍~ 민준 아빠와 서연 엄마의 결혼식에 오신 걸 환영해요! 🐾'
+            `멍멍~ ${config.groom.name} 아빠와 ${config.bride.name} 엄마의 결혼식에 오신 걸 환영해요! 🐾`
           );
           addHostSpriteNpc(
             'companion-kkomi',
@@ -1794,7 +1794,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             name: '크림 (엄마)',
             roleTitle: '든든한 엄마 비숑 · 화동 대장',
             avatar: 'cream',
-            initialMessage: '멍멍~ 민준 아빠와 서연 엄마의 결혼식에 오신 걸 환영해요! 🐾',
+            initialMessage: `멍멍~ ${config.groom.name} 아빠와 ${config.bride.name} 엄마의 결혼식에 오신 걸 환영해요! 🐾`,
             x: (creamFootX / W) * 100,
             y: (creamFootY / H) * 100,
           },
@@ -2431,7 +2431,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                       roleTitle: '든든한 엄마 비숑 · 화동 대장',
                       avatar: 'cream' as const,
                       initialMessage:
-                        '멍멍~ 민준 아빠와 서연 엄마의 결혼식에 오신 걸 환영해요! 🐾',
+                        `멍멍~ ${config.groom.name} 아빠와 ${config.bride.name} 엄마의 결혼식에 오신 걸 환영해요! 🐾`,
                       x: posRef.current.x,
                       y: posRef.current.y,
                     };

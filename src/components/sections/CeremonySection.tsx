@@ -58,7 +58,7 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
   const getEventDates = () => {
     const start = new Date(config.wedding.dateISO);
     const safeStart = Number.isNaN(start.getTime())
-      ? new Date('2027-05-22T13:00:00+09:00')
+      ? new Date('2027-05-01T17:10:00+09:00')
       : start;
     const end = new Date(safeStart.getTime() + 2 * 60 * 60 * 1000);
     return {

@@ -121,8 +121,8 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
             🕊️ {config.wedding.venueName}
           </div>
 
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 border border-[#6b9071] text-[#4d6b53] px-2.5 py-0.5 rounded-full text-[10px] font-sans font-semibold">
-            🚇 2호선 삼성역 4번 출구 (도보 4분)
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 border border-[#6b9071] text-[#4d6b53] px-2.5 py-0.5 rounded-full text-[10px] font-sans font-semibold max-w-[92%] truncate">
+            🚇 {config.wedding.subwayGuide[0] || config.wedding.addressRoad}
           </div>
         </div>
 

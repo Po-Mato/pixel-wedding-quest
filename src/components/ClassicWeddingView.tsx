@@ -45,7 +45,9 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
             {config.bride.fullName}
           </h1>
           <p className="text-xs text-[#8c7a70] mt-2 font-engSerif italic tracking-wider">
-            Saturday, May 22, 2027 · 1:00 PM
+            {config.wedding.year}. {String(config.wedding.month).padStart(2, '0')}.{' '}
+            {String(config.wedding.day).padStart(2, '0')} ({config.wedding.dayOfWeek}) ·{' '}
+            {config.wedding.timeDisplay}
           </p>
 
           {/* Cover Illustration / Photo Switch */}

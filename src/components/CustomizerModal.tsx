@@ -358,12 +358,25 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       <input
                         type="text"
                         value={draft.groom.fullName}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const nextFull = e.target.value;
+                          const prevAutoShort = draft.groom.fullName.slice(-2);
+                          const shouldSyncShort =
+                            !draft.groom.name ||
+                            draft.groom.name === prevAutoShort ||
+                            draft.groom.name === '민준';
                           setDraft({
                             ...draft,
-                            groom: { ...draft.groom, fullName: e.target.value },
-                          })
-                        }
+                            groom: {
+                              ...draft.groom,
+                              fullName: nextFull,
+                              name:
+                                shouldSyncShort && nextFull.length >= 2
+                                  ? nextFull.slice(-2)
+                                  : draft.groom.name,
+                            },
+                          });
+                        }}
                         className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
                       />
                     </div>
@@ -488,12 +501,25 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       <input
                         type="text"
                         value={draft.bride.fullName}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const nextFull = e.target.value;
+                          const prevAutoShort = draft.bride.fullName.slice(-2);
+                          const shouldSyncShort =
+                            !draft.bride.name ||
+                            draft.bride.name === prevAutoShort ||
+                            draft.bride.name === '서연';
                           setDraft({
                             ...draft,
-                            bride: { ...draft.bride, fullName: e.target.value },
-                          })
-                        }
+                            bride: {
+                              ...draft.bride,
+                              fullName: nextFull,
+                              name:
+                                shouldSyncShort && nextFull.length >= 2
+                                  ? nextFull.slice(-2)
+                                  : draft.bride.name,
+                            },
+                          });
+                        }}
                         className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
                       />
                     </div>
