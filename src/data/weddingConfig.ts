@@ -7,7 +7,16 @@ export type QuestBuildingId =
   | 'rsvp'
   | 'minigame';
 
-export type GardenMapId = 'garden' | 'chapel' | 'memory' | 'reception';
+export type GardenMapId =
+  | 'home'
+  | 'neighborhood'
+  | 'station'
+  | 'train'
+  | 'garden'
+  | 'bridal'
+  | 'chapel'
+  | 'memory'
+  | 'reception';
 
 export interface MapLandmark {
   id: string;
@@ -18,7 +27,12 @@ export interface MapLandmark {
     | 'memory_spring'
     | 'memory_autumn'
     | 'memory_winter'
-    | 'cake_toast';
+    | 'cake_toast'
+    | 'avatar_mirror'
+    | 'street_cafe'
+    | 'flower_stand'
+    | 'station_bench'
+    | 'bridal_photo';
   name: string;
   shortName: string;
   npcName: string;
@@ -43,6 +57,7 @@ export interface MapPortal {
 
 export interface GardenMapConfig {
   id: GardenMapId;
+  stage: 'commute' | 'venue';
   tabLabel: string;
   icon: string;
   title: string;
@@ -285,14 +300,266 @@ export const QUEST_BUILDINGS: {
 ];
 
 export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
+  home: {
+    id: 'home',
+    stage: 'commute',
+    tabLabel: '우리 집',
+    icon: '🏠',
+    title: '설레는 아침, 우리 집 거실',
+    subtitle: '청첩장과 오시는 길을 확인하고 하객 의상을 고른 뒤 현관문으로 출발하세요',
+    particleType: 'sunbeams',
+    defaultSpawn: { x: 46, y: 66 },
+    landmarks: [
+      {
+        id: 'home-invitation',
+        questId: 'story',
+        name: '💌 거실 탁자 위 모바일 청첩장 (모시는 글)',
+        shortName: '청첩장 확인',
+        npcName: '햇살 드는 거실 티테이블',
+        badge: 'INVITATION',
+        x: 58,
+        y: 48,
+        color: '#d97b84',
+        description: '오늘 결혼식의 주인공인 신랑·신부의 초대 글과 혼주 연락처를 확인합니다.',
+      },
+      {
+        id: 'home-directions',
+        questId: 'location',
+        name: '🧭 현관 메모장 (예식장 오시는 길 확인)',
+        shortName: '오시는길 메모',
+        npcName: '현관 옆 콘솔 테이블',
+        badge: 'DIRECTIONS',
+        x: 34,
+        y: 28,
+        color: '#84a98c',
+        description: '출발 전 웨딩홀 주소와 지하철·주차장 정보를 미리 체크합니다.',
+      },
+      {
+        id: 'home-mirror',
+        specialAction: 'avatar_mirror',
+        name: '🪞 현관 전신거울 (하객 캐릭터 & 의상 변경)',
+        shortName: '하객 의상선택',
+        npcName: '외출 준비 스타일링 코너',
+        badge: 'DRESS UP',
+        x: 24,
+        y: 72,
+        color: '#c59b6d',
+        description: '결혼식에 참석할 나만의 하객 아바타(6종)를 자유롭게 골라보세요!',
+        storySnippet: '🪞 “오늘 하객룩 완벽해! 이제 현관문을 열고 결혼식장으로 출발해 볼까?”',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-home-to-neighborhood',
+        targetMap: 'neighborhood',
+        label: '🌳 현관문 열고 동네로 출발',
+        direction: 'north',
+        x: 49,
+        y: 15,
+        spawnX: 25,
+        spawnY: 70,
+      },
+    ],
+  },
+  neighborhood: {
+    id: 'neighborhood',
+    stage: 'commute',
+    tabLabel: '동네 거리',
+    icon: '🌳',
+    title: '봄바람 부는 동네 가로수길',
+    subtitle: '횡단보도를 건너 모닝커피와 꽃다발을 챙기고 우측 지하철역으로 이동하세요',
+    particleType: 'petals',
+    defaultSpawn: { x: 25, y: 70 },
+    landmarks: [
+      {
+        id: 'neighborhood-cafe',
+        specialAction: 'street_cafe',
+        questId: 'story',
+        name: '☕ 봄날 테라스 카페 (모닝커피 & 러브스토리)',
+        shortName: '테라스 카페',
+        npcName: '동네 브런치 카페',
+        badge: 'MORNING CAFE',
+        x: 56,
+        y: 26,
+        color: '#c59b6d',
+        description: '향긋한 커피를 마시며 신랑·신부의 첫 만남 스토리를 읽어봅니다.',
+        storySnippet: '☕ “고소한 아메리카노 한 모금! 두 사람의 첫 만남도 이런 봄날 카페였대요.”',
+      },
+      {
+        id: 'neighborhood-gift',
+        questId: 'gift',
+        name: '🏦 동네 은행 & 축의금 봉투 준비 (마음 전하실 곳)',
+        shortName: '축의금 준비',
+        npcName: '파란 지붕 금융 라운지',
+        badge: 'BLESSING',
+        x: 32,
+        y: 22,
+        color: '#d4a373',
+        description: '신랑·신부 및 혼주 계좌번호와 카카오페이 송금 안내를 확인합니다.',
+      },
+      {
+        id: 'neighborhood-flower',
+        specialAction: 'flower_stand',
+        name: '💐 횡단보도 앞 봄꽃 화단 (축하 꽃다발)',
+        shortName: '축하 꽃다발',
+        npcName: '가로수길 플라워 코너',
+        badge: 'BOUQUET',
+        x: 44,
+        y: 52,
+        color: '#d97b84',
+        description: '횡단보도를 건너며 신랑·신부에게 건넬 향기로운 봄꽃 한 송이를 챙깁니다.',
+        storySnippet: '💐 “신랑·신부에게 전해줄 분홍빛 장미와 안개꽃을 품에 안았어요!”',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-neighborhood-to-home',
+        targetMap: 'home',
+        label: '🏠 우리 집으로',
+        direction: 'south',
+        x: 34,
+        y: 90,
+        spawnX: 49,
+        spawnY: 24,
+      },
+      {
+        id: 'portal-neighborhood-to-station',
+        targetMap: 'station',
+        label: '🚉 지하철역 입구',
+        direction: 'east',
+        x: 89,
+        y: 34,
+        spawnX: 24,
+        spawnY: 52,
+      },
+    ],
+  },
+  station: {
+    id: 'station',
+    stage: 'commute',
+    tabLabel: '지하철역',
+    icon: '🚉',
+    title: '웨딩홀행 지하철 승강장',
+    subtitle: '노선 안내판을 확인하고 우측 스크린도어에서 웨딩행 열차에 탑승하세요',
+    particleType: 'sunbeams',
+    defaultSpawn: { x: 24, y: 52 },
+    landmarks: [
+      {
+        id: 'station-route',
+        questId: 'location',
+        name: '🗺️ 종합 교통 안내판 (지하철·버스·셔틀 안내)',
+        shortName: '노선·교통안내',
+        npcName: '승강장 안내 키오스크',
+        badge: 'SUBWAY MAP',
+        x: 32,
+        y: 26,
+        color: '#84a98c',
+        description: '예식장까지 가는 지하철 출구, 셔틀버스, 자가용 길찾기를 안내합니다.',
+      },
+      {
+        id: 'station-bench',
+        specialAction: 'station_bench',
+        name: '🪑 승강장 대기 벤치 (설레는 기다림)',
+        shortName: '승강장 벤치',
+        npcName: '플랫폼 우드 벤치',
+        badge: 'WAITING',
+        x: 58,
+        y: 26,
+        color: '#749bc2',
+        description: '열차가 들어오기를 기다리며 같은 결혼식에 가는 하객들과 인사를 나눕니다.',
+        storySnippet: '🚋 “딩동댕동~ 지금 웨딩 가든행 특별 열차가 승강장으로 들어오고 있습니다!”',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-station-to-neighborhood',
+        targetMap: 'neighborhood',
+        label: '🌳 동네 거리로',
+        direction: 'west',
+        x: 8,
+        y: 52,
+        spawnX: 78,
+        spawnY: 36,
+      },
+      {
+        id: 'portal-station-to-train',
+        targetMap: 'train',
+        label: '🚇 웨딩행 열차 탑승',
+        direction: 'east',
+        x: 88,
+        y: 52,
+        spawnX: 24,
+        spawnY: 50,
+      },
+    ],
+  },
+  train: {
+    id: 'train',
+    stage: 'commute',
+    tabLabel: '웨딩 열차',
+    icon: '🚇',
+    title: '봄날 한강을 달리는 웨딩행 열차',
+    subtitle: '차창 밖 한강 풍경과 커플 퀴즈를 즐기며 우측 문으로 웨딩홀 역에 하차하세요',
+    particleType: 'fireflies',
+    defaultSpawn: { x: 24, y: 50 },
+    landmarks: [
+      {
+        id: 'train-window-gallery',
+        questId: 'gallery',
+        name: '🌉 차창 밖 한강 & 웨딩 스냅 감상',
+        shortName: '차창밖·갤러리',
+        npcName: '파노라마 시티뷰 객차',
+        badge: 'WINDOW VIEW',
+        x: 36,
+        y: 44,
+        color: '#6b9071',
+        description: '창밖으로 흐르는 봄날 풍경과 함께 두 사람의 웨딩 포토 앨범을 감상합니다.',
+      },
+      {
+        id: 'train-quiz',
+        questId: 'minigame',
+        name: '🎮 이동 중 즐기는 신랑·신부 퀴즈 & 미니게임',
+        shortName: '열차 미니게임',
+        npcName: '객차 이벤트 존',
+        badge: 'QUIZ & GAME',
+        x: 64,
+        y: 44,
+        color: '#749bc2',
+        description: '웨딩홀에 도착하기 전, 재미있는 신랑·신부 퀴즈와 부케 캐치 게임을 즐겨보세요!',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-train-to-station',
+        targetMap: 'station',
+        label: '🚉 승강장으로',
+        direction: 'west',
+        x: 8,
+        y: 50,
+        spawnX: 78,
+        spawnY: 52,
+      },
+      {
+        id: 'portal-train-to-garden',
+        targetMap: 'garden',
+        label: '🌿 웨딩홀 역 도착 (하차)',
+        direction: 'east',
+        x: 91,
+        y: 50,
+        spawnX: 50,
+        spawnY: 76,
+      },
+    ],
+  },
   garden: {
     id: 'garden',
+    stage: 'venue',
     tabLabel: '웨딩 가든',
     icon: '🌿',
-    title: '보타닉 웨딩 가든 (메인 정원)',
-    subtitle: '북쪽 채플, 서쪽 추억 산책로, 동쪽 별빛 리셉션으로 길이 이어집니다',
+    title: '보타닉 웨딩 가든 (메인 정원 도착!)',
+    subtitle: '신랑과 반려묘 모찌가 맞이하는 정원! 신부대기실·채플·산책로·연회장으로 이어집니다',
     particleType: 'petals',
-    defaultSpawn: { x: 50, y: 72 },
+    defaultSpawn: { x: 50, y: 74 },
     landmarks: [
       {
         id: 'garden-story',
@@ -321,14 +588,14 @@ export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
       {
         id: 'garden-minigame',
         questId: 'minigame',
-        name: '⛲ 백조의 분수대 (작은 이벤트)',
-        shortName: '미니게임',
+        name: '⛲ 백조의 분수대 (신랑 맞이 & 이벤트)',
+        shortName: '분수대·이벤트',
         npcName: '중앙 대리석 분수대',
         badge: 'EVENT',
         x: 50,
         y: 51,
         color: '#749bc2',
-        description: '부케 받기 미니게임과 신랑·신부 퀴즈를 즐겨보세요.',
+        description: '분수대 앞에서 하객을 맞이하는 신랑과 인사하고 미니게임을 즐겨보세요.',
       },
       {
         id: 'garden-location',
@@ -369,6 +636,16 @@ export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
     ],
     portals: [
       {
+        id: 'portal-to-bridal',
+        targetMap: 'bridal',
+        label: '💐 신부 대기실 입장',
+        direction: 'north',
+        x: 34,
+        y: 28,
+        spawnX: 50,
+        spawnY: 80,
+      },
+      {
         id: 'portal-to-chapel',
         targetMap: 'chapel',
         label: '🕊️ 채플 홀 입장',
@@ -398,10 +675,93 @@ export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
         spawnX: 20,
         spawnY: 51,
       },
+      {
+        id: 'portal-garden-to-train',
+        targetMap: 'train',
+        label: '🚇 웨딩홀 역(출발코스)',
+        direction: 'south',
+        x: 50,
+        y: 95,
+        spawnX: 80,
+        spawnY: 50,
+      },
+    ],
+  },
+  bridal: {
+    id: 'bridal',
+    stage: 'venue',
+    tabLabel: '신부 대기실',
+    icon: '💐',
+    title: '로즈 플라워 신부 대기실',
+    subtitle: '꽃벽 앞에서 설레는 마음으로 기다리는 신부에게 축하 인사를 건네고 기념사진을 찍어보세요',
+    particleType: 'petals',
+    defaultSpawn: { x: 50, y: 80 },
+    landmarks: [
+      {
+        id: 'bridal-bride-photo',
+        specialAction: 'bridal_photo',
+        questId: 'gallery',
+        name: '📸 신부 대기실 플라워월 포토존 (신부와 기념촬영)',
+        shortName: '신부님과 촬영',
+        npcName: '로즈 가든 플라워 월',
+        badge: 'BRIDAL ROOM',
+        x: 50,
+        y: 42,
+        color: '#d97b84',
+        description: '아름다운 신부에게 다가가 따뜻한 축하 인사를 전하고 폴라로이드 기념사진을 남겨보세요!',
+        storySnippet: '👰 “와주셔서 정말 고마워요 ♥ 우리 꽃벽 앞에서 같이 기념사진 한 장 찍어요!”',
+      },
+      {
+        id: 'bridal-guestbook',
+        questId: 'rsvp',
+        name: '📖 대기실 축복 방명록 & 참석 체크',
+        shortName: '대기실 방명록',
+        npcName: '좌측 벨벳 라운지 소파',
+        badge: 'GUESTBOOK',
+        x: 28,
+        y: 58,
+        color: '#b5838d',
+        description: '신부 대기실을 찾은 반가운 발걸음을 방명록에 남깁니다.',
+      },
+      {
+        id: 'bridal-vanity',
+        questId: 'ceremony',
+        name: '💄 골드 프레임 화장대 (본식 시간 & 식순 안내)',
+        shortName: '본식 시간안내',
+        npcName: '우측 부케 & 골드 미러 콘솔',
+        badge: 'CEREMONY INFO',
+        x: 74,
+        y: 56,
+        color: '#c59b6d',
+        description: '곧 시작될 본식 시간과 예식 순서를 확인합니다.',
+      },
+    ],
+    portals: [
+      {
+        id: 'portal-bridal-to-garden',
+        targetMap: 'garden',
+        label: '🌿 웨딩 가든으로',
+        direction: 'south',
+        x: 50,
+        y: 91,
+        spawnX: 34,
+        spawnY: 36,
+      },
+      {
+        id: 'portal-bridal-to-chapel',
+        targetMap: 'chapel',
+        label: '🕊️ 본식 채플 홀로 이동',
+        direction: 'east',
+        x: 86,
+        y: 78,
+        spawnX: 50,
+        spawnY: 74,
+      },
     ],
   },
   chapel: {
     id: 'chapel',
+    stage: 'venue',
     tabLabel: '본식 채플',
     icon: '🕊️',
     title: '글래스하우스 웨딩 채플 내부',
@@ -464,6 +824,7 @@ export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
   },
   memory: {
     id: 'memory',
+    stage: 'venue',
     tabLabel: '추억 산책로',
     icon: '🌸',
     title: '사계절 추억의 산책로',
@@ -539,6 +900,7 @@ export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
   },
   reception: {
     id: 'reception',
+    stage: 'venue',
     tabLabel: '별빛 리셉션',
     icon: '✨',
     title: '별빛 가든 리셉션 (피로연 광장)',
@@ -612,11 +974,24 @@ export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
   },
 };
 
-export const GARDEN_MAP_ORDER: GardenMapId[] = [
+export const COMMUTE_MAP_ORDER: GardenMapId[] = [
+  'home',
+  'neighborhood',
+  'station',
+  'train',
+];
+
+export const VENUE_MAP_ORDER: GardenMapId[] = [
   'garden',
+  'bridal',
   'chapel',
   'memory',
   'reception',
+];
+
+export const GARDEN_MAP_ORDER: GardenMapId[] = [
+  ...COMMUTE_MAP_ORDER,
+  ...VENUE_MAP_ORDER,
 ];
 
 export const DEFAULT_WEDDING_CONFIG: WeddingConfig = {

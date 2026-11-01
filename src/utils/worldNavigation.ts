@@ -30,6 +30,38 @@ export interface TileCoord {
 export const TILE_GRID_SIZE = 24;
 
 export const MAP_OBSTACLES: Record<GardenMapId, MapObstacleConfig> = {
+  home: {
+    circles: [],
+    rects: [
+      { minX: 70, maxX: 93, minY: 16, maxY: 46, label: '거실 패브릭 소파' },
+      { minX: 10, maxX: 25, minY: 73, maxY: 89, label: '현관 원목 신발장' },
+    ],
+  },
+  neighborhood: {
+    circles: [
+      { x: 13, y: 31, r: 5.2, label: '좌측 가로수 화단' },
+      { x: 40, y: 31, r: 5.2, label: '중앙 가로수 화단' },
+      { x: 73, y: 31, r: 5.2, label: '우측 가로수 화단' },
+    ],
+    rects: [
+      // Roadway blocked except the central crosswalk (x: 35..52)!
+      { minX: 6, maxX: 34.5, minY: 44, maxY: 64, label: '동네 차도 (서측)' },
+      { minX: 52.5, maxX: 94, minY: 44, maxY: 64, label: '동네 차도 (동측)' },
+    ],
+  },
+  station: {
+    circles: [],
+    rects: [
+      { minX: 25, maxX: 66, minY: 13, maxY: 20, label: '승강장 상단 우드 벤치' },
+    ],
+  },
+  train: {
+    circles: [],
+    rects: [
+      { minX: 14, maxX: 86, minY: 14, maxY: 38, label: '객차 상단 좌석' },
+      { minX: 14, maxX: 86, minY: 62, maxY: 92, label: '객차 하단 좌석' },
+    ],
+  },
   garden: {
     circles: [
       { x: 50, y: 49.5, r: 8.2, label: '중앙 백조의 분수대' },
@@ -39,6 +71,14 @@ export const MAP_OBSTACLES: Record<GardenMapId, MapObstacleConfig> = {
       { x: 85, y: 74.5, r: 5.2, label: '남동 축복 파빌리온' },
     ],
     rects: [],
+  },
+  bridal: {
+    circles: [],
+    rects: [
+      { minX: 8, maxX: 23, minY: 42, maxY: 74, label: '대기실 좌측 벨벳 소파' },
+      { minX: 79, maxX: 93, minY: 36, maxY: 75, label: '대기실 우측 골드 화장대' },
+      { minX: 14, maxX: 86, minY: 8, maxY: 25, label: '신부대기실 플라워 월' },
+    ],
   },
   chapel: {
     circles: [{ x: 23, y: 21, r: 5.0, label: '화이트 그랜드 피아노' }],

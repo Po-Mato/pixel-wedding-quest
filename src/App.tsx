@@ -6,7 +6,6 @@ import {
   Sparkles,
   BookOpen,
   Home,
-  Wrench,
   Share2,
   Check,
   X,
@@ -79,9 +78,60 @@ export function App() {
 
   const [bgmPlaying, setBgmPlaying] = useState(false);
   const [earnedTitle, setEarnedTitle] = useState<string | null>(null);
-  const [showCustomizer, setShowCustomizer] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('admin') === '1' || window.location.hash === '#admin') {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  });
   const [showCertificate, setShowCertificate] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const secretTapRef = React.useRef<{ count: number; lastTap: number }>({
+    count: 0,
+    lastTap: 0,
+  });
+
+  // Hidden Admin Page Trigger via URL hash (#admin) or Keyboard Shortcut (Ctrl/Cmd + Shift + A)
+  useEffect(() => {
+    const checkHash = () => {
+      if (window.location.hash === '#admin') {
+        setShowCustomizer(true);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        soundEngine.playSelect();
+        setShowCustomizer(true);
+      }
+    };
+    window.addEventListener('hashchange', checkHash);
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('hashchange', checkHash);
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, []);
+
+  const handleSecretFooterTap = () => {
+    const now = Date.now();
+    if (now - secretTapRef.current.lastTap > 2500) {
+      secretTapRef.current.count = 1;
+    } else {
+      secretTapRef.current.count += 1;
+    }
+    secretTapRef.current.lastTap = now;
+    if (secretTapRef.current.count >= 5) {
+      secretTapRef.current.count = 0;
+      soundEngine.playSelect();
+      setShowCustomizer(true);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -267,7 +317,7 @@ export function App() {
             </div>
           </div>
 
-          {/* Right: Music-Box BGM & Customizer */}
+          {/* Right: Music-Box BGM (Admin button hidden from guests) */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleToggleBgm}
@@ -289,17 +339,6 @@ export function App() {
                   <span>BGM</span>
                 </>
               )}
-            </button>
-
-            <button
-              onClick={() => {
-                soundEngine.playSelect();
-                setShowCustomizer(true);
-              }}
-              title="청첩장 내용 편집"
-              className="p-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#7d6e65] border border-[#e2d4c0]"
-            >
-              <Wrench className="w-3.5 h-3.5" />
             </button>
           </div>
         </header>
@@ -384,9 +423,12 @@ export function App() {
           )}
         </main>
 
-        {/* Footer Share & Couple Mark */}
+        {/* Footer Share & Couple Mark (5-tap secret trigger for Admin Console) */}
         <footer className="pixel-card p-3.5 bg-[#fffdf9] flex items-center justify-between text-xs">
-          <div className="text-xs text-[#6e5d53]">
+          <div
+            onClick={handleSecretFooterTap}
+            className="text-xs text-[#6e5d53] select-none cursor-default"
+          >
             <strong className="text-[#3b2f2f]">{config.groom.fullName}</strong>{' '}
             <span className="text-[#d97b84]">♥</span>{' '}
             <strong className="text-[#3b2f2f]">{config.bride.fullName}</strong> · 2027. 05. 22

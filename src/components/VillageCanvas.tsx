@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { Camera, Compass, BookOpen, Sparkles, MessageCircle, X } from 'lucide-react';
+import { Camera, Compass, BookOpen, Sparkles, MessageCircle, Users, User, X } from 'lucide-react';
 import {
   GARDEN_MAPS,
-  GARDEN_MAP_ORDER,
+  COMMUTE_MAP_ORDER,
+  VENUE_MAP_ORDER,
+  AVATAR_CLASSES,
   GardenMapId,
   MapLandmark,
   MapPortal,
@@ -89,9 +91,14 @@ const REACTION_EMOJIS = [
   { emoji: '✨', label: '축복' },
 ];
 
-const STORAGE_SECRETS_KEY = 'pixel_wedding_quest_secrets_v1';
-const STORAGE_AURA_KEY = 'pixel_wedding_quest_aura_v1';
-const STORAGE_AFFINITY_KEY = 'pixel_wedding_quest_affinity_v1';
+const STORAGE_SECRETS_KEY = 'pixel_wedding_quest_secrets_v2';
+const STORAGE_AURA_KEY = 'pixel_wedding_quest_aura_v2';
+const STORAGE_AFFINITY_KEY = 'pixel_wedding_quest_affinity_v2';
+const STORAGE_WALK_MODE_KEY = 'pixel_wedding_quest_walk_mode_v1';
+const STORAGE_GUEST_AVATAR_KEY = 'pixel_wedding_quest_guest_avatar_v1';
+const STORAGE_GUEST_NAME_KEY = 'pixel_wedding_quest_guest_name_v1';
+
+export type WalkMode = 'guest' | 'couple';
 
 export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   config,
@@ -102,10 +109,16 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [currentMapId, setCurrentMapId] = useState<GardenMapId>('garden');
-  const currentMapRef = useRef<GardenMapId>('garden');
+  // Start at 'home' (우리 집) by default so the guest departs from home!
+  const [currentMapId, setCurrentMapId] = useState<GardenMapId>('home');
+  const currentMapRef = useRef<GardenMapId>('home');
   const [visitedMaps, setVisitedMaps] = useState<Record<GardenMapId, boolean>>({
-    garden: true,
+    home: true,
+    neighborhood: false,
+    station: false,
+    train: false,
+    garden: false,
+    bridal: false,
     chapel: false,
     memory: false,
     reception: false,
@@ -114,12 +127,71 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const [mapTransitionFade, setMapTransitionFade] = useState<boolean>(false);
   const [showPhotoBooth, setShowPhotoBooth] = useState<boolean>(false);
   const [showSecretBook, setShowSecretBook] = useState<boolean>(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState<boolean>(false);
   const [blessingCount, setBlessingCount] = useState<number>(128);
   const [activeStoryToast, setActiveStoryToast] = useState<{
     badge: string;
     title: string;
     text: string;
   } | null>(null);
+
+  // Walk Mode ('guest' protagonist by default, or 'couple' walk mode)
+  const [walkMode, setWalkMode] = useState<WalkMode>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_WALK_MODE_KEY);
+      if (saved === 'guest' || saved === 'couple') return saved;
+    } catch {
+      // ignore
+    }
+    return 'guest';
+  });
+  const walkModeRef = useRef<WalkMode>(walkMode);
+  useEffect(() => {
+    walkModeRef.current = walkMode;
+    try {
+      localStorage.setItem(STORAGE_WALK_MODE_KEY, walkMode);
+    } catch {
+      // ignore
+    }
+  }, [walkMode]);
+
+  const [guestAvatar, setGuestAvatar] = useState<AvatarClassId>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_GUEST_AVATAR_KEY) as AvatarClassId | null;
+      if (saved && GUEST_SPRITES[saved]) return saved;
+    } catch {
+      // ignore
+    }
+    return 'mage';
+  });
+  const guestAvatarRef = useRef<AvatarClassId>(guestAvatar);
+  useEffect(() => {
+    guestAvatarRef.current = guestAvatar;
+    try {
+      localStorage.setItem(STORAGE_GUEST_AVATAR_KEY, guestAvatar);
+    } catch {
+      // ignore
+    }
+  }, [guestAvatar]);
+
+  const [guestNickname, setGuestNickname] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_GUEST_NAME_KEY);
+      if (saved && saved.trim()) return saved.trim();
+    } catch {
+      // ignore
+    }
+    return '소중한 하객';
+  });
+  const guestNicknameRef = useRef<string>(guestNickname);
+  useEffect(() => {
+    guestNicknameRef.current = guestNickname;
+    try {
+      localStorage.setItem(STORAGE_GUEST_NAME_KEY, guestNickname);
+    } catch {
+      // ignore
+    }
+  }, [guestNickname]);
 
   // Secret Props Collection & Equipped Aura State
   const [discoveredSecrets, setDiscoveredSecrets] = useState<Record<string, boolean>>(
@@ -162,7 +234,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     }
   }, [equippedAura]);
 
-  // NPC & Pet Cat '모찌' Dialogue & Affinity State
+  // NPC & Pet Cat '모찌' & Groom/Bride Dialogue & Affinity State
   const [npcAffinities, setNpcAffinities] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_AFFINITY_KEY);
@@ -186,8 +258,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     }
   }, [npcAffinities]);
 
-  // Couple Tile-Grid Position & A* Tile Queue State
-  const initialSpawnTile = worldToTile(50, 72);
+  // Player Tile-Grid Position & A* Tile Queue State (Starts in 'home' at 46, 66)
+  const initialSpawnTile = worldToTile(46, 66);
   const posRef = useRef<{ x: number; y: number }>({
     x: initialSpawnTile.x,
     y: initialSpawnTile.y,
@@ -218,7 +290,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const [nearbySecret, setNearbySecret] = useState<SecretPropItem | null>(null);
   const [npcBubbleIndex, setNpcBubbleIndex] = useState<number>(0);
 
-  // Preload all 4 Map Backgrounds + Chibi Character Sprites
+  // Preload all 9 Map Backgrounds + Chibi Character Sprites
   const assetsRef = useRef<{
     maps: Partial<Record<GardenMapId, HTMLImageElement>>;
     groom: HTMLImageElement | null;
@@ -239,6 +311,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       img.src = src;
       img.onload = () => onLoad(img);
     };
+    loadImg(PIXEL_ASSETS.mapHome, (img) => (assetsRef.current.maps.home = img));
+    loadImg(
+      PIXEL_ASSETS.mapNeighborhood,
+      (img) => (assetsRef.current.maps.neighborhood = img)
+    );
+    loadImg(PIXEL_ASSETS.mapStation, (img) => (assetsRef.current.maps.station = img));
+    loadImg(PIXEL_ASSETS.mapTrain, (img) => (assetsRef.current.maps.train = img));
+    loadImg(PIXEL_ASSETS.mapBridal, (img) => (assetsRef.current.maps.bridal = img));
     loadImg(PIXEL_ASSETS.weddingGardenMap, (img) => (assetsRef.current.maps.garden = img));
     loadImg(PIXEL_ASSETS.weddingChapelMap, (img) => (assetsRef.current.maps.chapel = img));
     loadImg(PIXEL_ASSETS.weddingMemoryMap, (img) => (assetsRef.current.maps.memory = img));
@@ -409,22 +489,40 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
 
       if (landmark.specialAction) {
+        setVisitedMemories((prev) => {
+          const next = { ...prev, [landmark.id]: true };
+          const count = Object.keys(next).length;
+          if (count >= 3 && onUnlockTitle) {
+            onUnlockTitle('🎗️ 사계절의 증인');
+          }
+          return next;
+        });
+
+        if (landmark.specialAction === 'avatar_mirror') {
+          soundEngine.playSelect();
+          setShowAvatarPicker(true);
+          return;
+        }
+
+        if (landmark.specialAction === 'bridal_photo') {
+          soundEngine.playFanfare();
+          setShowPhotoBooth(true);
+          return;
+        }
+
+        if (landmark.specialAction === 'flower_stand') {
+          soundEngine.playFanfare();
+          spawnFloatingReaction('💐');
+          return;
+        }
+
         if (
-          landmark.specialAction === 'memory_spring' ||
-          landmark.specialAction === 'memory_autumn' ||
-          landmark.specialAction === 'memory_winter' ||
-          landmark.specialAction === 'piano_melody' ||
-          landmark.specialAction === 'virgin_road' ||
-          landmark.specialAction === 'cake_toast'
+          landmark.specialAction === 'street_cafe' ||
+          landmark.specialAction === 'station_bench'
         ) {
-          setVisitedMemories((prev) => {
-            const next = { ...prev, [landmark.id]: true };
-            const count = Object.keys(next).length;
-            if (count >= 3 && onUnlockTitle) {
-              onUnlockTitle('🎗️ 사계절의 증인');
-            }
-            return next;
-          });
+          soundEngine.playCoin();
+          spawnFloatingReaction(landmark.specialAction === 'street_cafe' ? '☕' : '🚇');
+          if (!landmark.questId) return;
         }
 
         if (
@@ -456,7 +554,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         onOpenQuest(landmark.questId);
       }
     },
-    [onOpenQuest, onUnlockTitle]
+    [onOpenQuest, onUnlockTitle, spawnFloatingReaction]
   );
 
   useEffect(() => {
@@ -547,7 +645,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     pendingPortalRef.current = null;
   }, []);
 
-  // Open 3-Choice Dialogue Modal with a Guest NPC or Pet Cat '모찌'
+  // Open 3-Choice Dialogue Modal with a Guest NPC, Pet Cat '모찌', Groom, or Bride
   const openNpcDialogue = useCallback((npc: ActiveNpcTarget) => {
     soundEngine.playSelect();
     setActiveDialogueNpc(npc);
@@ -646,9 +744,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       return;
     }
 
-    // 2. Check if user tapped a Guest NPC or Pet Cat '모찌'
+    // 2. Check if user tapped an NPC (Groom, Bride, Guest, or Pet Cat '모찌')
     const tappedNpc = liveNpcsRef.current.find(
-      (npc) => Math.hypot(clickX - npc.x, clickY - (npc.y - 4)) < 8.5
+      (npc) => Math.hypot(clickX - npc.x, clickY - (npc.y - 4)) < 9.5
     );
     if (tappedNpc) {
       openNpcDialogue(tappedNpc);
@@ -843,7 +941,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const bob = Math.sin(tick * 0.09 + prop.x) * 3;
 
       ctx.save();
-      // Glowing mystery aura circle on ground
       ctx.fillStyle = isFound
         ? 'rgba(107, 144, 113, 0.25)'
         : 'rgba(255, 232, 163, 0.45)';
@@ -857,7 +954,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       ctx.arc(sx, sy + 4, (isNear ? 24 : 18) + Math.sin(tick * 0.12) * 2, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Floating Prop Pill
       ctx.fillStyle = isFound ? '#edf3ee' : '#fffdf9';
       ctx.fillRect(sx - 18, sy - 18 + bob, 36, 28);
       ctx.strokeStyle = isFound ? '#6b9071' : '#d4af37';
@@ -868,7 +964,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       ctx.textAlign = 'center';
       ctx.fillText(prop.icon, sx, sy + 2 + bob);
 
-      // Sparkle star above undiscovered prop
       if (!isFound) {
         ctx.fillStyle = tick % 24 < 12 ? '#d97b84' : '#d4af37';
         ctx.font = 'bold 13px sans-serif';
@@ -895,10 +990,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       if (keysRef.current['ArrowUp'] || keysRef.current['w'] || keysRef.current['W']) dy -= 1;
       if (keysRef.current['ArrowDown'] || keysRef.current['s'] || keysRef.current['S']) dy += 1;
 
-      const tileStepSpeed = 0.48; // Smooth interpolation speed from tile center to tile center
+      const tileStepSpeed = 0.48;
       let isMoving = false;
 
-      // If user is pushing joystick/keyboard, queue the next single tile step whenever current step finishes
       if (Math.hypot(dx, dy) > 0.14) {
         pendingLandmarkRef.current = null;
         pendingPortalRef.current = null;
@@ -923,7 +1017,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         }
       }
 
-      // Advance smoothly along the queued tile steps
       if (pathQueueRef.current.length > 0) {
         const targetTile = pathQueueRef.current[0];
         const dist = Math.hypot(
@@ -943,22 +1036,20 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           }
           isMoving = true;
         } else {
-          // Arrived cleanly at the exact center of targetTile!
           posRef.current = { x: targetTile.x, y: targetTile.y };
           currentTileRef.current = targetTile;
           pathQueueRef.current.shift();
           isMoving = pathQueueRef.current.length > 0;
 
-          // Synchronized tile-step footfall sound & petal/dust puff
           if (tick - stepSoundCooldownRef.current > 8) {
             soundEngine.playStep();
             stepSoundCooldownRef.current = tick;
           }
 
           const puffColor =
-            activeMapId === 'reception'
+            activeMapId === 'reception' || activeMapId === 'train'
               ? '#ffe8a3'
-              : activeMapId === 'chapel'
+              : activeMapId === 'chapel' || activeMapId === 'home'
               ? '#fff6dc'
               : '#ffd6e0';
           footstepsRef.current.push({
@@ -971,7 +1062,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             color: puffColor,
           });
 
-          // If user is still holding joystick/keys, immediately chain the next tile step for zero-pause smooth grid walking!
           if (pathQueueRef.current.length === 0 && Math.hypot(dx, dy) > 0.14) {
             const chained = getNextStepTile(
               targetTile.col,
@@ -986,7 +1076,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             }
           }
 
-          // If final destination tile reached, trigger pending portal / secret / landmark
           if (pathQueueRef.current.length === 0) {
             if (pendingPortalRef.current) {
               const p = pendingPortalRef.current;
@@ -1176,7 +1265,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.restore();
       }
 
-      // 7. Collect All Actors (Guest NPCs + Pet Cat '모찌' + Groom + Bride) and Y-Depth Sort!
+      // 7. Collect All Actors (Guest NPCs + Groom/Bride Hosts + Pet Cat '모찌' + Player) and Y-Depth Sort!
       const GUEST_H = 66;
       const CHIBI_H = 96;
       const guestHeads: { x: number; y: number; name: string; msg: string }[] = [];
@@ -1188,6 +1277,167 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
       const depthList: DepthRenderable[] = [];
 
+      // Helper to render Groom / Bride / Mochi as Host NPCs when player is in Guest Protagonist mode ('guest')
+      const addHostSpriteNpc = (
+        id: string,
+        name: string,
+        roleTitle: string,
+        avatar: 'groom' | 'bride' | 'mochi',
+        img: HTMLImageElement | null,
+        wx: number,
+        wy: number,
+        spriteH: number,
+        msg: string
+      ) => {
+        const fx = (wx / 100) * W;
+        const fy = (wy / 100) * H;
+        const bob = Math.sin(tick * 0.07 + wx) * 2.5;
+
+        currentFrameNpcs.push({
+          id,
+          name,
+          roleTitle,
+          avatar,
+          initialMessage: msg,
+          x: wx,
+          y: wy,
+        });
+
+        guestHeads.push({
+          x: fx,
+          y: fy - spriteH - bob,
+          name,
+          msg,
+        });
+
+        depthList.push({
+          footY: fy,
+          draw: () => {
+            ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
+            ctx.beginPath();
+            ctx.ellipse(fx, fy, spriteH > 60 ? 18 : 13, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (img) {
+              const w = Math.round((spriteH * img.naturalWidth) / img.naturalHeight);
+              ctx.drawImage(
+                img,
+                Math.round(fx - w / 2),
+                Math.round(fy - spriteH - bob),
+                w,
+                spriteH
+              );
+            }
+
+            // Host Crown/Heart Nameplate above Groom & Bride
+            if (avatar === 'groom' || avatar === 'bride') {
+              const badgeText =
+                avatar === 'groom'
+                  ? `🤵 신랑 ${config.groom.name}`
+                  : `👰 신부 ${config.bride.name}`;
+              ctx.font = 'bold 13px "Gowun Batang", sans-serif';
+              const tw = ctx.measureText(badgeText).width + 16;
+              const ty = Math.round(fy - spriteH - bob - 26);
+              ctx.fillStyle = '#fffdf9';
+              ctx.fillRect(fx - tw / 2, ty, tw, 21);
+              ctx.strokeStyle = '#d97b84';
+              ctx.lineWidth = 1.8;
+              ctx.strokeRect(fx - tw / 2, ty, tw, 21);
+              ctx.fillStyle = '#3b2f2f';
+              ctx.textAlign = 'center';
+              ctx.fillText(badgeText, fx, ty + 15);
+            }
+          },
+        });
+      };
+
+      // When in Guest Protagonist mode, place Groom & Bride as welcoming hosts on venue maps!
+      if (walkModeRef.current === 'guest') {
+        if (activeMapId === 'garden') {
+          addHostSpriteNpc(
+            'host-groom-garden',
+            `신랑 ${config.groom.name}`,
+            '웨딩 가든 호스트 · 신랑',
+            'groom',
+            assetsRef.current.groom,
+            48,
+            61,
+            CHIBI_H,
+            '어서 오세요! 멀리서부터 귀한 걸음 해주셔서 정말 감사합니다 ♥'
+          );
+          addHostSpriteNpc(
+            'companion-mochi',
+            config.pet.name,
+            config.pet.title,
+            'mochi',
+            assetsRef.current.cat,
+            39,
+            62,
+            48,
+            '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾'
+          );
+        } else if (activeMapId === 'bridal') {
+          addHostSpriteNpc(
+            'host-bride-bridal',
+            `신부 ${config.bride.name}`,
+            '신부 대기실 주인공 · 신부',
+            'bride',
+            assetsRef.current.bride,
+            50,
+            36,
+            CHIBI_H,
+            '대기실까지 찾아와주셔서 너무 반가워요! 우리 꽃벽 앞에서 사진 찍어요 💐'
+          );
+        } else if (activeMapId === 'chapel') {
+          addHostSpriteNpc(
+            'host-groom-chapel',
+            `신랑 ${config.groom.name}`,
+            '본식 채플 단상 · 신랑',
+            'groom',
+            assetsRef.current.groom,
+            45,
+            24,
+            CHIBI_H,
+            '오늘 이 자리에서 평생의 봄날을 약속합니다 💍'
+          );
+          addHostSpriteNpc(
+            'host-bride-chapel',
+            `신부 ${config.bride.name}`,
+            '본식 채플 단상 · 신부',
+            'bride',
+            assetsRef.current.bride,
+            55,
+            24,
+            CHIBI_H,
+            '따뜻한 축복 속에서 새로운 시작을 함께해 주셔서 감사해요 🌸'
+          );
+        } else if (activeMapId === 'reception') {
+          addHostSpriteNpc(
+            'host-groom-reception',
+            `신랑 ${config.groom.name}`,
+            '별빛 연회장 · 신랑',
+            'groom',
+            assetsRef.current.groom,
+            45,
+            38,
+            CHIBI_H,
+            '맛있는 식사와 함께 즐거운 저녁 시간 보내세요! 건배! 🥂'
+          );
+          addHostSpriteNpc(
+            'host-bride-reception',
+            `신부 ${config.bride.name}`,
+            '별빛 연회장 · 신부',
+            'bride',
+            assetsRef.current.bride,
+            55,
+            38,
+            CHIBI_H,
+            '소원나무에 남겨주신 방명록 하나하나 소중히 읽을게요 ♥'
+          );
+        }
+      }
+
+      // Guest NPCs across maps
       if (activeMapId === 'chapel') {
         const pewSpots: { x: number; y: number; avatar: AvatarClassId; cheer: string }[] = [
           { x: 33, y: 49, avatar: 'knight', cheer: '결혼을 진심으로 축하해요! 👏' },
@@ -1253,31 +1503,51 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 );
                 ctx.restore();
               }
-
-              if (onVirginRoad && idx % 2 === Math.floor(tick / 30) % 2) {
-                ctx.fillStyle = '#d97b84';
-                ctx.font = 'bold 13px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('♥', fx, fy - h - cheerJump - 6);
-              }
             },
           });
         });
-      } else if (activeMapId === 'garden' || activeMapId === 'reception') {
+      } else if (
+        activeMapId === 'garden' ||
+        activeMapId === 'reception' ||
+        activeMapId === 'neighborhood' ||
+        activeMapId === 'station' ||
+        activeMapId === 'train' ||
+        activeMapId === 'bridal'
+      ) {
         const npcSpots =
           activeMapId === 'garden'
             ? [
                 { x: 36, y: 47 },
                 { x: 64, y: 47 },
-                { x: 37, y: 61 },
                 { x: 63, y: 61 },
               ]
-            : [
+            : activeMapId === 'reception'
+            ? [
                 { x: 28, y: 34 },
                 { x: 72, y: 34 },
                 { x: 35, y: 56 },
                 { x: 65, y: 56 },
+              ]
+            : activeMapId === 'neighborhood'
+            ? [
+                { x: 24, y: 36 },
+                { x: 65, y: 34 },
+              ]
+            : activeMapId === 'station'
+            ? [
+                { x: 42, y: 42 },
+                { x: 68, y: 42 },
+              ]
+            : activeMapId === 'train'
+            ? [
+                { x: 28, y: 52 },
+                { x: 72, y: 52 },
+              ]
+            : [
+                { x: 34, y: 58 },
+                { x: 66, y: 58 },
               ];
+
         const recentGuests = guestbook.slice(0, npcSpots.length);
         recentGuests.forEach((g, idx) => {
           const spot = npcSpots[idx];
@@ -1289,9 +1559,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           const bob = Math.max(0, Math.sin(tick * 0.08 + idx * 1.7)) * 2.5;
 
           currentFrameNpcs.push({
-            id: `guest-npc-${g.id}`,
+            id: `guest-npc-${activeMapId}-${g.id}`,
             name: g.name,
-            roleTitle: g.titleBadge || '정원 산책 하객',
+            roleTitle: g.titleBadge || '결혼식 동행 하객',
             avatar: g.avatar,
             initialMessage: g.message,
             x: spot.x,
@@ -1334,211 +1604,288 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         });
       }
 
-      // Couple & Kitten coordinates
+      // Render Controlled Player Character(s): either Guest Protagonist ('guest') OR Groom & Bride Couple ('couple')
       const walkBob = isMoving
         ? Math.abs(Math.sin(tick * 0.26)) * 5.2
         : Math.sin(tick * 0.06) * 1.5;
       const strideTilt = isMoving ? Math.sin(tick * 0.26) * 0.038 : 0;
 
-      const groomFootX = (posRef.current.x / 100) * W;
-      const groomFootY = (posRef.current.y / 100) * H;
+      const playerFootX = (posRef.current.x / 100) * W;
+      const playerFootY = (posRef.current.y / 100) * H;
+      const activeAura = equippedAuraRef.current;
 
-      const brideTrail =
-        trailRef.current[Math.min(7, trailRef.current.length - 1)] || posRef.current;
-      const catTrail =
-        trailRef.current[Math.min(16, trailRef.current.length - 1)] || posRef.current;
+      if (walkModeRef.current === 'guest') {
+        liveNpcsRef.current = currentFrameNpcs;
 
-      const brideFootX = (brideTrail.x / 100) * W + 42;
-      const brideFootY = (brideTrail.y / 100) * H + 2;
+        depthList.push({
+          footY: playerFootY,
+          draw: () => {
+            const avatarId = guestAvatarRef.current;
+            const guestImg =
+              assetsRef.current.guests[avatarId] || assetsRef.current.guests.mage;
+            const playerH = avatarId === 'cat' ? 56 : 82;
 
-      const catFootX = (catTrail.x / 100) * W - 40;
-      const catFootY = (catTrail.y / 100) * H + 6;
-
-      // Register Pet Cat '모찌' as a tappable dialogue companion too!
-      currentFrameNpcs.push({
-        id: 'companion-mochi',
-        name: config.pet.name,
-        roleTitle: config.pet.title,
-        avatar: 'mochi',
-        initialMessage: '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾',
-        x: (catFootX / W) * 100,
-        y: (catFootY / H) * 100,
-      });
-      liveNpcsRef.current = currentFrameNpcs;
-
-      // Add Pet Cat '모찌' to depth list
-      depthList.push({
-        footY: catFootY,
-        draw: () => {
-          ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
-          ctx.beginPath();
-          ctx.ellipse(catFootX, catFootY, 14, 5, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          if (assetsRef.current.cat) {
-            const catH = 48;
-            const catW = Math.round(
-              (catH * assetsRef.current.cat.naturalWidth) /
-                assetsRef.current.cat.naturalHeight
-            );
-            ctx.save();
-            ctx.translate(catFootX, catFootY - catH / 2 - walkBob * 0.8);
-            ctx.scale(facingDirRef.current, 1);
-            ctx.rotate(strideTilt * 0.8);
-            ctx.drawImage(
-              assetsRef.current.cat,
-              Math.round(-catW / 2),
-              Math.round(-catH / 2),
-              catW,
-              catH
-            );
-            ctx.restore();
-          }
-        },
-      });
-
-      // Add Chibi Couple (Groom + Bride) + Equipped Secret Aura/Crown to depth list!
-      depthList.push({
-        footY: Math.max(groomFootY, brideFootY),
-        draw: () => {
-          const centerCoupleX = (groomFootX - 6 + brideFootX) / 2;
-          const centerCoupleY = (groomFootY + brideFootY) / 2;
-          const activeAura = equippedAuraRef.current;
-
-          // Ground Aura Layer (Lantern Aura)
-          if (activeAura === 'lantern_aura') {
-            ctx.save();
-            ctx.strokeStyle = 'rgba(212, 175, 55, 0.75)';
-            ctx.lineWidth = 2.5;
-            ctx.setLineDash([8, 5]);
-            ctx.beginPath();
-            ctx.ellipse(
-              centerCoupleX,
-              centerCoupleY - 2,
-              54 + Math.sin(tick * 0.08) * 3,
-              20,
-              0,
-              0,
-              Math.PI * 2
-            );
-            ctx.stroke();
-
-            for (let i = 0; i < 4; i++) {
-              const ang = tick * 0.05 + (i * Math.PI) / 2;
-              const ox = centerCoupleX + Math.cos(ang) * 52;
-              const oy = centerCoupleY - 12 + Math.sin(ang) * 18;
-              ctx.fillStyle = '#ffe8a3';
+            // Ground Aura Layer
+            if (activeAura === 'lantern_aura') {
+              ctx.save();
+              ctx.strokeStyle = 'rgba(212, 175, 55, 0.75)';
+              ctx.lineWidth = 2.5;
+              ctx.setLineDash([8, 5]);
               ctx.beginPath();
-              ctx.arc(ox, oy, 4, 0, Math.PI * 2);
-              ctx.fill();
+              ctx.ellipse(
+                playerFootX,
+                playerFootY - 2,
+                38 + Math.sin(tick * 0.08) * 3,
+                16,
+                0,
+                0,
+                Math.PI * 2
+              );
+              ctx.stroke();
+              ctx.restore();
             }
-            ctx.restore();
-          }
 
-          ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
-          ctx.beginPath();
-          ctx.ellipse(groomFootX - 6, groomFootY, 16, 6, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.ellipse(brideFootX, brideFootY, 24, 7, 0, 0, Math.PI * 2);
-          ctx.fill();
+            ctx.fillStyle = 'rgba(59, 47, 47, 0.24)';
+            ctx.beginPath();
+            ctx.ellipse(playerFootX, playerFootY, 18, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
 
-          const drawChibiDirectional = (
-            img: HTMLImageElement,
-            footX: number,
-            footY: number,
-            bob: number,
-            tilt: number
-          ) => {
-            const w = Math.round((CHIBI_H * img.naturalWidth) / img.naturalHeight);
-            ctx.save();
-            ctx.translate(footX, footY - CHIBI_H / 2 - bob);
-            ctx.scale(facingDirRef.current, 1);
-            ctx.rotate(tilt);
-            ctx.drawImage(
-              img,
-              Math.round(-w / 2),
-              Math.round(-CHIBI_H / 2),
-              w,
-              CHIBI_H
-            );
-            ctx.restore();
-          };
+            if (guestImg) {
+              const w = Math.round(
+                (playerH * guestImg.naturalWidth) / guestImg.naturalHeight
+              );
+              ctx.save();
+              ctx.translate(playerFootX, playerFootY - playerH / 2 - walkBob);
+              ctx.scale(facingDirRef.current, 1);
+              ctx.rotate(strideTilt);
+              ctx.drawImage(
+                guestImg,
+                Math.round(-w / 2),
+                Math.round(-playerH / 2),
+                w,
+                playerH
+              );
+              ctx.restore();
+            }
 
-          if (assetsRef.current.groom) {
-            drawChibiDirectional(
-              assetsRef.current.groom,
-              groomFootX - 6,
-              groomFootY,
-              walkBob,
-              strideTilt
-            );
-          }
-          if (assetsRef.current.bride) {
-            drawChibiDirectional(
-              assetsRef.current.bride,
-              brideFootX,
-              brideFootY,
-              walkBob * 0.9,
-              -strideTilt * 0.85
-            );
-          }
+            if (activeAura === 'petal_aura') {
+              ctx.save();
+              ctx.font = 'bold 14px sans-serif';
+              ctx.textAlign = 'center';
+              for (let i = 0; i < 4; i++) {
+                const ang = tick * 0.06 + (i * Math.PI) / 2;
+                const px = playerFootX + Math.cos(ang) * 36;
+                const py = playerFootY - 40 + Math.sin(ang) * 18;
+                ctx.fillText('🌸', px, py);
+              }
+              ctx.restore();
+            }
 
-          // Orbiting Petal Aura Layer
-          if (activeAura === 'petal_aura') {
-            ctx.save();
-            ctx.font = 'bold 14px sans-serif';
+            if (activeAura === 'wedding_crown') {
+              ctx.save();
+              ctx.font = 'bold 15px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText('👑', playerFootX, playerFootY - playerH - 6 - walkBob);
+              ctx.restore();
+            }
+
+            // Guest Protagonist Overhead Nameplate
+            const label = `🎒 ${guestNicknameRef.current}`;
+            ctx.font = 'bold 13px "Gowun Batang", sans-serif';
+            const tagW = Math.max(92, ctx.measureText(label).width + 18);
+            const tagY = playerFootY - playerH - 32 - walkBob;
+            ctx.fillStyle = 'rgba(255, 253, 249, 0.95)';
+            ctx.fillRect(playerFootX - tagW / 2, tagY, tagW, 22);
+            ctx.strokeStyle = '#c59b6d';
+            ctx.lineWidth = 1.8;
+            ctx.strokeRect(playerFootX - tagW / 2, tagY, tagW, 22);
+            ctx.fillStyle = '#3b2f2f';
             ctx.textAlign = 'center';
-            for (let i = 0; i < 4; i++) {
-              const ang = tick * 0.06 + (i * Math.PI) / 2;
-              const px = centerCoupleX + Math.cos(ang) * 48;
-              const py = centerCoupleY - 46 + Math.sin(ang) * 22;
-              ctx.fillText('🌸', px, py);
-            }
-            ctx.restore();
-          }
+            ctx.fillText(label, playerFootX, tagY + 15);
+          },
+        });
+      } else {
+        // Couple Walk Mode ('couple')
+        const groomFootX = playerFootX;
+        const groomFootY = playerFootY;
 
-          // Royal Wedding Crown Aura Layer
-          if (activeAura === 'wedding_crown') {
-            ctx.save();
+        const brideTrail =
+          trailRef.current[Math.min(7, trailRef.current.length - 1)] || posRef.current;
+        const catTrail =
+          trailRef.current[Math.min(16, trailRef.current.length - 1)] || posRef.current;
+
+        const brideFootX = (brideTrail.x / 100) * W + 42;
+        const brideFootY = (brideTrail.y / 100) * H + 2;
+
+        const catFootX = (catTrail.x / 100) * W - 40;
+        const catFootY = (catTrail.y / 100) * H + 6;
+
+        currentFrameNpcs.push({
+          id: 'companion-mochi',
+          name: config.pet.name,
+          roleTitle: config.pet.title,
+          avatar: 'mochi',
+          initialMessage: '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾',
+          x: (catFootX / W) * 100,
+          y: (catFootY / H) * 100,
+        });
+        liveNpcsRef.current = currentFrameNpcs;
+
+        depthList.push({
+          footY: catFootY,
+          draw: () => {
+            ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
+            ctx.beginPath();
+            ctx.ellipse(catFootX, catFootY, 14, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (assetsRef.current.cat) {
+              const catH = 48;
+              const catW = Math.round(
+                (catH * assetsRef.current.cat.naturalWidth) /
+                  assetsRef.current.cat.naturalHeight
+              );
+              ctx.save();
+              ctx.translate(catFootX, catFootY - catH / 2 - walkBob * 0.8);
+              ctx.scale(facingDirRef.current, 1);
+              ctx.rotate(strideTilt * 0.8);
+              ctx.drawImage(
+                assetsRef.current.cat,
+                Math.round(-catW / 2),
+                Math.round(-catH / 2),
+                catW,
+                catH
+              );
+              ctx.restore();
+            }
+          },
+        });
+
+        depthList.push({
+          footY: Math.max(groomFootY, brideFootY),
+          draw: () => {
+            const centerCoupleX = (groomFootX - 6 + brideFootX) / 2;
+            const centerCoupleY = (groomFootY + brideFootY) / 2;
+
+            if (activeAura === 'lantern_aura') {
+              ctx.save();
+              ctx.strokeStyle = 'rgba(212, 175, 55, 0.75)';
+              ctx.lineWidth = 2.5;
+              ctx.setLineDash([8, 5]);
+              ctx.beginPath();
+              ctx.ellipse(
+                centerCoupleX,
+                centerCoupleY - 2,
+                54 + Math.sin(tick * 0.08) * 3,
+                20,
+                0,
+                0,
+                Math.PI * 2
+              );
+              ctx.stroke();
+              ctx.restore();
+            }
+
+            ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
+            ctx.beginPath();
+            ctx.ellipse(groomFootX - 6, groomFootY, 16, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(brideFootX, brideFootY, 24, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const drawChibiDirectional = (
+              img: HTMLImageElement,
+              footX: number,
+              footY: number,
+              bob: number,
+              tilt: number
+            ) => {
+              const w = Math.round((CHIBI_H * img.naturalWidth) / img.naturalHeight);
+              ctx.save();
+              ctx.translate(footX, footY - CHIBI_H / 2 - bob);
+              ctx.scale(facingDirRef.current, 1);
+              ctx.rotate(tilt);
+              ctx.drawImage(
+                img,
+                Math.round(-w / 2),
+                Math.round(-CHIBI_H / 2),
+                w,
+                CHIBI_H
+              );
+              ctx.restore();
+            };
+
+            if (assetsRef.current.groom) {
+              drawChibiDirectional(
+                assetsRef.current.groom,
+                groomFootX - 6,
+                groomFootY,
+                walkBob,
+                strideTilt
+              );
+            }
+            if (assetsRef.current.bride) {
+              drawChibiDirectional(
+                assetsRef.current.bride,
+                brideFootX,
+                brideFootY,
+                walkBob * 0.9,
+                -strideTilt * 0.85
+              );
+            }
+
+            if (activeAura === 'petal_aura') {
+              ctx.save();
+              ctx.font = 'bold 14px sans-serif';
+              ctx.textAlign = 'center';
+              for (let i = 0; i < 4; i++) {
+                const ang = tick * 0.06 + (i * Math.PI) / 2;
+                const px = centerCoupleX + Math.cos(ang) * 48;
+                const py = centerCoupleY - 46 + Math.sin(ang) * 22;
+                ctx.fillText('🌸', px, py);
+              }
+              ctx.restore();
+            }
+
+            if (activeAura === 'wedding_crown') {
+              ctx.save();
+              ctx.font = 'bold 15px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText('👑', groomFootX - 6, groomFootY - CHIBI_H - 6 - walkBob);
+              ctx.fillText('👑', brideFootX, brideFootY - CHIBI_H - 6 - walkBob * 0.9);
+              ctx.restore();
+            }
+
+            ctx.fillStyle = '#d97b84';
             ctx.font = 'bold 15px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('👑', groomFootX - 6, groomFootY - CHIBI_H - 6 - walkBob);
-            ctx.fillText('👑', brideFootX, brideFootY - CHIBI_H - 6 - walkBob * 0.9);
-            ctx.restore();
-          }
+            ctx.fillText(
+              '♥',
+              Math.round(centerCoupleX),
+              Math.round(
+                groomFootY - CHIBI_H - 4 - walkBob + Math.sin(tick * 0.1) * 2
+              )
+            );
 
-          // Floating Heart between Groom & Bride
-          ctx.fillStyle = '#d97b84';
-          ctx.font = 'bold 15px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(
-            '♥',
-            Math.round(centerCoupleX),
-            Math.round(
-              groomFootY - CHIBI_H - 4 - walkBob + Math.sin(tick * 0.1) * 2
-            )
-          );
+            const tagY = groomFootY - CHIBI_H - 36 - walkBob;
+            ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
+            ctx.fillRect(centerCoupleX - 58, tagY, 116, 23);
+            ctx.strokeStyle = '#d97b84';
+            ctx.lineWidth = 1.8;
+            ctx.strokeRect(centerCoupleX - 58, tagY, 116, 23);
+            ctx.fillStyle = '#3b2f2f';
+            ctx.font = 'bold 14px "Gowun Batang", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+              `${config.groom.name} ♥ ${config.bride.name}`,
+              centerCoupleX,
+              tagY + 16
+            );
+          },
+        });
+      }
 
-          // Couple Overhead Name Tag
-          const tagY = groomFootY - CHIBI_H - 36 - walkBob;
-          ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
-          ctx.fillRect(centerCoupleX - 58, tagY, 116, 23);
-          ctx.strokeStyle = '#d97b84';
-          ctx.lineWidth = 1.8;
-          ctx.strokeRect(centerCoupleX - 58, tagY, 116, 23);
-          ctx.fillStyle = '#3b2f2f';
-          ctx.font = 'bold 14px "Gowun Batang", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(
-            `${config.groom.name} ♥ ${config.bride.name}`,
-            centerCoupleX,
-            tagY + 16
-          );
-        },
-      });
-
-      // Sort all actors by footY ascending so southern characters naturally overlap northern ones!
       depthList.sort((a, b) => a.footY - b.footY);
       depthList.forEach((actor) => actor.draw());
 
@@ -1597,7 +1944,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.restore();
       }
 
-      // 10. Map-Specific Ambient Particles (Petals / Sunbeams / Seasonal / Fireflies)
+      // 10. Map-Specific Ambient Particles
       particles.forEach((p) => {
         if (mapConfig.particleType === 'fireflies') {
           p.x += Math.sin(tick * 0.03 + p.phase) * 0.45;
@@ -1650,35 +1997,37 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
   // Evaluate Zone Mini-Quest completion for current map
   const isMiniQuestStepDone = (step: ZoneMiniQuestItem): boolean => {
-    if (step.id === 'mq-garden-story') return !!visitedQuests.story;
-    if (step.id === 'mq-garden-secret')
-      return !!(
-        discoveredSecrets['secret-garden-mailbox'] ||
-        discoveredSecrets['secret-garden-bench']
-      );
-    if (step.id === 'mq-garden-npc') return talkedToAnyNpc;
+    if (step.id === 'mq-home-invite') return !!visitedQuests.story;
+    if (step.id === 'mq-home-mirror') return !!visitedMemories['home-mirror'];
+    if (step.id === 'mq-home-door') return !!visitedMaps.neighborhood;
+    if (step.id === 'mq-nb-flower') return !!visitedMemories['neighborhood-flower'];
+    if (step.id === 'mq-nb-cafe') return !!visitedMemories['neighborhood-cafe'];
+    if (step.id === 'mq-nb-station') return !!visitedMaps.station;
+    if (step.id === 'mq-st-route') return !!visitedQuests.location;
+    if (step.id === 'mq-st-secret') return !!discoveredSecrets['secret-station-ticket'];
+    if (step.id === 'mq-st-board') return !!visitedMaps.train;
+    if (step.id === 'mq-tr-view') return !!visitedQuests.gallery;
+    if (step.id === 'mq-tr-quiz') return !!visitedQuests.minigame;
+    if (step.id === 'mq-tr-arrive') return !!visitedMaps.garden;
+    if (step.id === 'mq-garden-groom') return talkedToAnyNpc;
+    if (step.id === 'mq-garden-bridal') return !!visitedMaps.bridal;
+    if (step.id === 'mq-garden-secret') return !!discoveredSecrets['secret-garden-mailbox'];
+    if (step.id === 'mq-bridal-greet') return talkedToAnyNpc;
+    if (step.id === 'mq-bridal-photo') return !!visitedMemories['bridal-bride-photo'];
+    if (step.id === 'mq-bridal-secret') return !!discoveredSecrets['secret-bridal-tiara'];
     if (step.id === 'mq-chapel-piano') return !!visitedMemories['chapel-piano'];
     if (step.id === 'mq-chapel-altar')
       return !!(visitedQuests.ceremony || visitedMemories['chapel-altar']);
     if (step.id === 'mq-chapel-secret')
-      return !!(
-        discoveredSecrets['secret-chapel-sheetmusic'] ||
-        discoveredSecrets['secret-chapel-bouquet']
-      );
+      return !!discoveredSecrets['secret-chapel-sheetmusic'];
     if (step.id === 'mq-memory-spring') return !!visitedMemories['memory-spring'];
     if (step.id === 'mq-memory-winter') return !!visitedMemories['memory-winter'];
     if (step.id === 'mq-memory-secret')
-      return !!(
-        discoveredSecrets['secret-memory-receipt'] ||
-        discoveredSecrets['secret-memory-snowglobe']
-      );
+      return !!discoveredSecrets['secret-memory-receipt'];
     if (step.id === 'mq-reception-cake') return !!visitedMemories['reception-cake'];
     if (step.id === 'mq-reception-tree') return !!visitedQuests.rsvp;
     if (step.id === 'mq-reception-secret')
-      return !!(
-        discoveredSecrets['secret-reception-lantern'] ||
-        discoveredSecrets['secret-reception-macaron']
-      );
+      return !!discoveredSecrets['secret-reception-macaron'];
     return false;
   };
 
@@ -1697,15 +2046,48 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const activeMiniQuest = ZONE_MINI_QUESTS[currentMapId];
   const exploredMapCount = Object.values(visitedMaps).filter(Boolean).length;
   const discoveredCount = Object.keys(discoveredSecrets).length;
+  const stageMaps =
+    activeMapConfig.stage === 'commute' ? COMMUTE_MAP_ORDER : VENUE_MAP_ORDER;
+
+  const resolveDialoguePortrait = (
+    avatar: AvatarClassId | 'mochi' | 'groom' | 'bride'
+  ): string => {
+    if (avatar === 'mochi') return PIXEL_ASSETS.catSprite;
+    if (avatar === 'groom') return PIXEL_ASSETS.groomPortrait;
+    if (avatar === 'bride') return PIXEL_ASSETS.bridePortrait;
+    return GUEST_SPRITES[avatar].portrait;
+  };
 
   return (
     <div className="flex flex-col gap-2.5">
-      {/* Top World Map Switcher Bar (4 Connected Maps + Secret Collection & Photo Booth) */}
+      {/* Top World Map Switcher Bar (2-Stage 9-Map Journey + Guest/Couple Mode + Secrets + Photo Booth) */}
       <div className="pixel-card p-2.5 bg-[#fffdf9] space-y-2">
-        <div className="flex items-center justify-between gap-1 px-0.5">
-          <span className="text-xs font-bold text-[#3b2f2f] truncate">
-            🗺️ 웨딩 월드 ({exploredMapCount}/4 맵)
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-1.5 px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-[#3b2f2f]">
+              🗺️ 웨딩 여정 ({exploredMapCount}/9 맵)
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                setShowAvatarPicker(true);
+              }}
+              className="px-2 py-0.5 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#d97b84] text-[#b85d67] text-[10px] font-sans font-bold flex items-center gap-1"
+            >
+              {walkMode === 'guest' ? (
+                <>
+                  <User className="w-3 h-3" />
+                  <span>하객: {guestNickname}</span>
+                </>
+              ) : (
+                <>
+                  <Users className="w-3 h-3" />
+                  <span>커플 산책</span>
+                </>
+              )}
+            </button>
+          </div>
 
           <div className="flex items-center gap-1.5 shrink-0 font-sans">
             <button
@@ -1714,10 +2096,10 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 soundEngine.playSelect();
                 setShowSecretBook(true);
               }}
-              className="px-2.5 py-0.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#5c4d47] text-[11px] font-bold flex items-center gap-1 transition-colors"
+              className="px-2 py-0.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#5c4d47] text-[11px] font-bold flex items-center gap-1 transition-colors"
             >
               <Sparkles className="w-3 h-3 text-[#d97b84]" />
-              <span>비밀소품 {discoveredCount}/8</span>
+              <span>비밀 {discoveredCount}/9</span>
             </button>
 
             <button
@@ -1726,7 +2108,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 soundEngine.playSelect();
                 setShowPhotoBooth(true);
               }}
-              className="px-2.5 py-0.5 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#e2a3a9] text-[#b85d67] text-[11px] font-bold flex items-center gap-1 transition-colors"
+              className="px-2 py-0.5 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#e2a3a9] text-[#b85d67] text-[11px] font-bold flex items-center gap-1 transition-colors"
             >
               <Camera className="w-3 h-3" />
               <span>포토부스</span>
@@ -1734,8 +2116,48 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-1.5 font-sans">
-          {GARDEN_MAP_ORDER.map((mapId) => {
+        {/* 2-Stage Course Tabs: [1. 설레는 출발·이동길 (4맵)] vs [2. 웨딩홀 도착·본식 (5맵)] */}
+        <div className="grid grid-cols-2 gap-1.5 font-sans">
+          <button
+            type="button"
+            onClick={() => {
+              if (activeMapConfig.stage !== 'commute') {
+                travelToMap('home');
+              }
+            }}
+            className={`py-1.5 px-2.5 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+              activeMapConfig.stage === 'commute'
+                ? 'bg-[#3b2f2f] text-[#fffdf9] border-[#3b2f2f] shadow-xs'
+                : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0] hover:border-[#c59b6d]'
+            }`}
+          >
+            <span>🏠 1막. 출발·이동길 (4맵)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (activeMapConfig.stage !== 'venue') {
+                travelToMap('garden');
+              }
+            }}
+            className={`py-1.5 px-2.5 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+              activeMapConfig.stage === 'venue'
+                ? 'bg-[#3b2f2f] text-[#fffdf9] border-[#3b2f2f] shadow-xs'
+                : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0] hover:border-[#c59b6d]'
+            }`}
+          >
+            <span>🏛️ 2막. 웨딩홀·본식 (5맵)</span>
+          </button>
+        </div>
+
+        {/* Active Stage Map Buttons */}
+        <div
+          className={`grid gap-1.5 font-sans ${
+            stageMaps.length === 4 ? 'grid-cols-4' : 'grid-cols-5'
+          }`}
+        >
+          {stageMaps.map((mapId) => {
             const m = GARDEN_MAPS[mapId];
             const isActive = currentMapId === mapId;
             const isVisited = visitedMaps[mapId];
@@ -1747,7 +2169,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                     travelToMap(mapId);
                   }
                 }}
-                className={`py-2 px-1.5 rounded-lg border text-center transition-all flex flex-col items-center justify-center gap-0.5 ${
+                className={`py-1.5 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center gap-0.5 ${
                   isActive
                     ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs scale-[1.02]'
                     : isVisited
@@ -1756,7 +2178,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 }`}
               >
                 <span className="text-sm leading-none">{m.icon}</span>
-                <span className="text-[11px] truncate w-full">{m.tabLabel}</span>
+                <span className="text-[10px] truncate w-full">{m.tabLabel}</span>
               </button>
             );
           })}
@@ -1790,7 +2212,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
       {/* 1:1 Interactive Pixel World Canvas Frame (100% Unobstructed View) */}
       <div className="relative pixel-card overflow-hidden bg-[#bdd2b6]">
-        {/* Top Minimal Map Title Pill */}
+        {/* Top Minimal Map Title Pill + Walk Mode Quick Toggle */}
         <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between gap-2 pointer-events-none">
           <div className="bg-[#fffdf9] border border-[#d4b48c] px-3 py-1 rounded-full text-[11px] text-[#5c4d47] flex items-center gap-1.5 shadow-sm min-w-0 truncate">
             <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse shrink-0" />
@@ -1798,9 +2220,20 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               {activeMapConfig.icon} {activeMapConfig.tabLabel}
             </strong>
             <span className="text-[#8c7a70] truncate hidden sm:inline">
-              · 타일 그리드 산책 모드
+              · {activeMapConfig.subtitle}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playSelect();
+              setWalkMode((m) => (m === 'guest' ? 'couple' : 'guest'));
+            }}
+            className="pointer-events-auto bg-[#fffdf9] hover:bg-[#fcf0f1] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[10px] font-sans font-bold text-[#3b2f2f] shadow-sm shrink-0"
+          >
+            {walkMode === 'guest' ? '👫 커플 산책 전환' : '🎒 하객 주인공 전환'}
+          </button>
         </div>
 
         {/* Story / Secret Toast Overlay when visiting special spots */}
@@ -1823,7 +2256,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           </div>
         )}
 
-        {/* Interactive 3-Choice NPC / Pet Cat '모찌' Dialogue Overlay */}
+        {/* Interactive 3-Choice NPC / Groom / Bride / Pet Cat '모찌' Dialogue Overlay */}
         {activeDialogueNpc && (
           <div
             onClick={(e) => e.stopPropagation()}
@@ -1832,11 +2265,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <img
-                  src={
-                    activeDialogueNpc.avatar === 'mochi'
-                      ? PIXEL_ASSETS.catSprite
-                      : GUEST_SPRITES[activeDialogueNpc.avatar].portrait
-                  }
+                  src={resolveDialoguePortrait(activeDialogueNpc.avatar)}
                   alt={activeDialogueNpc.name}
                   className="w-10 h-10 rounded-full object-cover border-2 border-[#d97b84] bg-[#faf5ec] shrink-0"
                 />
@@ -1864,13 +2293,29 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveDialogueNpc(null)}
-                className="p-1 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#7d6e65]"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1">
+                {(activeDialogueNpc.avatar === 'bride' ||
+                  activeDialogueNpc.avatar === 'groom') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveDialogueNpc(null);
+                      setShowPhotoBooth(true);
+                    }}
+                    className="px-2 py-1 rounded-full bg-[#d97b84] text-white text-[10px] font-bold flex items-center gap-1"
+                  >
+                    <Camera className="w-3 h-3" />
+                    <span>기념촬영</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveDialogueNpc(null)}
+                  className="p-1 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#7d6e65]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl px-3 py-2 text-xs text-[#3b2f2f] font-serif leading-relaxed">
@@ -2006,7 +2451,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 </div>
               </div>
               <span className="px-2.5 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold shrink-0">
-                {nearbyLandmark.questId ? '열어보기 ▶' : '감상하기 ✨'}
+                {nearbyLandmark.questId ? '열어보기 ▶' : '체험하기 ✨'}
               </span>
             </button>
           ) : (
@@ -2083,6 +2528,136 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         </div>
       </div>
 
+      {/* Guest Protagonist Avatar & Walk Mode Selector Modal */}
+      {showAvatarPicker && (
+        <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 font-sans">
+          <div className="pixel-card w-full max-w-[440px] bg-[#fffdf9] overflow-hidden animate-fadeIn">
+            <div className="p-3.5 bg-[#faf5ec] border-b border-[#e6d5b8] flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold text-[#c59b6d] tracking-wider">
+                  CHARACTER & WALK MODE
+                </div>
+                <h3 className="text-sm font-bold text-[#3b2f2f] font-serif">
+                  🪞 하객 캐릭터 스타일링 & 산책 모드 선택
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAvatarPicker(false)}
+                className="px-2.5 py-1 rounded-full bg-[#fffdf9] border border-[#d4b48c] text-xs font-bold text-[#5c4d47]"
+              >
+                닫기 ✕
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Walk Mode Switch */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEngine.playSelect();
+                    setWalkMode('guest');
+                  }}
+                  className={`p-2.5 rounded-xl border text-left transition-all ${
+                    walkMode === 'guest'
+                      ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                      : 'bg-[#faf5ec] text-[#3b2f2f] border-[#e2d4c0]'
+                  }`}
+                >
+                  <div className="text-xs font-bold">🎒 하객 주인공 모드 (기본)</div>
+                  <div className="text-[10px] opacity-85 mt-0.5">
+                    집에서 출발해 웨딩홀의 신랑·신부를 만나러 갑니다
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEngine.playSelect();
+                    setWalkMode('couple');
+                  }}
+                  className={`p-2.5 rounded-xl border text-left transition-all ${
+                    walkMode === 'couple'
+                      ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                      : 'bg-[#faf5ec] text-[#3b2f2f] border-[#e2d4c0]'
+                  }`}
+                >
+                  <div className="text-xs font-bold">👫 신랑·신부 커플 산책</div>
+                  <div className="text-[10px] opacity-85 mt-0.5">
+                    신랑·신부와 반려묘 모찌가 함께 산책합니다
+                  </div>
+                </button>
+              </div>
+
+              {/* Nickname Input */}
+              <div className="bg-[#faf5ec] p-3 rounded-xl border border-[#e6d5b8] space-y-1.5">
+                <label className="block text-[11px] font-bold text-[#3b2f2f]">
+                  하객 캐릭터 머리 위 닉네임
+                </label>
+                <input
+                  type="text"
+                  maxLength={12}
+                  value={guestNickname}
+                  onChange={(e) => setGuestNickname(e.target.value)}
+                  placeholder="예: 축복의 하객, 지훈"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded-lg px-3 py-1.5 text-xs text-[#3b2f2f]"
+                />
+              </div>
+
+              {/* 6 Chibi Guest Avatars */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-bold text-[#3b2f2f]">
+                  나만의 하객 캐릭터 아바타 선택 (6종)
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {AVATAR_CLASSES.map((cls) => {
+                    const selected = guestAvatar === cls.id;
+                    return (
+                      <button
+                        key={cls.id}
+                        type="button"
+                        onClick={() => {
+                          soundEngine.playCoin();
+                          setGuestAvatar(cls.id);
+                          setWalkMode('guest');
+                        }}
+                        className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                          selected
+                            ? 'bg-[#fcf0f1] border-2 border-[#d97b84] shadow-xs scale-[1.02]'
+                            : 'bg-[#faf5ec] border-[#e2d4c0] hover:border-[#c59b6d]'
+                        }`}
+                      >
+                        <img
+                          src={GUEST_SPRITES[cls.id].sprite}
+                          alt={cls.name}
+                          className="w-12 h-12 object-contain pixelated"
+                        />
+                        <span className="text-[11px] font-bold text-[#3b2f2f] truncate w-full text-center">
+                          {cls.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playFanfare();
+                  setVisitedMemories((prev) => ({ ...prev, 'home-mirror': true }));
+                  setShowAvatarPicker(false);
+                }}
+                className="w-full py-2.5 rounded-xl bg-[#3b2f2f] text-white text-xs font-bold shadow-sm"
+              >
+                이 모습으로 웨딩 여정 출발하기 ✨
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Secret Prop Collection Book & Aura Equip Modal */}
       {showSecretBook && (
         <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
@@ -2090,7 +2665,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between">
               <div>
                 <div className="text-[10px] tracking-widest font-bold text-[#c59b6d]">
-                  WORLD SECRET ARCHIVE · {discoveredCount}/8 발견
+                  WORLD SECRET ARCHIVE · {discoveredCount}/9 발견
                 </div>
                 <h3 className="text-sm sm:text-base font-bold text-[#3b2f2f] font-serif">
                   ✨ 웨딩 월드 비밀 소품 도감 & 오라 장착
@@ -2159,7 +2734,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 </div>
               </div>
 
-              {/* 8 Secret Props List */}
+              {/* 9 Secret Props List */}
               <div className="space-y-2">
                 {WORLD_SECRET_PROPS.map((prop) => {
                   const found = !!discoveredSecrets[prop.id];
