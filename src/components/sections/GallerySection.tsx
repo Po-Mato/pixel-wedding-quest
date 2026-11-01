@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { Eye, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, Grid, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { WeddingConfig, GalleryItem } from '../../data/weddingConfig';
 import { PixelHeart, PixelSceneBanner } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
+import { PhotoBoothModal } from './PhotoBoothModal';
 
 interface GallerySectionProps {
   config: WeddingConfig;
+  onUnlockTitle?: (title: string) => void;
 }
 
-export const GallerySection: React.FC<GallerySectionProps> = ({ config }) => {
+export const GallerySection: React.FC<GallerySectionProps> = ({
+  config,
+  onUnlockTitle,
+}) => {
   const [viewMode, setViewMode] = useState<'photo' | 'pixel'>('photo');
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
+  const [showPhotoBooth, setShowPhotoBooth] = useState<boolean>(false);
   const [likesMap, setLikesMap] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {};
     config.gallery.forEach((g) => {
@@ -185,6 +191,41 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ config }) => {
           );
         })}
       </div>
+
+      {/* Pixel Wedding Polaroid Photo Booth CTA Banner */}
+      <div className="bg-gradient-to-r from-[#fff5f6] via-[#faf5ec] to-[#fff5f6] p-4 rounded-xl border border-[#e2a3a9] flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="text-center sm:text-left">
+          <div className="text-[10px] tracking-[0.2em] font-sans font-bold text-[#d97b84]">
+            SPECIAL KEEPSAKE · PIXEL PHOTO BOOTH
+          </div>
+          <div className="text-xs sm:text-sm font-bold text-[#3b2f2f] mt-0.5">
+            📸 신랑·신부 3등신 캐릭터와 기념 폴라로이드 찍기
+          </div>
+          <p className="text-[11px] text-[#7d6e65] font-sans mt-0.5">
+            내 하객 캐릭터와 배경 맵을 골라 나만의 웨딩 폴라로이드 카드를 저장해 보세요!
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            soundEngine.playSelect();
+            setShowPhotoBooth(true);
+          }}
+          className="px-4 py-2 rounded-full bg-[#d97b84] hover:bg-[#c56871] text-white text-xs font-sans font-bold shrink-0 flex items-center gap-1.5 shadow-xs transition-transform active:scale-95"
+        >
+          <Camera className="w-3.5 h-3.5" />
+          <span>포토부스 촬영하기</span>
+        </button>
+      </div>
+
+      {showPhotoBooth && (
+        <PhotoBoothModal
+          config={config}
+          onClose={() => setShowPhotoBooth(false)}
+          onUnlockTitle={onUnlockTitle}
+        />
+      )}
     </div>
   );
 };

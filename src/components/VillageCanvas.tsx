@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import confetti from 'canvas-confetti';
+import { Camera, Compass } from 'lucide-react';
 import {
   GARDEN_MAPS,
   GARDEN_MAP_ORDER,
@@ -13,6 +14,11 @@ import {
 } from '../data/weddingConfig';
 import { PIXEL_ASSETS, GUEST_SPRITES } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
+import {
+  findWalkablePath,
+  resolveObstacleCollision,
+} from '../utils/worldNavigation';
+import { PhotoBoothModal } from './sections/PhotoBoothModal';
 
 interface VillageCanvasProps {
   config: WeddingConfig;
@@ -32,10 +38,39 @@ interface Particle {
   phase: number;
 }
 
+interface FootstepPuff {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  alpha: number;
+  size: number;
+  color: string;
+}
+
+interface FloatingReaction {
+  id: number;
+  emoji: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  alpha: number;
+  scale: number;
+}
+
 interface TrailPoint {
   x: number;
   y: number;
 }
+
+const REACTION_EMOJIS = [
+  { emoji: '💐', label: '꽃다발' },
+  { emoji: '👏', label: '박수' },
+  { emoji: '❤️', label: '하트' },
+  { emoji: '🥂', label: '건배' },
+  { emoji: '✨', label: '축복' },
+];
 
 export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   config,
@@ -56,15 +91,18 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   });
   const [visitedMemories, setVisitedMemories] = useState<Record<string, boolean>>({});
   const [mapTransitionFade, setMapTransitionFade] = useState<boolean>(false);
+  const [showPhotoBooth, setShowPhotoBooth] = useState<boolean>(false);
+  const [blessingCount, setBlessingCount] = useState<number>(128);
   const [activeStoryToast, setActiveStoryToast] = useState<{
     badge: string;
     title: string;
     text: string;
   } | null>(null);
 
-  // Couple position & movement state
+  // Couple position, A* path queue & directional state
   const posRef = useRef<{ x: number; y: number }>({ x: 50, y: 72 });
-  const targetPosRef = useRef<{ x: number; y: number } | null>(null);
+  const pathQueueRef = useRef<{ x: number; y: number }[]>([]);
+  const facingDirRef = useRef<1 | -1>(1);
   const pendingLandmarkRef = useRef<MapLandmark | null>(null);
   const pendingPortalRef = useRef<MapPortal | null>(null);
   const portalCooldownRef = useRef<number>(0);
@@ -72,8 +110,16 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const trailRef = useRef<TrailPoint[]>(
     Array.from({ length: 28 }, () => ({ x: 50, y: 72 }))
   );
+  const footstepsRef = useRef<FootstepPuff[]>([]);
+  const reactionsRef = useRef<FloatingReaction[]>([]);
   const keysRef = useRef<Record<string, boolean>>({});
   const dpadDirRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const [joystickKnob, setJoystickKnob] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  const joystickBaseRef = useRef<HTMLDivElement | null>(null);
+  const joystickActiveRef = useRef<boolean>(false);
   const stepSoundCooldownRef = useRef<number>(0);
 
   const [nearbyLandmark, setNearbyLandmark] = useState<MapLandmark | null>(null);
@@ -116,6 +162,63 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     );
   }, []);
 
+  // Spawn floating emoji reactions on the canvas
+  const spawnFloatingReaction = useCallback((emoji: string, fromBroadcast = false) => {
+    if (!fromBroadcast) {
+      soundEngine.playCoin();
+    }
+    setBlessingCount((c) => c + 1);
+
+    const basePx = posRef.current.x;
+    const basePy = posRef.current.y;
+    for (let i = 0; i < 4; i++) {
+      reactionsRef.current.push({
+        id: Date.now() + Math.random(),
+        emoji,
+        x: basePx + (Math.random() - 0.5) * 28,
+        y: basePy - 8 - i * 3,
+        vx: (Math.random() - 0.5) * 0.22,
+        vy: -0.42 - Math.random() * 0.25,
+        alpha: 1,
+        scale: 0.95 + Math.random() * 0.35,
+      });
+    }
+
+    if (!fromBroadcast) {
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('pixel_wedding_quest_live_channel');
+          bc.postMessage({ type: 'EMOJI_REACTION', emoji });
+          bc.close();
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('pixel_wedding_quest_live_channel');
+      bc.onmessage = (ev) => {
+        if (ev.data?.type === 'EMOJI_REACTION' && ev.data?.emoji) {
+          spawnFloatingReaction(String(ev.data.emoji), true);
+        }
+      };
+    } catch {
+      // ignore
+    }
+    return () => {
+      try {
+        bc?.close();
+      } catch {
+        // ignore
+      }
+    };
+  }, [spawnFloatingReaction]);
+
   // Switch map helper (used by both portals and the top World Map Tab Bar)
   const travelToMap = useCallback(
     (targetMap: GardenMapId, spawnX?: number, spawnY?: number) => {
@@ -127,14 +230,15 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       setMapTransitionFade(true);
       window.setTimeout(() => {
         setMapTransitionFade(false);
-      }, 280);
+      }, 260);
 
       currentMapRef.current = targetMap;
       setCurrentMapId(targetMap);
       setVisitedMaps((prev) => ({ ...prev, [targetMap]: true }));
       posRef.current = { x: sx, y: sy };
       trailRef.current = Array.from({ length: 28 }, () => ({ x: sx, y: sy }));
-      targetPosRef.current = null;
+      pathQueueRef.current = [];
+      footstepsRef.current = [];
       pendingLandmarkRef.current = null;
       pendingPortalRef.current = null;
       portalCooldownRef.current = 45;
@@ -248,17 +352,54 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
   const walkToLandmark = useCallback((lm: MapLandmark) => {
     soundEngine.playBlip(700);
-    targetPosRef.current = { x: lm.x, y: Math.min(91, lm.y + 6) };
+    const goalX = lm.x;
+    const goalY = Math.min(91, lm.y + 6.5);
+    pathQueueRef.current = findWalkablePath(
+      posRef.current.x,
+      posRef.current.y,
+      goalX,
+      goalY,
+      currentMapRef.current
+    );
     pendingLandmarkRef.current = lm;
     pendingPortalRef.current = null;
   }, []);
 
   const walkToPortal = useCallback((portal: MapPortal) => {
     soundEngine.playBlip(760);
-    targetPosRef.current = { x: portal.x, y: portal.y };
+    pathQueueRef.current = findWalkablePath(
+      posRef.current.x,
+      posRef.current.y,
+      portal.x,
+      portal.y,
+      currentMapRef.current
+    );
     pendingPortalRef.current = portal;
     pendingLandmarkRef.current = null;
   }, []);
+
+  // Smart "Next Recommended Course" Auto-Guide Button
+  const handleGuideNextSpot = useCallback(() => {
+    const mapConfig = GARDEN_MAPS[currentMapRef.current];
+    const unvisitedHere = mapConfig.landmarks.find((lm) => {
+      if (lm.questId) return !visitedQuests[lm.questId];
+      return !visitedMemories[lm.id];
+    });
+
+    if (unvisitedHere) {
+      walkToLandmark(unvisitedHere);
+      return;
+    }
+
+    // Otherwise guide to a portal whose target map wasn't visited yet, or the first landmark
+    const unvisitedPortal =
+      mapConfig.portals.find((p) => !visitedMaps[p.targetMap]) || mapConfig.portals[0];
+    if (unvisitedPortal) {
+      walkToPortal(unvisitedPortal);
+    } else if (mapConfig.landmarks[0]) {
+      walkToLandmark(mapConfig.landmarks[0]);
+    }
+  }, [visitedQuests, visitedMemories, visitedMaps, walkToLandmark, walkToPortal]);
 
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -305,12 +446,42 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
     } else {
       soundEngine.playBlip(560);
-      targetPosRef.current = {
-        x: Math.max(8, Math.min(92, clickX)),
-        y: Math.max(14, Math.min(93, clickY)),
-      };
+      pathQueueRef.current = findWalkablePath(
+        posRef.current.x,
+        posRef.current.y,
+        clickX,
+        clickY,
+        currentMapRef.current
+      );
       pendingLandmarkRef.current = null;
       pendingPortalRef.current = null;
+    }
+  };
+
+  // Virtual Analog Joystick Pointer Handlers
+  const updateJoystickFromEvent = (clientX: number, clientY: number) => {
+    const el = joystickBaseRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const maxR = rect.width * 0.36;
+    const rawDx = clientX - cx;
+    const rawDy = clientY - cy;
+    const dist = Math.hypot(rawDx, rawDy);
+    const clampedDist = Math.min(maxR, dist);
+    const angle = Math.atan2(rawDy, rawDx);
+    const kx = Math.cos(angle) * clampedDist;
+    const ky = Math.sin(angle) * clampedDist;
+
+    setJoystickKnob({ x: kx, y: ky });
+    if (dist > 4) {
+      dpadDirRef.current = {
+        dx: kx / maxR,
+        dy: ky / maxR,
+      };
+    } else {
+      dpadDirRef.current = { dx: 0, dy: 0 };
     }
   };
 
@@ -400,7 +571,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const py = Math.round((portal.y / 100) * H);
       const pulse = Math.sin(tick * 0.1) * 3;
 
-      // Glowing golden-rose ground portal ring
       ctx.save();
       ctx.fillStyle = isNear ? 'rgba(217, 123, 132, 0.36)' : 'rgba(255, 245, 225, 0.34)';
       ctx.beginPath();
@@ -450,7 +620,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const activeMapId = currentMapRef.current;
       const mapConfig = GARDEN_MAPS[activeMapId];
 
-      // 1. Update Movement
+      // 1. Update Movement (D-Pad / Analog Joystick / Keyboard / A* Path Queue)
       let dx = dpadDirRef.current.dx;
       let dy = dpadDirRef.current.dy;
 
@@ -461,33 +631,56 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
       const speed = 0.52;
       let isMoving = false;
+      const prevX = posRef.current.x;
+      const prevY = posRef.current.y;
 
       if (dx !== 0 || dy !== 0) {
-        targetPosRef.current = null;
+        pathQueueRef.current = [];
         pendingLandmarkRef.current = null;
         pendingPortalRef.current = null;
-        const len = Math.hypot(dx, dy) || 1;
-        posRef.current.x = Math.max(8, Math.min(92, posRef.current.x + (dx / len) * speed));
-        posRef.current.y = Math.max(14, Math.min(93, posRef.current.y + (dy / len) * speed));
+        const len = Math.max(1, Math.hypot(dx, dy));
+        const nextX = prevX + (dx / len) * speed;
+        const nextY = prevY + (dy / len) * speed;
+        posRef.current = resolveObstacleCollision(
+          prevX,
+          prevY,
+          nextX,
+          nextY,
+          activeMapId
+        );
+        if (Math.abs(dx) > 0.08) {
+          facingDirRef.current = dx < 0 ? -1 : 1;
+        }
         isMoving = true;
-      } else if (targetPosRef.current) {
-        const tx = targetPosRef.current.x;
-        const ty = targetPosRef.current.y;
-        const dist = Math.hypot(tx - posRef.current.x, ty - posRef.current.y);
-        if (dist > 1.2) {
-          posRef.current.x += ((tx - posRef.current.x) / dist) * (speed * 1.28);
-          posRef.current.y += ((ty - posRef.current.y) / dist) * (speed * 1.28);
+      } else if (pathQueueRef.current.length > 0) {
+        const nextWaypoint = pathQueueRef.current[0];
+        const dist = Math.hypot(
+          nextWaypoint.x - posRef.current.x,
+          nextWaypoint.y - posRef.current.y
+        );
+        if (dist > 1.25) {
+          const stepX = ((nextWaypoint.x - posRef.current.x) / dist) * (speed * 1.28);
+          const stepY = ((nextWaypoint.y - posRef.current.y) / dist) * (speed * 1.28);
+          posRef.current = {
+            x: posRef.current.x + stepX,
+            y: posRef.current.y + stepY,
+          };
+          if (Math.abs(stepX) > 0.04) {
+            facingDirRef.current = stepX < 0 ? -1 : 1;
+          }
           isMoving = true;
         } else {
-          targetPosRef.current = null;
-          if (pendingPortalRef.current) {
-            const p = pendingPortalRef.current;
-            pendingPortalRef.current = null;
-            travelToMap(p.targetMap, p.spawnX, p.spawnY);
-          } else if (pendingLandmarkRef.current) {
-            const lm = pendingLandmarkRef.current;
-            pendingLandmarkRef.current = null;
-            activateLandmark(lm);
+          pathQueueRef.current.shift();
+          if (pathQueueRef.current.length === 0) {
+            if (pendingPortalRef.current) {
+              const p = pendingPortalRef.current;
+              pendingPortalRef.current = null;
+              travelToMap(p.targetMap, p.spawnX, p.spawnY);
+            } else if (pendingLandmarkRef.current) {
+              const lm = pendingLandmarkRef.current;
+              pendingLandmarkRef.current = null;
+              activateLandmark(lm);
+            }
           }
         }
       }
@@ -495,6 +688,26 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       if (isMoving) {
         trailRef.current.unshift({ x: posRef.current.x, y: posRef.current.y });
         if (trailRef.current.length > 28) trailRef.current.pop();
+
+        // Spawn delicate footstep surface puffs every few ticks
+        if (tick % 6 === 0) {
+          const puffColor =
+            activeMapId === 'reception'
+              ? '#ffe8a3'
+              : activeMapId === 'chapel'
+              ? '#fff6dc'
+              : '#ffd6e0';
+          footstepsRef.current.push({
+            x: (posRef.current.x / 100) * W + (Math.random() - 0.5) * 18,
+            y: (posRef.current.y / 100) * H + 2,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: -0.25 - Math.random() * 0.2,
+            alpha: 0.85,
+            size: 5,
+            color: puffColor,
+          });
+        }
+
         if (tick - stepSoundCooldownRef.current > 15) {
           soundEngine.playStep();
           stepSoundCooldownRef.current = tick;
@@ -513,7 +726,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
       setNearbyPortal((prev) => (prev?.id !== closestPortal?.id ? closestPortal : prev));
 
-      // Auto-warp if player walks directly into the center of a portal with keyboard/D-pad
       if (
         closestPortal &&
         minPortalDist < 5.2 &&
@@ -560,10 +772,23 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.fillRect(0, 0, W, H);
       }
 
-      // 3. Target Destination Ripple Marker
-      if (targetPosRef.current) {
-        const tx = (targetPosRef.current.x / 100) * W;
-        const ty = (targetPosRef.current.y / 100) * H;
+      // 3. Draw A* Dotted Path Preview & Destination Ripple Marker
+      if (pathQueueRef.current.length > 0) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(217, 123, 132, 0.82)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo((posRef.current.x / 100) * W, (posRef.current.y / 100) * H);
+        for (const wp of pathQueueRef.current) {
+          ctx.lineTo((wp.x / 100) * W, (wp.y / 100) * H);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        const finalGoal = pathQueueRef.current[pathQueueRef.current.length - 1];
+        const tx = (finalGoal.x / 100) * W;
+        const ty = (finalGoal.y / 100) * H;
         ctx.strokeStyle = '#d97b84';
         ctx.lineWidth = 2.5;
         const r = 7 + (tick % 14) * 0.7;
@@ -586,12 +811,35 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         drawPortalGate(p, closestPortal?.id === p.id);
       });
 
-      // 5. Draw Map-Specific Guest NPCs & Interactive Ambience
+      // 5. Draw Footstep Surface Puffs
+      for (let i = footstepsRef.current.length - 1; i >= 0; i--) {
+        const fp = footstepsRef.current[i];
+        fp.x += fp.vx;
+        fp.y += fp.vy;
+        fp.alpha -= 0.035;
+        if (fp.alpha <= 0) {
+          footstepsRef.current.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, fp.alpha);
+        ctx.fillStyle = fp.color;
+        ctx.fillRect(Math.round(fp.x), Math.round(fp.y), fp.size, fp.size);
+        ctx.restore();
+      }
+
+      // 6. Collect All Actors (Guest NPCs + Pet Cat '모찌' + Groom + Bride) and Y-Depth Sort!
       const GUEST_H = 66;
+      const CHIBI_H = 96;
       const guestHeads: { x: number; y: number; name: string; msg: string }[] = [];
 
+      interface DepthRenderable {
+        footY: number;
+        draw: () => void;
+      }
+      const depthList: DepthRenderable[] = [];
+
       if (activeMapId === 'chapel') {
-        // In the Chapel: guests stand along the left & right pews cheering the couple's Virgin Road march!
         const pewSpots: { x: number; y: number; avatar: AvatarClassId; cheer: string }[] = [
           { x: 33, y: 49, avatar: 'knight', cheer: '결혼을 진심으로 축하해요! 👏' },
           { x: 67, y: 49, avatar: 'mage', cheer: '세상에서 제일 아름다운 신부! 🌸' },
@@ -612,35 +860,46 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             ? Math.abs(Math.sin(tick * 0.18 + idx)) * 6
             : Math.max(0, Math.sin(tick * 0.08 + idx * 1.5)) * 2.5;
 
-          ctx.fillStyle = 'rgba(59, 47, 47, 0.18)';
-          ctx.beginPath();
-          ctx.ellipse(fx, fy, 14, 5, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          if (img) {
-            const w = Math.round((h * img.naturalWidth) / img.naturalHeight);
-            ctx.save();
-            if (spot.x > 50) {
-              ctx.translate(fx, 0);
-              ctx.scale(-1, 1);
-              ctx.translate(-fx, 0);
-            }
-            ctx.drawImage(img, Math.round(fx - w / 2), Math.round(fy - h - cheerJump), w, h);
-            ctx.restore();
-          }
-
-          if (onVirginRoad && idx % 2 === Math.floor(tick / 30) % 2) {
-            ctx.fillStyle = '#d97b84';
-            ctx.font = 'bold 13px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('♥', fx, fy - h - cheerJump - 6);
-          }
-
           guestHeads.push({
             x: fx,
             y: fy - h - cheerJump,
             name: guestbook[idx]?.name || '하객',
             msg: guestbook[idx]?.message || spot.cheer,
+          });
+
+          depthList.push({
+            footY: fy,
+            draw: () => {
+              ctx.fillStyle = 'rgba(59, 47, 47, 0.18)';
+              ctx.beginPath();
+              ctx.ellipse(fx, fy, 14, 5, 0, 0, Math.PI * 2);
+              ctx.fill();
+
+              if (img) {
+                const w = Math.round((h * img.naturalWidth) / img.naturalHeight);
+                ctx.save();
+                if (spot.x > 50) {
+                  ctx.translate(fx, 0);
+                  ctx.scale(-1, 1);
+                  ctx.translate(-fx, 0);
+                }
+                ctx.drawImage(
+                  img,
+                  Math.round(fx - w / 2),
+                  Math.round(fy - h - cheerJump),
+                  w,
+                  h
+                );
+                ctx.restore();
+              }
+
+              if (onVirginRoad && idx % 2 === Math.floor(tick / 30) % 2) {
+                ctx.fillStyle = '#d97b84';
+                ctx.font = 'bold 13px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('♥', fx, fy - h - cheerJump - 6);
+              }
+            },
           });
         });
       } else if (activeMapId === 'garden' || activeMapId === 'reception') {
@@ -653,10 +912,10 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 { x: 63, y: 61 },
               ]
             : [
-                { x: 25, y: 34 },
-                { x: 75, y: 34 },
-                { x: 36, y: 56 },
-                { x: 64, y: 56 },
+                { x: 28, y: 34 },
+                { x: 72, y: 34 },
+                { x: 35, y: 56 },
+                { x: 65, y: 56 },
               ];
         const recentGuests = guestbook.slice(0, npcSpots.length);
         recentGuests.forEach((g, idx) => {
@@ -667,34 +926,48 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             assetsRef.current.guests[g.avatar] || assetsRef.current.guests.knight;
           const h = g.avatar === 'cat' ? 40 : GUEST_H;
           const bob = Math.max(0, Math.sin(tick * 0.08 + idx * 1.7)) * 2.5;
-          ctx.fillStyle = 'rgba(59, 47, 47, 0.2)';
-          ctx.beginPath();
-          ctx.ellipse(fx, fy, 15, 5, 0, 0, Math.PI * 2);
-          ctx.fill();
-          if (img) {
-            const w = Math.round((h * img.naturalWidth) / img.naturalHeight);
-            ctx.save();
-            if (spot.x > 50) {
-              ctx.translate(fx, 0);
-              ctx.scale(-1, 1);
-              ctx.translate(-fx, 0);
-            }
-            ctx.drawImage(img, Math.round(fx - w / 2), Math.round(fy - h - bob), w, h);
-            ctx.restore();
-          }
+
           guestHeads.push({
             x: fx,
             y: fy - h - bob,
             name: g.name,
             msg: g.message,
           });
+
+          depthList.push({
+            footY: fy,
+            draw: () => {
+              ctx.fillStyle = 'rgba(59, 47, 47, 0.2)';
+              ctx.beginPath();
+              ctx.ellipse(fx, fy, 15, 5, 0, 0, Math.PI * 2);
+              ctx.fill();
+              if (img) {
+                const w = Math.round((h * img.naturalWidth) / img.naturalHeight);
+                ctx.save();
+                if (spot.x > 50) {
+                  ctx.translate(fx, 0);
+                  ctx.scale(-1, 1);
+                  ctx.translate(-fx, 0);
+                }
+                ctx.drawImage(
+                  img,
+                  Math.round(fx - w / 2),
+                  Math.round(fy - h - bob),
+                  w,
+                  h
+                );
+                ctx.restore();
+              }
+            },
+          });
         });
       }
 
-      // 6. Draw 3-Head-Tall Chibi Couple & Kitten Walking Together!
+      // Couple & Kitten coordinates
       const walkBob = isMoving
-        ? Math.abs(Math.sin(tick * 0.24)) * 5
+        ? Math.abs(Math.sin(tick * 0.24)) * 5.2
         : Math.sin(tick * 0.06) * 1.5;
+      const strideTilt = isMoving ? Math.sin(tick * 0.24) * 0.038 : 0;
 
       const groomFootX = (posRef.current.x / 100) * W;
       const groomFootY = (posRef.current.y / 100) * H;
@@ -710,84 +983,124 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       const catFootX = (catTrail.x / 100) * W - 40;
       const catFootY = (catTrail.y / 100) * H + 6;
 
-      // Ground Shadows
-      ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
-      ctx.beginPath();
-      ctx.ellipse(catFootX, catFootY, 14, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(groomFootX - 6, groomFootY, 16, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(brideFootX, brideFootY, 24, 7, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // Add Pet Cat '모찌' to depth list
+      depthList.push({
+        footY: catFootY,
+        draw: () => {
+          ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
+          ctx.beginPath();
+          ctx.ellipse(catFootX, catFootY, 14, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
 
-      // Draw Kitten '모찌'
-      if (assetsRef.current.cat) {
-        const catH = 48;
-        const catW = Math.round(
-          (catH * assetsRef.current.cat.naturalWidth) /
-            assetsRef.current.cat.naturalHeight
-        );
-        ctx.drawImage(
-          assetsRef.current.cat,
-          Math.round(catFootX - catW / 2),
-          Math.round(catFootY - catH - walkBob * 0.8),
-          catW,
-          catH
-        );
-      }
+          if (assetsRef.current.cat) {
+            const catH = 48;
+            const catW = Math.round(
+              (catH * assetsRef.current.cat.naturalWidth) /
+                assetsRef.current.cat.naturalHeight
+            );
+            ctx.save();
+            ctx.translate(catFootX, catFootY - catH / 2 - walkBob * 0.8);
+            ctx.scale(facingDirRef.current, 1);
+            ctx.rotate(strideTilt * 0.8);
+            ctx.drawImage(
+              assetsRef.current.cat,
+              Math.round(-catW / 2),
+              Math.round(-catH / 2),
+              catW,
+              catH
+            );
+            ctx.restore();
+          }
+        },
+      });
 
-      const CHIBI_H = 96;
-      const drawChibi = (
-        img: HTMLImageElement,
-        footX: number,
-        footY: number,
-        bob: number
-      ) => {
-        const w = Math.round((CHIBI_H * img.naturalWidth) / img.naturalHeight);
-        ctx.drawImage(
-          img,
-          Math.round(footX - w / 2),
-          Math.round(footY - CHIBI_H - bob),
-          w,
-          CHIBI_H
-        );
-      };
+      // Add Chibi Couple (Groom + Bride) to depth list
+      depthList.push({
+        footY: Math.max(groomFootY, brideFootY),
+        draw: () => {
+          ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
+          ctx.beginPath();
+          ctx.ellipse(groomFootX - 6, groomFootY, 16, 6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(brideFootX, brideFootY, 24, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
 
-      if (assetsRef.current.groom) {
-        drawChibi(assetsRef.current.groom, groomFootX - 6, groomFootY, walkBob);
-      }
-      if (assetsRef.current.bride) {
-        drawChibi(assetsRef.current.bride, brideFootX, brideFootY, walkBob * 0.9);
-      }
+          const drawChibiDirectional = (
+            img: HTMLImageElement,
+            footX: number,
+            footY: number,
+            bob: number,
+            tilt: number
+          ) => {
+            const w = Math.round((CHIBI_H * img.naturalWidth) / img.naturalHeight);
+            ctx.save();
+            ctx.translate(footX, footY - CHIBI_H / 2 - bob);
+            ctx.scale(facingDirRef.current, 1);
+            ctx.rotate(tilt);
+            ctx.drawImage(
+              img,
+              Math.round(-w / 2),
+              Math.round(-CHIBI_H / 2),
+              w,
+              CHIBI_H
+            );
+            ctx.restore();
+          };
 
-      // Floating Heart between Groom & Bride
-      ctx.fillStyle = '#d97b84';
-      ctx.font = 'bold 15px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        '♥',
-        Math.round((groomFootX - 6 + brideFootX) / 2),
-        Math.round(groomFootY - CHIBI_H - 4 - walkBob + Math.sin(tick * 0.1) * 2)
-      );
+          if (assetsRef.current.groom) {
+            drawChibiDirectional(
+              assetsRef.current.groom,
+              groomFootX - 6,
+              groomFootY,
+              walkBob,
+              strideTilt
+            );
+          }
+          if (assetsRef.current.bride) {
+            drawChibiDirectional(
+              assetsRef.current.bride,
+              brideFootX,
+              brideFootY,
+              walkBob * 0.9,
+              -strideTilt * 0.85
+            );
+          }
 
-      // Couple Overhead Name Tag
-      const centerCoupleX = (groomFootX + brideFootX) / 2;
-      const tagY = groomFootY - CHIBI_H - 34 - walkBob;
-      ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
-      ctx.fillRect(centerCoupleX - 58, tagY, 116, 23);
-      ctx.strokeStyle = '#d97b84';
-      ctx.lineWidth = 1.8;
-      ctx.strokeRect(centerCoupleX - 58, tagY, 116, 23);
-      ctx.fillStyle = '#3b2f2f';
-      ctx.font = 'bold 14px "Gowun Batang", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        `${config.groom.name} ♥ ${config.bride.name}`,
-        centerCoupleX,
-        tagY + 16
-      );
+          // Floating Heart between Groom & Bride
+          ctx.fillStyle = '#d97b84';
+          ctx.font = 'bold 15px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(
+            '♥',
+            Math.round((groomFootX - 6 + brideFootX) / 2),
+            Math.round(
+              groomFootY - CHIBI_H - 4 - walkBob + Math.sin(tick * 0.1) * 2
+            )
+          );
+
+          // Couple Overhead Name Tag
+          const centerCoupleX = (groomFootX + brideFootX) / 2;
+          const tagY = groomFootY - CHIBI_H - 34 - walkBob;
+          ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
+          ctx.fillRect(centerCoupleX - 58, tagY, 116, 23);
+          ctx.strokeStyle = '#d97b84';
+          ctx.lineWidth = 1.8;
+          ctx.strokeRect(centerCoupleX - 58, tagY, 116, 23);
+          ctx.fillStyle = '#3b2f2f';
+          ctx.font = 'bold 14px "Gowun Batang", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(
+            `${config.groom.name} ♥ ${config.bride.name}`,
+            centerCoupleX,
+            tagY + 16
+          );
+        },
+      });
+
+      // Sort all actors by footY ascending so southern characters naturally overlap northern ones!
+      depthList.sort((a, b) => a.footY - b.footY);
+      depthList.forEach((actor) => actor.draw());
 
       // 7. Speech bubble above the active speaker NPC
       if (guestHeads.length > 0) {
@@ -824,7 +1137,27 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.fillText(bubbleText, bx, by - 8);
       }
 
-      // 8. Map-Specific Ambient Particles (Petals / Sunbeams / Seasonal / Fireflies)
+      // 8. Live Floating Emoji Reactions
+      for (let i = reactionsRef.current.length - 1; i >= 0; i--) {
+        const r = reactionsRef.current[i];
+        r.x += r.vx;
+        r.y += r.vy;
+        r.alpha -= 0.016;
+        if (r.alpha <= 0) {
+          reactionsRef.current.splice(i, 1);
+          continue;
+        }
+        const rx = (r.x / 100) * W;
+        const ry = (r.y / 100) * H;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, r.alpha);
+        ctx.font = `bold ${Math.round(24 * r.scale)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(r.emoji, rx, ry);
+        ctx.restore();
+      }
+
+      // 9. Map-Specific Ambient Particles (Petals / Sunbeams / Seasonal / Fireflies)
       particles.forEach((p) => {
         if (mapConfig.particleType === 'fireflies') {
           p.x += Math.sin(tick * 0.03 + p.phase) * 0.45;
@@ -872,6 +1205,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
   const setDpad = (dx: number, dy: number) => {
     dpadDirRef.current = { dx, dy };
+    setJoystickKnob({ x: dx * 16, y: dy * 16 });
   };
 
   const activeMapConfig = GARDEN_MAPS[currentMapId];
@@ -887,9 +1221,17 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               🗺️ 웨딩 월드맵 이동 ({exploredMapCount}/4 맵 탐방)
             </span>
           </div>
-          <span className="text-[11px] text-[#8c7a70] font-sans">
-            포털로 걸어가거나 탭을 터치하세요
-          </span>
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playSelect();
+              setShowPhotoBooth(true);
+            }}
+            className="px-2.5 py-0.5 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#e2a3a9] text-[#b85d67] text-[11px] font-sans font-bold flex items-center gap-1 transition-colors"
+          >
+            <Camera className="w-3 h-3" />
+            <span>📸 픽셀 포토부스</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-4 gap-1.5 font-sans">
@@ -1016,15 +1358,49 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         )}
       </div>
 
+      {/* Live Guest Emoji Blessing Bar */}
+      <div className="pixel-card px-3 py-2 bg-[#fffdf9] flex items-center justify-between gap-2 font-sans">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[11px] font-bold text-[#5c4d47] shrink-0">
+            🎉 실시간 축복 보내기
+          </span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#fcf0f1] text-[#b85d67] border border-[#e2a3a9] font-bold">
+            ♥ {blessingCount}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          {REACTION_EMOJIS.map((item) => (
+            <button
+              key={item.emoji}
+              type="button"
+              onClick={() => spawnFloatingReaction(item.emoji)}
+              title={`${item.label} 축복 보내기`}
+              className="px-2 py-1 rounded-full bg-[#faf5ec] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] hover:border-[#d97b84] text-xs flex items-center gap-0.5 transition-all"
+            >
+              <span>{item.emoji}</span>
+              <span className="text-[10px] text-[#5c4d47] font-semibold hidden sm:inline">
+                {item.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Current Map Landmarks & Connected Portals Quick Menu */}
       <div className="pixel-card p-3 bg-[#fffdf9] space-y-2.5">
         <div className="flex items-center justify-between">
           <span className="text-xs text-[#5c4d47] font-bold">
             {activeMapConfig.icon} [{activeMapConfig.tabLabel}] 주요 스팟 바로가기
           </span>
-          <span className="text-[11px] text-[#9c897e] font-sans">
-            터치 시 산책 또는 열람
-          </span>
+          <button
+            type="button"
+            onClick={handleGuideNextSpot}
+            className="text-[11px] text-[#b85d67] hover:text-[#d97b84] font-sans font-bold flex items-center gap-1"
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>🧭 다음 추천 코스 자동 산책</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
@@ -1035,7 +1411,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             return (
               <button
                 key={lm.id}
-                onClick={() => activateLandmark(lm)}
+                onClick={() => walkToLandmark(lm)}
                 className={`px-2.5 py-2 rounded-md border text-[11px] font-medium flex items-center gap-1.5 transition-all text-left ${
                   done
                     ? 'bg-[#edf3ee] text-[#4d6b53] border-[#a3bfa8]'
@@ -1053,7 +1429,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           {activeMapConfig.portals.map((p) => (
             <button
               key={p.id}
-              onClick={() => travelToMap(p.targetMap, p.spawnX, p.spawnY)}
+              onClick={() => walkToPortal(p)}
               className="px-2.5 py-2 rounded-md border border-[#d97b84] bg-[#fcf3f3] hover:bg-[#f9e5e7] text-[#3b2f2f] text-[11px] font-sans font-bold flex items-center justify-between gap-1 transition-all"
             >
               <span className="truncate">{p.label}</span>
@@ -1063,62 +1439,77 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         </div>
       </div>
 
-      {/* Soft Ivory Stroll Pad */}
-      <div className="pixel-card px-4 py-3 bg-[#faf5ec] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative w-20 h-20 select-none">
-            <button
-              onPointerDown={() => setDpad(0, -1)}
-              onPointerUp={() => setDpad(0, 0)}
-              onPointerLeave={() => setDpad(0, 0)}
-              aria-label="위로 산책"
-              className="absolute top-0 left-7 w-6 h-6 rounded-t bg-[#fffdf9] active:bg-[#d97b84] active:text-white border border-[#c59b6d] flex items-center justify-center text-[10px] text-[#5c4d47]"
-            >
+      {/* Soft Ivory Stroll Pad with 360° Analog Virtual Joystick + D-Pad */}
+      <div className="pixel-card px-3.5 py-3 bg-[#faf5ec] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Hybrid 360° Virtual Analog Joystick + D-Pad */}
+          <div
+            ref={joystickBaseRef}
+            onPointerDown={(e) => {
+              joystickActiveRef.current = true;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              updateJoystickFromEvent(e.clientX, e.clientY);
+            }}
+            onPointerMove={(e) => {
+              if (!joystickActiveRef.current) return;
+              updateJoystickFromEvent(e.clientX, e.clientY);
+            }}
+            onPointerUp={() => {
+              joystickActiveRef.current = false;
+              setDpad(0, 0);
+            }}
+            onPointerCancel={() => {
+              joystickActiveRef.current = false;
+              setDpad(0, 0);
+            }}
+            className="relative w-20 h-20 rounded-full bg-[#fffdf9] border-2 border-[#c59b6d] shadow-inner select-none touch-none shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing"
+          >
+            {/* Cardinal hints */}
+            <span className="absolute top-1 text-[9px] text-[#9c897e] pointer-events-none">
               ▲
-            </button>
-            <button
-              onPointerDown={() => setDpad(0, 1)}
-              onPointerUp={() => setDpad(0, 0)}
-              onPointerLeave={() => setDpad(0, 0)}
-              aria-label="아래로 산책"
-              className="absolute bottom-0 left-7 w-6 h-6 rounded-b bg-[#fffdf9] active:bg-[#d97b84] active:text-white border border-[#c59b6d] flex items-center justify-center text-[10px] text-[#5c4d47]"
-            >
+            </span>
+            <span className="absolute bottom-1 text-[9px] text-[#9c897e] pointer-events-none">
               ▼
-            </button>
-            <button
-              onPointerDown={() => setDpad(-1, 0)}
-              onPointerUp={() => setDpad(0, 0)}
-              onPointerLeave={() => setDpad(0, 0)}
-              aria-label="왼쪽으로 산책"
-              className="absolute top-7 left-0 w-6 h-6 rounded-l bg-[#fffdf9] active:bg-[#d97b84] active:text-white border border-[#c59b6d] flex items-center justify-center text-[10px] text-[#5c4d47]"
-            >
+            </span>
+            <span className="absolute left-1.5 text-[9px] text-[#9c897e] pointer-events-none">
               ◀
-            </button>
-            <button
-              onPointerDown={() => setDpad(1, 0)}
-              onPointerUp={() => setDpad(0, 0)}
-              onPointerLeave={() => setDpad(0, 0)}
-              aria-label="오른쪽으로 산책"
-              className="absolute top-7 right-0 w-6 h-6 rounded-r bg-[#fffdf9] active:bg-[#d97b84] active:text-white border border-[#c59b6d] flex items-center justify-center text-[10px] text-[#5c4d47]"
-            >
+            </span>
+            <span className="absolute right-1.5 text-[9px] text-[#9c897e] pointer-events-none">
               ▶
-            </button>
-            <div className="absolute top-7 left-7 w-6 h-6 bg-[#f3ede2] border border-[#d4b48c] flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#c59b6d]" />
+            </span>
+
+            {/* Draggable Thumb Knob */}
+            <div
+              style={{
+                transform: `translate(${joystickKnob.x}px, ${joystickKnob.y}px)`,
+              }}
+              className="w-8 h-8 rounded-full bg-gradient-to-b from-[#e899a0] to-[#d97b84] border-2 border-[#fffdf9] shadow-md flex items-center justify-center text-white text-[10px] font-bold pointer-events-none transition-transform duration-75"
+            >
+              ♥
             </div>
           </div>
 
-          <div className="flex flex-col text-[11px] text-[#6e5d53] leading-relaxed">
-            <span className="text-[#3b2f2f] font-bold">
-              🌸 4개 테마 맵 산책 안내
+          <div className="flex flex-col text-[11px] text-[#6e5d53] leading-relaxed min-w-0">
+            <span className="text-[#3b2f2f] font-bold truncate">
+              🌸 360° 조이스틱 & 길찾기 산책
             </span>
-            <span>• 포털(문·아치)로 걸어가면 다른 맵으로 이동합니다</span>
-            <span>• 상단 월드맵 탭으로도 언제든 이동할 수 있어요</span>
+            <span className="truncate">• 조이스틱을 드래그하거나 맵을 터치하세요</span>
+            <span className="truncate">• 분수대·시냇물 다리를 따라 똑똑하게 걸어가요</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0 font-sans">
           <button
+            type="button"
+            onClick={handleGuideNextSpot}
+            className="px-2.5 py-1.5 rounded-lg bg-[#fffdf9] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#5c4d47] text-[11px] font-bold flex items-center gap-1"
+          >
+            <Compass className="w-3.5 h-3.5 text-[#d97b84]" />
+            <span>추천코스</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               if (nearbyPortal) {
                 travelToMap(
@@ -1133,7 +1524,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 onOpenQuest('story');
               }
             }}
-            className="pixel-btn bg-[#d97b84] text-white border-[#b85d67] px-3.5 py-2 text-xs font-bold"
+            className="pixel-btn bg-[#d97b84] text-white border-[#b85d67] px-3 py-1.5 text-xs font-bold"
           >
             {nearbyPortal
               ? `${GARDEN_MAPS[nearbyPortal.targetMap].tabLabel} 이동`
@@ -1143,6 +1534,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           </button>
         </div>
       </div>
+
+      {showPhotoBooth && (
+        <PhotoBoothModal
+          config={config}
+          onClose={() => setShowPhotoBooth(false)}
+          onUnlockTitle={onUnlockTitle}
+        />
+      )}
     </div>
   );
 };

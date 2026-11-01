@@ -34,6 +34,10 @@ import { RsvpGuestbookSection } from './components/sections/RsvpGuestbookSection
 import { MiniGameSection } from './components/sections/MiniGameSection';
 import { CustomizerModal } from './components/CustomizerModal';
 import { CertificateModal } from './components/CertificateModal';
+import {
+  fetchSyncedGuestbook,
+  publishGuestbookEntry,
+} from './utils/weddingCloudSync';
 
 type AppScreenMode = 'title' | 'world' | 'classic';
 
@@ -94,6 +98,43 @@ export function App() {
       // ignore
     }
   }, [guestbook]);
+
+  // Initial Cloud D1 + BroadcastChannel Sync for Guestbook
+  useEffect(() => {
+    fetchSyncedGuestbook(guestbook).then(({ entries }) => {
+      if (entries.length > guestbook.length) {
+        setGuestbook(entries);
+      }
+    });
+
+    if (typeof BroadcastChannel === 'undefined') return;
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('pixel_wedding_quest_live_channel');
+      bc.onmessage = (ev) => {
+        if (ev.data?.type === 'NEW_GUESTBOOK_ENTRY' && ev.data?.entry) {
+          const incoming = ev.data.entry as GuestbookEntry;
+          setGuestbook((prev) =>
+            prev.some((p) => p.id === incoming.id) ? prev : [incoming, ...prev]
+          );
+        }
+      };
+    } catch {
+      // ignore
+    }
+    return () => {
+      try {
+        bc?.close();
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
+
+  const handleAddGuestbook = (entry: GuestbookEntry) => {
+    setGuestbook((prev) => [entry, ...prev]);
+    publishGuestbookEntry(entry).catch(() => {});
+  };
 
   const stampCount = Object.values(visitedQuests).filter(Boolean).length;
 
@@ -337,7 +378,7 @@ export function App() {
               guestbook={guestbook}
               earnedTitle={earnedTitle}
               onUnlockTitle={setEarnedTitle}
-              onAddGuestbook={(entry) => setGuestbook((prev) => [entry, ...prev])}
+              onAddGuestbook={handleAddGuestbook}
               onSwitchToGardenMode={() => setScreenMode('world')}
             />
           )}
@@ -398,7 +439,9 @@ export function App() {
             <div className="p-3 sm:p-4 overflow-y-auto flex-1">
               {activeQuest === 'story' && <StorySection config={config} />}
               {activeQuest === 'ceremony' && <CeremonySection config={config} />}
-              {activeQuest === 'gallery' && <GallerySection config={config} />}
+              {activeQuest === 'gallery' && (
+                <GallerySection config={config} onUnlockTitle={setEarnedTitle} />
+              )}
               {activeQuest === 'location' && <LocationSection config={config} />}
               {activeQuest === 'gift' && <GiftSection config={config} />}
               {activeQuest === 'minigame' && (
@@ -413,9 +456,7 @@ export function App() {
                   config={config}
                   guestbook={guestbook}
                   earnedTitle={earnedTitle}
-                  onAddGuestbook={(entry) =>
-                    setGuestbook((prev) => [entry, ...prev])
-                  }
+                  onAddGuestbook={handleAddGuestbook}
                 />
               )}
             </div>

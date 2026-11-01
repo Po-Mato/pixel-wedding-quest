@@ -52,22 +52,62 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
   for (let i = 0; i < firstDayOfWeek; i++) calendarCells.push(null);
   for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
 
+  const formatUtcCalendarDate = (date: Date) =>
+    date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+  const getEventDates = () => {
+    const start = new Date(config.wedding.dateISO);
+    const safeStart = Number.isNaN(start.getTime())
+      ? new Date('2027-05-22T13:00:00+09:00')
+      : start;
+    const end = new Date(safeStart.getTime() + 2 * 60 * 60 * 1000);
+    return {
+      startUtc: formatUtcCalendarDate(safeStart),
+      endUtc: formatUtcCalendarDate(end),
+      stampUtc: formatUtcCalendarDate(new Date()),
+    };
+  };
+
+  const handleOpenGoogleCalendar = () => {
+    soundEngine.playSelect();
+    const { startUtc, endUtc } = getEventDates();
+    const title = `[결혼식] ${config.groom.fullName} ♥ ${config.bride.fullName}`;
+    const location = `${config.wedding.venueName} ${config.wedding.hallName} (${config.wedding.addressRoad})`;
+    const details = `${config.invitationMessage.headline}\n\n일시: ${config.wedding.dateDisplay} ${config.wedding.timeDisplay}\n장소: ${location}\n문의: ${config.wedding.tel}`;
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+      title
+    )}&dates=${startUtc}/${endUtc}&details=${encodeURIComponent(
+      details
+    )}&location=${encodeURIComponent(location)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const handleDownloadIcs = () => {
     soundEngine.playFanfare();
-    const startDate = '20270522T040000Z';
-    const endDate = '20270522T060000Z';
+    const { startUtc, endUtc, stampUtc } = getEventDates();
     const icsContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
+      'PRODID:-//PixelWeddingQuest//KR',
+      'CALSCALE:GREGORIAN',
       'BEGIN:VEVENT',
-      `SUMMARY:[결혼식] ${config.groom.name} ♥ ${config.bride.name}`,
-      `DTSTART:${startDate}`,
-      `DTEND:${endDate}`,
+      `UID:wedding-${config.wedding.year}${String(config.wedding.month).padStart(2, '0')}${String(
+        config.wedding.day
+      ).padStart(2, '0')}@pixelweddingquest`,
+      `DTSTAMP:${stampUtc}`,
+      `SUMMARY:[결혼식] ${config.groom.fullName} ♥ ${config.bride.fullName}`,
+      `DTSTART:${startUtc}`,
+      `DTEND:${endUtc}`,
       `LOCATION:${config.wedding.venueName} ${config.wedding.hallName} (${config.wedding.addressRoad})`,
       `DESCRIPTION:${config.invitationMessage.questObjective}`,
+      'BEGIN:VALARM',
+      'TRIGGER:-P1D',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:내일은 ${config.groom.name} ♥ ${config.bride.name}의 결혼식입니다.`,
+      'END:VALARM',
       'END:VEVENT',
       'END:VCALENDAR',
-    ].join('\n');
+    ].join('\r\n');
 
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -179,13 +219,23 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
           </span>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2 font-sans">
           <button
+            type="button"
+            onClick={handleOpenGoogleCalendar}
+            className="pixel-btn bg-[#d97b84] hover:bg-[#c56871] text-white border-[#b85d67] px-3.5 py-2 text-xs font-bold flex items-center gap-1.5"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>구글 캘린더에 등록</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleDownloadIcs}
-            className="pixel-btn bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] px-4 py-2 text-xs font-sans font-medium flex items-center gap-1.5 mx-auto"
+            className="pixel-btn bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5 text-[#c59b6d]" />
-            <span>캘린더에 예식 일정 저장하기 (.ics)</span>
+            <span>애플·기본 캘린더 저장 (.ics)</span>
           </button>
         </div>
       </div>

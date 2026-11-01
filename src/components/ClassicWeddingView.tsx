@@ -163,7 +163,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
 
       {/* 3. Photo Gallery */}
       <section id="classic-gallery">
-        <GallerySection config={config} />
+        <GallerySection config={config} onUnlockTitle={onUnlockTitle} />
       </section>
 
       {/* 4. Location & Directions */}
