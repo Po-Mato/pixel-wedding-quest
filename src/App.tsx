@@ -264,12 +264,26 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center justify-start py-3 sm:py-6 px-2.5 sm:px-4">
-      <div className="w-full max-w-[480px] flex flex-col gap-3">
-        {/* Top Elegant Mode Switcher & Audio Bar */}
-        <header className="pixel-card px-3 py-2.5 bg-[#fffdf9] flex items-center justify-between gap-1.5 font-sans">
+    <div
+      className={`min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center justify-start ${
+        screenMode === 'world'
+          ? 'py-1.5 sm:py-3 px-1.5 sm:px-3'
+          : 'py-3 sm:py-6 px-2.5 sm:px-4'
+      }`}
+    >
+      <div
+        className={`w-full flex flex-col ${
+          screenMode === 'world' ? 'max-w-[520px] gap-1.5' : 'max-w-[480px] gap-3'
+        }`}
+      >
+        {/* Top Elegant Mode Switcher & Audio Bar (Ultra-slim in World Mode) */}
+        <header
+          className={`pixel-card bg-[#fffdf9] flex items-center justify-between gap-1 font-sans ${
+            screenMode === 'world' ? 'px-2.5 py-1.5' : 'px-3 py-2.5'
+          }`}
+        >
           {/* Left: Cover & Mode Toggle Pills */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => {
                 soundEngine.playBlip();
@@ -279,7 +293,7 @@ export function App() {
               title="표지 화면으로"
               className="p-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border border-[#e2d4c0]"
             >
-              <Home className="w-4 h-4" />
+              <Home className="w-3.5 h-3.5" />
             </button>
 
             <div className="inline-flex rounded-full bg-[#f5efe6] p-0.5 border border-[#e2d4c0]">
@@ -289,13 +303,13 @@ export function App() {
                   setActiveQuest(null);
                   handleStartClassicMode();
                 }}
-                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
                   screenMode === 'classic'
                     ? 'bg-[#3b2f2f] text-[#fffdf9] shadow-xs'
                     : 'text-[#7d6e65] hover:text-[#3b2f2f]'
                 }`}
               >
-                <BookOpen className="w-3.5 h-3.5" />
+                <BookOpen className="w-3 h-3" />
                 <span>일반 청첩장</span>
               </button>
 
@@ -305,23 +319,41 @@ export function App() {
                   setActiveQuest(null);
                   setScreenMode('world');
                 }}
-                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
                   screenMode === 'world'
                     ? 'bg-[#d97b84] text-white shadow-xs'
                     : 'text-[#7d6e65] hover:text-[#3b2f2f]'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3 h-3" />
                 <span>픽셀 가든</span>
               </button>
             </div>
           </div>
 
-          {/* Right: Music-Box BGM (Admin button hidden from guests) */}
-          <div className="flex items-center gap-1.5">
+          {/* Right: Compact Stamp Badge (in World Mode) + Music-Box BGM */}
+          <div className="flex items-center gap-1">
+            {screenMode === 'world' && (
+              <button
+                onClick={() => {
+                  soundEngine.playFanfare();
+                  setShowCertificate(true);
+                }}
+                title="가든 산책 스탬프 & 초대권 확인"
+                className={`px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 shrink-0 transition-colors ${
+                  stampCount >= 3
+                    ? 'bg-[#fcf0f1] text-[#b85d67] border-[#d97b84]'
+                    : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0]'
+                }`}
+              >
+                <Award className="w-3 h-3 text-[#d97b84]" />
+                <span>스탬프 {stampCount}/7</span>
+              </button>
+            )}
+
             <button
               onClick={handleToggleBgm}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1 transition-colors ${
+              className={`px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 transition-colors ${
                 bgmPlaying
                   ? 'bg-[#fcf0f1] text-[#b85d67] border-[#e2a3a9]'
                   : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
@@ -330,66 +362,18 @@ export function App() {
             >
               {bgmPlaying ? (
                 <>
-                  <Volume2 className="w-3.5 h-3.5 animate-pulse" />
-                  <span>오르골 ON</span>
+                  <Volume2 className="w-3 h-3 animate-pulse" />
+                  <span>BGM</span>
                 </>
               ) : (
                 <>
-                  <VolumeX className="w-3.5 h-3.5" />
+                  <VolumeX className="w-3 h-3" />
                   <span>BGM</span>
                 </>
               )}
             </button>
           </div>
         </header>
-
-        {/* Garden Stamp Bar (Only shown in Pixel Garden Mode) */}
-        {screenMode === 'world' && (
-          <div className="pixel-card px-3.5 py-2 bg-[#fffdf9] flex items-center justify-between gap-2 font-sans">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[11px] font-bold text-[#5c4d47] shrink-0">
-                가든 산책 스탬프 {stampCount}/7
-              </span>
-              <div className="flex items-center gap-1">
-                {QUEST_BUILDINGS.map((b) => {
-                  const done = visitedQuests[b.id];
-                  return (
-                    <button
-                      key={b.id}
-                      onClick={() => {
-                        soundEngine.playSelect();
-                        handleOpenQuest(b.id);
-                      }}
-                      title={b.name}
-                      className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center border transition-colors ${
-                        done
-                          ? 'bg-[#d97b84] text-white border-[#d97b84]'
-                          : 'bg-[#faf5ec] text-[#b8a99e] border-[#e2d4c0]'
-                      }`}
-                    >
-                      {done ? '♥' : '·'}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                soundEngine.playFanfare();
-                setShowCertificate(true);
-              }}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 shrink-0 ${
-                stampCount >= 3
-                  ? 'bg-[#faf5ec] text-[#b85d67] border-[#d97b84]'
-                  : 'bg-[#faf5ec] text-[#9c897e] border-[#e2d4c0]'
-              }`}
-            >
-              <Award className="w-3 h-3" />
-              <span>초대권</span>
-            </button>
-          </div>
-        )}
 
         {/* MAIN VIEWPORT */}
         <main className="w-full">

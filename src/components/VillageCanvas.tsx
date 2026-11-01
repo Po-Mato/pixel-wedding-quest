@@ -128,6 +128,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const [showPhotoBooth, setShowPhotoBooth] = useState<boolean>(false);
   const [showSecretBook, setShowSecretBook] = useState<boolean>(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState<boolean>(false);
+  const [showWorldMapSheet, setShowWorldMapSheet] = useState<boolean>(false);
   const [blessingCount, setBlessingCount] = useState<number>(128);
   const [activeStoryToast, setActiveStoryToast] = useState<{
     badge: string;
@@ -2058,170 +2059,121 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     return GUEST_SPRITES[avatar].portrait;
   };
 
+  const allMapsOrder: GardenMapId[] = [...COMMUTE_MAP_ORDER, ...VENUE_MAP_ORDER];
+  const completedMiniQuestCount = activeMiniQuest.steps.filter((s) =>
+    isMiniQuestStepDone(s)
+  ).length;
+
   return (
-    <div className="flex flex-col gap-2.5">
-      {/* Top World Map Switcher Bar (2-Stage 9-Map Journey + Guest/Couple Mode + Secrets + Photo Booth) */}
-      <div className="pixel-card p-2.5 bg-[#fffdf9] space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-1.5 px-0.5">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-[#3b2f2f]">
-              🗺️ 웨딩 여정 ({exploredMapCount}/9 맵)
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                soundEngine.playSelect();
-                setShowAvatarPicker(true);
-              }}
-              className="px-2 py-0.5 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#d97b84] text-[#b85d67] text-[10px] font-sans font-bold flex items-center gap-1"
-            >
-              {walkMode === 'guest' ? (
-                <>
-                  <User className="w-3 h-3" />
-                  <span>하객: {guestNickname}</span>
-                </>
-              ) : (
-                <>
-                  <Users className="w-3 h-3" />
-                  <span>커플 산책</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0 font-sans">
-            <button
-              type="button"
-              onClick={() => {
-                soundEngine.playSelect();
-                setShowSecretBook(true);
-              }}
-              className="px-2 py-0.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#5c4d47] text-[11px] font-bold flex items-center gap-1 transition-colors"
-            >
-              <Sparkles className="w-3 h-3 text-[#d97b84]" />
-              <span>비밀 {discoveredCount}/9</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                soundEngine.playSelect();
-                setShowPhotoBooth(true);
-              }}
-              className="px-2 py-0.5 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#e2a3a9] text-[#b85d67] text-[11px] font-bold flex items-center gap-1 transition-colors"
-            >
-              <Camera className="w-3 h-3" />
-              <span>포토부스</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 2-Stage Course Tabs: [1. 설레는 출발·이동길 (4맵)] vs [2. 웨딩홀 도착·본식 (5맵)] */}
-        <div className="grid grid-cols-2 gap-1.5 font-sans">
-          <button
-            type="button"
-            onClick={() => {
-              if (activeMapConfig.stage !== 'commute') {
-                travelToMap('home');
-              }
-            }}
-            className={`py-1.5 px-2.5 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-              activeMapConfig.stage === 'commute'
-                ? 'bg-[#3b2f2f] text-[#fffdf9] border-[#3b2f2f] shadow-xs'
-                : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0] hover:border-[#c59b6d]'
-            }`}
-          >
-            <span>🏠 1막. 출발·이동길 (4맵)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (activeMapConfig.stage !== 'venue') {
-                travelToMap('garden');
-              }
-            }}
-            className={`py-1.5 px-2.5 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-              activeMapConfig.stage === 'venue'
-                ? 'bg-[#3b2f2f] text-[#fffdf9] border-[#3b2f2f] shadow-xs'
-                : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0] hover:border-[#c59b6d]'
-            }`}
-          >
-            <span>🏛️ 2막. 웨딩홀·본식 (5맵)</span>
-          </button>
-        </div>
-
-        {/* Active Stage Map Buttons */}
-        <div
-          className={`grid gap-1.5 font-sans ${
-            stageMaps.length === 4 ? 'grid-cols-4' : 'grid-cols-5'
-          }`}
+    <div className="flex flex-col gap-1.5">
+      {/* ULTRA-SLIM 1-ROW WORLD HUD BAR: Map Drawer + 9-Map Strip + Utility Icons */}
+      <div className="pixel-card px-2 py-1.5 bg-[#fffdf9] flex items-center justify-between gap-1.5 font-sans">
+        {/* Left: World Map & Mission Drawer Trigger */}
+        <button
+          type="button"
+          onClick={() => {
+            soundEngine.playSelect();
+            setShowWorldMapSheet(true);
+          }}
+          className="px-2.5 py-1 rounded-lg bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] text-[11px] font-bold flex items-center gap-1 shrink-0 shadow-xs"
         >
-          {stageMaps.map((mapId) => {
+          <span>🗺️ 전체맵</span>
+          <span className="text-[#e6d5b8] text-[10px]">{exploredMapCount}/9</span>
+        </button>
+
+        {/* Center: 1-Line Horizontal Scrollable 9-Map Quick Pills */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1 py-0.5">
+          {allMapsOrder.map((mapId) => {
             const m = GARDEN_MAPS[mapId];
             const isActive = currentMapId === mapId;
             const isVisited = visitedMaps[mapId];
             return (
               <button
                 key={mapId}
+                type="button"
                 onClick={() => {
                   if (currentMapId !== mapId) {
                     travelToMap(mapId);
                   }
                 }}
-                className={`py-1.5 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center gap-0.5 ${
+                className={`px-2 py-1 rounded-full border text-[10px] shrink-0 flex items-center gap-1 transition-all ${
                   isActive
-                    ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs scale-[1.02]'
+                    ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
                     : isVisited
-                    ? 'bg-[#faf5ec] text-[#3b2f2f] border-[#c59b6d] hover:bg-[#f3e9d8] font-semibold'
-                    : 'bg-[#fcfaf5] text-[#7d6e65] border-[#e2d4c0] hover:border-[#c59b6d]'
+                    ? 'bg-[#faf5ec] text-[#3b2f2f] border-[#c59b6d] font-semibold'
+                    : 'bg-[#fcfaf5] text-[#8c7a70] border-[#e2d4c0]'
                 }`}
               >
-                <span className="text-sm leading-none">{m.icon}</span>
-                <span className="text-[10px] truncate w-full">{m.tabLabel}</span>
+                <span className="leading-none">{m.icon}</span>
+                <span>{m.tabLabel}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Map-Specific Mini-Quest Checklist Strip */}
-        <div className="pt-1 border-t border-[#efe6d8] flex items-center gap-1.5 overflow-x-auto font-sans">
-          <span className="text-[10px] font-bold text-[#c59b6d] shrink-0">
-            {activeMiniQuest.title}:
-          </span>
-          {activeMiniQuest.steps.map((step) => {
-            const done = isMiniQuestStepDone(step);
-            return (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => handleMiniQuestClick(step)}
-                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 flex items-center gap-1 transition-all ${
-                  done
-                    ? 'bg-[#edf3ee] text-[#4d6b53] border-[#a3bfa8]'
-                    : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0] hover:border-[#c59b6d]'
-                }`}
-              >
-                <span>{done ? '✓' : step.icon}</span>
-                <span>{step.label}</span>
-              </button>
-            );
-          })}
+        {/* Right: Compact Character / Secret / Photo Booth Icon Pills */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playSelect();
+              setShowAvatarPicker(true);
+            }}
+            title="하객 캐릭터 & 산책 모드 변경"
+            className="px-2 py-1 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#d97b84] text-[#b85d67] text-[10px] font-bold flex items-center gap-0.5"
+          >
+            <span>🪞</span>
+            <span className="hidden sm:inline">캐릭터</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playSelect();
+              setShowSecretBook(true);
+            }}
+            title="반짝이는 비밀 소품 도감"
+            className="px-2 py-1 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#5c4d47] text-[10px] font-bold flex items-center gap-0.5"
+          >
+            <Sparkles className="w-3 h-3 text-[#d97b84]" />
+            <span>{discoveredCount}/9</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playSelect();
+              setShowPhotoBooth(true);
+            }}
+            title="웨딩 폴라로이드 포토부스"
+            className="px-2 py-1 rounded-full bg-[#fcf0f1] hover:bg-[#f9dfe2] border border-[#e2a3a9] text-[#b85d67] text-[10px] font-bold flex items-center gap-0.5"
+          >
+            <Camera className="w-3 h-3" />
+          </button>
         </div>
       </div>
 
-      {/* 1:1 Interactive Pixel World Canvas Frame (100% Unobstructed View) */}
-      <div className="relative pixel-card overflow-hidden bg-[#bdd2b6]">
-        {/* Top Minimal Map Title Pill + Walk Mode Quick Toggle */}
-        <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between gap-2 pointer-events-none">
-          <div className="bg-[#fffdf9] border border-[#d4b48c] px-3 py-1 rounded-full text-[11px] text-[#5c4d47] flex items-center gap-1.5 shadow-sm min-w-0 truncate">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse shrink-0" />
-            <strong className="text-[#3b2f2f] shrink-0">
-              {activeMapConfig.icon} {activeMapConfig.tabLabel}
-            </strong>
-            <span className="text-[#8c7a70] truncate hidden sm:inline">
-              · {activeMapConfig.subtitle}
-            </span>
+      {/* 1:1 EXPANDED GAME CANVAS FRAME (Primary Visual Centerpiece) */}
+      <div className="relative pixel-card overflow-hidden bg-[#bdd2b6] shadow-md">
+        {/* Top Translucent HUD Overlay: Map Badge + Mission Drawer Trigger + Walk Mode Toggle */}
+        <div className="absolute top-2 left-2 right-2 z-10 flex items-center justify-between gap-1.5 pointer-events-none font-sans">
+          <div className="flex items-center gap-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                setShowWorldMapSheet(true);
+              }}
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-xs hover:bg-[#fffdf9] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[11px] text-[#3b2f2f] font-bold flex items-center gap-1.5 shadow-xs truncate"
+            >
+              <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse shrink-0" />
+              <span>
+                {activeMapConfig.icon} {activeMapConfig.tabLabel}
+              </span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#faf5ec] text-[#c59b6d] border border-[#e6d5b8]">
+                미션 {completedMiniQuestCount}/{activeMiniQuest.steps.length} ▾
+              </span>
+            </button>
           </div>
 
           <button
@@ -2230,15 +2182,15 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               soundEngine.playSelect();
               setWalkMode((m) => (m === 'guest' ? 'couple' : 'guest'));
             }}
-            className="pointer-events-auto bg-[#fffdf9] hover:bg-[#fcf0f1] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[10px] font-sans font-bold text-[#3b2f2f] shadow-sm shrink-0"
+            className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-xs hover:bg-[#fcf0f1] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[10px] font-bold text-[#3b2f2f] shadow-xs shrink-0"
           >
-            {walkMode === 'guest' ? '👫 커플 산책 전환' : '🎒 하객 주인공 전환'}
+            {walkMode === 'guest' ? '👫 커플 산책' : '🎒 하객 모드'}
           </button>
         </div>
 
         {/* Story / Secret Toast Overlay when visiting special spots */}
         {activeStoryToast && !activeDialogueNpc && (
-          <div className="absolute top-12 left-3 right-3 z-10 bg-[#fffdf9] border-2 border-[#d97b84] rounded-xl px-3.5 py-2 shadow-md flex items-center justify-between gap-2 animate-fadeIn">
+          <div className="absolute top-11 left-2.5 right-2.5 z-10 bg-[#fffdf9]/95 backdrop-blur-xs border-2 border-[#d97b84] rounded-xl px-3 py-2 shadow-md flex items-center justify-between gap-2 animate-fadeIn">
             <div className="min-w-0">
               <div className="text-[10px] font-sans font-bold text-[#d97b84] tracking-wider">
                 {activeStoryToast.badge} · {activeStoryToast.title}
@@ -2260,7 +2212,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         {activeDialogueNpc && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute inset-x-3 bottom-3 z-20 bg-[#fffdf9] border-2 border-[#c59b6d] rounded-2xl p-3 shadow-xl space-y-2.5 animate-fadeIn font-sans"
+            className="absolute inset-x-2.5 bottom-2.5 z-20 bg-[#fffdf9]/95 backdrop-blur-xs border-2 border-[#c59b6d] rounded-2xl p-3 shadow-xl space-y-2 animate-fadeIn font-sans"
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -2346,153 +2298,147 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         />
       </div>
 
-      {/* BOTTOM STICKY CONSOLE BAR: Immediately below 1:1 Canvas + Sticky at Viewport Bottom */}
-      <div className="sticky bottom-2 z-30 pixel-card bg-[#fffdf9] border-2 border-[#c59b6d] px-3.5 py-2.5 shadow-lg rounded-2xl flex items-center justify-between gap-3">
-        {/* Left: Wedding Compass Virtual Joystick */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <InGameVirtualJoystick onVectorChange={handleJoystickVectorChange} />
-        </div>
-
-        {/* Right: Live Emoji Reactions + Contextual Portal/Secret/Landmark Action Dock */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between gap-2 font-sans">
-          {/* Upper Row: Live Blessing Emoji Reactions + NPC Talk Button */}
-          <div className="flex items-center justify-between gap-1 bg-[#faf5ec] px-2.5 py-1 rounded-full border border-[#e6d5b8]">
-            <button
-              type="button"
-              onClick={() => {
-                const target =
-                  liveNpcsRef.current[0] || {
-                    id: 'companion-mochi',
-                    name: config.pet.name,
-                    roleTitle: config.pet.title,
-                    avatar: 'mochi' as const,
-                    initialMessage:
-                      '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾',
-                    x: posRef.current.x,
-                    y: posRef.current.y,
-                  };
-                openNpcDialogue(target);
-              }}
-              className="text-[10px] font-bold text-[#b85d67] hover:text-[#d97b84] flex items-center gap-1 shrink-0"
-            >
-              <MessageCircle className="w-3 h-3" />
-              <span>대화·축복 ♥{blessingCount}</span>
-            </button>
-            <div className="flex items-center gap-1">
-              {REACTION_EMOJIS.map((item) => (
-                <button
-                  key={item.emoji}
-                  type="button"
-                  onClick={() => spawnFloatingReaction(item.emoji)}
-                  title={`${item.label} 축복 보내기`}
-                  className="w-6 h-6 rounded-full bg-[#fffdf9] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] flex items-center justify-center text-xs transition-transform"
-                >
-                  {item.emoji}
-                </button>
-              ))}
-            </div>
+      {/* COMPACT STICKY CONSOLE DOCK: Joystick + Action CTA + 1-Line Spot Quick-Chips */}
+      <div className="sticky bottom-1.5 z-30 pixel-card bg-[#fffdf9] border-2 border-[#c59b6d] px-3 py-2 shadow-lg rounded-2xl space-y-1.5 font-sans">
+        <div className="flex items-center justify-between gap-2.5">
+          {/* Left: Wedding Compass Virtual Joystick */}
+          <div className="flex items-center shrink-0">
+            <InGameVirtualJoystick onVectorChange={handleJoystickVectorChange} />
           </div>
 
-          {/* Lower Row: Contextual Portal / Secret Prop / Landmark Prompt OR Recommended Course & Invitation */}
-          {nearbyPortal ? (
-            <button
-              type="button"
-              onClick={() =>
-                travelToMap(
-                  nearbyPortal.targetMap,
-                  nearbyPortal.spawnX,
-                  nearbyPortal.spawnY
-                )
-              }
-              className="w-full bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] border border-[#c59b6d] rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
-            >
-              <div className="min-w-0 text-left">
-                <div className="text-[9px] text-[#e6d5b8] font-bold tracking-wider">
-                  PORTAL · 다음 맵 이동
-                </div>
-                <div className="text-xs font-bold text-white truncate">
-                  {nearbyPortal.label}
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold shrink-0">
-                입장하기 ▶
-              </span>
-            </button>
-          ) : nearbySecret && !discoveredSecrets[nearbySecret.id] ? (
-            <button
-              type="button"
-              onClick={() => activateSecretProp(nearbySecret)}
-              className="w-full bg-[#fff8e7] hover:bg-[#faefd4] text-[#3b2f2f] border-2 border-[#d4af37] rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
-            >
-              <div className="min-w-0 text-left">
-                <div className="text-[9px] text-[#b8860b] font-bold tracking-wider truncate">
-                  ✦ 반짝이는 비밀 소품 발견!
-                </div>
-                <div className="text-xs font-bold text-[#3b2f2f] truncate">
-                  {nearbySecret.icon} {nearbySecret.title}
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-lg bg-[#d4af37] text-white text-[11px] font-bold shrink-0">
-                살펴보기 ✦
-              </span>
-            </button>
-          ) : nearbyLandmark ? (
-            <button
-              type="button"
-              onClick={() => activateLandmark(nearbyLandmark)}
-              className="w-full bg-[#fcf0f1] hover:bg-[#f9dfe2] text-[#3b2f2f] border border-[#d97b84] rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
-            >
-              <div className="min-w-0 text-left">
-                <div className="text-[9px] text-[#b85d67] font-bold tracking-wider truncate">
-                  {nearbyLandmark.badge} · {nearbyLandmark.npcName}
-                </div>
-                <div className="text-xs font-bold text-[#3b2f2f] truncate">
-                  {nearbyLandmark.name}
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold shrink-0">
-                {nearbyLandmark.questId ? '열어보기 ▶' : '체험하기 ✨'}
-              </span>
-            </button>
-          ) : (
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={handleGuideNextSpot}
-                className="py-2 px-2.5 rounded-xl bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#3b2f2f] text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
-              >
-                <Compass className="w-3.5 h-3.5 text-[#d97b84] shrink-0" />
-                <span className="truncate">추천코스</span>
-              </button>
-
+          {/* Right: Live Emoji Reactions + Contextual Portal/Secret/Landmark Action Dock */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between gap-1.5">
+            {/* Upper Row: Live Blessing Emoji Reactions + NPC Talk Button */}
+            <div className="flex items-center justify-between gap-1 bg-[#faf5ec] px-2.5 py-1 rounded-full border border-[#e6d5b8]">
               <button
                 type="button"
                 onClick={() => {
-                  soundEngine.playSelect();
-                  onOpenQuest('story');
+                  const target =
+                    liveNpcsRef.current[0] || {
+                      id: 'companion-mochi',
+                      name: config.pet.name,
+                      roleTitle: config.pet.title,
+                      avatar: 'mochi' as const,
+                      initialMessage:
+                        '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾',
+                      x: posRef.current.x,
+                      y: posRef.current.y,
+                    };
+                  openNpcDialogue(target);
                 }}
-                className="py-2 px-2.5 rounded-xl bg-[#d97b84] hover:bg-[#c56871] border border-[#b85d67] text-white text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform shadow-xs"
+                className="text-[10px] font-bold text-[#b85d67] hover:text-[#d97b84] flex items-center gap-1 shrink-0"
               >
-                <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">초대장 열기</span>
+                <MessageCircle className="w-3 h-3" />
+                <span>대화·축복 ♥{blessingCount}</span>
               </button>
+              <div className="flex items-center gap-1">
+                {REACTION_EMOJIS.map((item) => (
+                  <button
+                    key={item.emoji}
+                    type="button"
+                    onClick={() => spawnFloatingReaction(item.emoji)}
+                    title={`${item.label} 축복 보내기`}
+                    className="w-5.5 h-5.5 rounded-full bg-[#fffdf9] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] flex items-center justify-center text-[11px] transition-transform"
+                  >
+                    {item.emoji}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Compact Quick-Jump Spot Chips (Current Map Landmarks & Portals) */}
-      <div className="pixel-card px-3 py-2.5 bg-[#fffdf9] space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-[#5c4d47] font-bold">
-            {activeMapConfig.icon} [{activeMapConfig.tabLabel}] 스팟 바로가기
-          </span>
-          <span className="text-[10px] text-[#8c7a70] font-sans">
-            터치 시 타일 발판을 따라 이동
-          </span>
+            {/* Lower Row: Contextual Portal / Secret Prop / Landmark Prompt OR Recommended Course & Invitation */}
+            {nearbyPortal ? (
+              <button
+                type="button"
+                onClick={() =>
+                  travelToMap(
+                    nearbyPortal.targetMap,
+                    nearbyPortal.spawnX,
+                    nearbyPortal.spawnY
+                  )
+                }
+                className="w-full bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] border border-[#c59b6d] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-xs active:scale-95 transition-all"
+              >
+                <div className="min-w-0 text-left">
+                  <div className="text-[9px] text-[#e6d5b8] font-bold tracking-wider">
+                    PORTAL · 다음 맵 이동
+                  </div>
+                  <div className="text-xs font-bold text-white truncate">
+                    {nearbyPortal.label}
+                  </div>
+                </div>
+                <span className="px-2 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold shrink-0">
+                  입장 ▶
+                </span>
+              </button>
+            ) : nearbySecret && !discoveredSecrets[nearbySecret.id] ? (
+              <button
+                type="button"
+                onClick={() => activateSecretProp(nearbySecret)}
+                className="w-full bg-[#fff8e7] hover:bg-[#faefd4] text-[#3b2f2f] border-2 border-[#d4af37] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-xs active:scale-95 transition-all"
+              >
+                <div className="min-w-0 text-left">
+                  <div className="text-[9px] text-[#b8860b] font-bold tracking-wider truncate">
+                    ✦ 반짝이는 비밀 소품 발견!
+                  </div>
+                  <div className="text-xs font-bold text-[#3b2f2f] truncate">
+                    {nearbySecret.icon} {nearbySecret.title}
+                  </div>
+                </div>
+                <span className="px-2 py-1 rounded-lg bg-[#d4af37] text-white text-[11px] font-bold shrink-0">
+                  열기 ✦
+                </span>
+              </button>
+            ) : nearbyLandmark ? (
+              <button
+                type="button"
+                onClick={() => activateLandmark(nearbyLandmark)}
+                className="w-full bg-[#fcf0f1] hover:bg-[#f9dfe2] text-[#3b2f2f] border border-[#d97b84] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-xs active:scale-95 transition-all"
+              >
+                <div className="min-w-0 text-left">
+                  <div className="text-[9px] text-[#b85d67] font-bold tracking-wider truncate">
+                    {nearbyLandmark.badge} · {nearbyLandmark.npcName}
+                  </div>
+                  <div className="text-xs font-bold text-[#3b2f2f] truncate">
+                    {nearbyLandmark.name}
+                  </div>
+                </div>
+                <span className="px-2 py-1 rounded-lg bg-[#d97b84] text-white text-[11px] font-bold shrink-0">
+                  {nearbyLandmark.questId ? '열기 ▶' : '체험 ✨'}
+                </span>
+              </button>
+            ) : (
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleGuideNextSpot}
+                  className="py-1.5 px-2 rounded-xl bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#3b2f2f] text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                >
+                  <Compass className="w-3.5 h-3.5 text-[#d97b84] shrink-0" />
+                  <span className="truncate">추천코스</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEngine.playSelect();
+                    onOpenQuest('story');
+                  }}
+                  className="py-1.5 px-2 rounded-xl bg-[#d97b84] hover:bg-[#c56871] border border-[#b85d67] text-white text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform shadow-xs"
+                >
+                  <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">초대장 열기</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        {/* Ultra-Slim 1-Line Spot & Portal Quick-Jump Strip */}
+        <div className="pt-1 border-t border-[#efe6d8] flex items-center gap-1 overflow-x-auto no-scrollbar">
+          <span className="text-[10px] font-bold text-[#8c7a70] shrink-0 mr-0.5">
+            {activeMapConfig.icon} 스팟:
+          </span>
           {activeMapConfig.landmarks.map((lm) => {
             const done = lm.questId
               ? !!visitedQuests[lm.questId]
@@ -2500,33 +2446,172 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             return (
               <button
                 key={lm.id}
+                type="button"
                 onClick={() => walkToLandmark(lm)}
-                className={`px-2.5 py-1.5 rounded-md border text-[11px] font-medium flex items-center gap-1.5 transition-all text-left ${
+                className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold shrink-0 flex items-center gap-1 transition-all ${
                   done
                     ? 'bg-[#edf3ee] text-[#4d6b53] border-[#a3bfa8]'
                     : 'bg-[#faf5ec] text-[#4a3b32] border-[#e2d4c0] hover:border-[#c59b6d]'
                 }`}
               >
-                <span className="text-sm shrink-0">{lm.name.split(' ')[0]}</span>
-                <span className="truncate text-[11px] font-sans font-semibold">
-                  {lm.shortName}
-                </span>
+                <span>{lm.name.split(' ')[0]}</span>
+                <span>{lm.shortName}</span>
               </button>
             );
           })}
-
           {activeMapConfig.portals.map((p) => (
             <button
               key={p.id}
+              type="button"
               onClick={() => walkToPortal(p)}
-              className="px-2.5 py-1.5 rounded-md border border-[#d97b84] bg-[#fcf3f3] hover:bg-[#f9e5e7] text-[#3b2f2f] text-[11px] font-sans font-bold flex items-center justify-between gap-1 transition-all"
+              className="px-2 py-0.5 rounded-full border border-[#d97b84] bg-[#fcf3f3] hover:bg-[#f9e5e7] text-[#3b2f2f] text-[10px] font-bold shrink-0 flex items-center gap-1 transition-all"
             >
-              <span className="truncate">{p.label}</span>
-              <span className="text-[#d97b84] shrink-0">이동 ▶</span>
+              <span>{p.label}</span>
+              <span className="text-[#d97b84]">▶</span>
             </button>
           ))}
         </div>
       </div>
+
+      {/* WORLD MAP, MISSION & SPOT QUICK-JUMP DRAWER MODAL */}
+      {showWorldMapSheet && (
+        <div
+          onClick={() => setShowWorldMapSheet(false)}
+          className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 font-sans"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="pixel-card w-full max-w-[440px] bg-[#fffdf9] overflow-hidden animate-fadeIn"
+          >
+            <div className="p-3.5 bg-[#faf5ec] border-b border-[#e6d5b8] flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold text-[#c59b6d] tracking-wider">
+                  WEDDING WORLD MAP ({exploredMapCount}/9 MAPS)
+                </div>
+                <h3 className="text-sm font-bold text-[#3b2f2f] font-serif">
+                  🗺️ 웨딩 여정 전체 맵 & 미션 안내
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWorldMapSheet(false)}
+                className="px-2.5 py-1 rounded-full bg-[#fffdf9] border border-[#d4b48c] text-xs font-bold text-[#5c4d47]"
+              >
+                닫기 ✕
+              </button>
+            </div>
+
+            <div className="p-3.5 space-y-3.5 max-h-[75vh] overflow-y-auto">
+              {/* Stage 1: Commute Maps */}
+              <div className="space-y-1.5">
+                <div className="text-xs font-bold text-[#3b2f2f] flex items-center justify-between">
+                  <span>🏠 1막. 설레는 출발·이동길 (4맵)</span>
+                  <span className="text-[10px] text-[#8c7a70] font-normal">
+                    터치 시 해당 맵으로 즉시 이동
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {COMMUTE_MAP_ORDER.map((mapId) => {
+                    const m = GARDEN_MAPS[mapId];
+                    const isActive = currentMapId === mapId;
+                    const isVisited = visitedMaps[mapId];
+                    return (
+                      <button
+                        key={mapId}
+                        type="button"
+                        onClick={() => {
+                          setShowWorldMapSheet(false);
+                          if (currentMapId !== mapId) travelToMap(mapId);
+                        }}
+                        className={`p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
+                          isActive
+                            ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                            : isVisited
+                            ? 'bg-[#faf5ec] text-[#3b2f2f] border-[#c59b6d] font-semibold'
+                            : 'bg-[#fcfaf5] text-[#7d6e65] border-[#e2d4c0]'
+                        }`}
+                      >
+                        <span className="text-base">{m.icon}</span>
+                        <span className="text-[11px] truncate w-full">{m.tabLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Stage 2: Venue Maps */}
+              <div className="space-y-1.5">
+                <div className="text-xs font-bold text-[#3b2f2f]">
+                  🏛️ 2막. 웨딩홀 도착·본식·피로연 (5맵)
+                </div>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {VENUE_MAP_ORDER.map((mapId) => {
+                    const m = GARDEN_MAPS[mapId];
+                    const isActive = currentMapId === mapId;
+                    const isVisited = visitedMaps[mapId];
+                    return (
+                      <button
+                        key={mapId}
+                        type="button"
+                        onClick={() => {
+                          setShowWorldMapSheet(false);
+                          if (currentMapId !== mapId) travelToMap(mapId);
+                        }}
+                        className={`p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
+                          isActive
+                            ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                            : isVisited
+                            ? 'bg-[#faf5ec] text-[#3b2f2f] border-[#c59b6d] font-semibold'
+                            : 'bg-[#fcfaf5] text-[#7d6e65] border-[#e2d4c0]'
+                        }`}
+                      >
+                        <span className="text-base">{m.icon}</span>
+                        <span className="text-[10px] truncate w-full">{m.tabLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Current Map Mini-Quest Checklist */}
+              <div className="p-3 rounded-xl bg-[#faf5ec] border border-[#e6d5b8] space-y-2">
+                <div className="text-xs font-bold text-[#3b2f2f]">
+                  🎯 {activeMiniQuest.title} ({completedMiniQuestCount}/
+                  {activeMiniQuest.steps.length})
+                </div>
+                <div className="space-y-1.5">
+                  {activeMiniQuest.steps.map((step) => {
+                    const done = isMiniQuestStepDone(step);
+                    return (
+                      <button
+                        key={step.id}
+                        type="button"
+                        onClick={() => {
+                          setShowWorldMapSheet(false);
+                          handleMiniQuestClick(step);
+                        }}
+                        className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold flex items-center justify-between transition-all ${
+                          done
+                            ? 'bg-[#edf3ee] text-[#4d6b53] border-[#a3bfa8]'
+                            : 'bg-[#fffdf9] text-[#3b2f2f] border-[#e2d4c0] hover:border-[#c59b6d]'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>{done ? '✓' : step.icon}</span>
+                          <span>{step.label}</span>
+                        </span>
+                        <span className="text-[10px] text-[#d97b84] font-bold">
+                          {done ? '완료' : '이동하기 ▶'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Guest Protagonist Avatar & Walk Mode Selector Modal */}
       {showAvatarPicker && (
