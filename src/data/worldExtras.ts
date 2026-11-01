@@ -114,10 +114,10 @@ export const WORLD_SECRET_PROPS: SecretPropItem[] = [
     id: 'secret-reception-macaron',
     mapId: 'reception',
     icon: '🧁',
-    title: '반려묘 모찌 모양 수제 마카롱',
+    title: '반려견 크림 & 꼬미 모양 수제 마카롱',
     clueLabel: '디저트 트레이가 달콤하게 반짝여요',
     storyText:
-      '파티시에가 반려묘 ‘모찌’ 얼굴 모양으로 구워준 스페셜 마카롱이에요! 쫑긋한 귀와 핑크 리본까지 똑 닮았어요.',
+      '파티시에가 복슬복슬한 엄마 강아지 ‘크림’이와 딸 ‘꼬미’ 얼굴 모양으로 구워준 스페셜 마카롱이에요! 까만 코와 핑크·하늘 리본까지 똑 닮았어요.',
     x: 64,
     y: 44,
   },
@@ -165,7 +165,7 @@ export interface ActiveNpcTarget {
   id: string;
   name: string;
   roleTitle: string;
-  avatar: AvatarClassId | 'mochi' | 'groom' | 'bride';
+  avatar: AvatarClassId | 'cream' | 'kkomi' | 'mochi' | 'groom' | 'bride';
   initialMessage: string;
   x: number;
   y: number;
@@ -190,16 +190,28 @@ export function resolveNpcAffinityReply(
   choiceId: NpcChoiceId,
   nextPoints: number
 ): string {
-  if (npc.avatar === 'mochi') {
+  if (npc.avatar === 'cream' || npc.avatar === 'mochi') {
     if (choiceId === 'greet') {
       return nextPoints >= 3
-        ? '야옹~♥ (모찌가 골골송을 부르며 발치에 애교를 부립니다!)'
-        : '야옹! (모찌가 분홍 리본 방울을 딸랑이며 반갑게 꼬리를 흔들어요!)';
+        ? '멍멍~♥ (엄마 강아지 크림이가 핑크 도트 리본을 흔들며 발치에 폭 안깁니다!)'
+        : '멍멍! (엄마 비숑 크림이가 솜사탕 같은 얼굴로 반갑게 꼬리를 흔들어요!)';
     }
     if (choiceId === 'heart') {
-      return '골골골...🐾 (모찌가 따뜻한 손길에 기분이 좋아 눈을 반달처럼 접었어요!)';
+      return '낑낑~🐾 (크림이가 따뜻한 쓰담쓰담 손길에 기분이 좋아 눈을 반달처럼 접었어요!)';
     }
-    return '야옹~✨ (모찌가 신랑·신부 곁에서 신나게 폴짝 뛰어오릅니다!)';
+    return '멍멍!✨ (든든한 엄마 강아지 크림이가 딸 꼬미와 함께 축복의 짖음을 들려줍니다!)';
+  }
+
+  if (npc.avatar === 'kkomi') {
+    if (choiceId === 'greet') {
+      return nextPoints >= 3
+        ? '앙앙~♥ (딸 강아지 꼬미가 발라당 배를 보이며 애교 만점 인사를 건넵니다!)'
+        : '멍멍! (딸 비숑 꼬미가 하늘색 꽃 리본을 뽐내며 앞발을 흔들어 인사해요!)';
+    }
+    if (choiceId === 'heart') {
+      return '헤헤~🐾 (꼬미가 복슬복슬한 솜사탕 머리를 손바닥에 부비며 신나게 꼬리를 흔들어요!)';
+    }
+    return '왕왕~✨ (귀염둥이 딸 꼬미가 엄마 크림이 옆에서 폴짝폴짝 춤을 춥니다!)';
   }
 
   if (npc.avatar === 'groom') {
@@ -322,7 +334,7 @@ export const ZONE_MINI_QUESTS: Record<
     steps: [
       { id: 'mq-reception-cake', label: '웨딩 케이크 샴페인 건배', icon: '🥂', targetX: 50, targetY: 58 },
       { id: 'mq-reception-tree', label: '축복의 소원나무 방명록', icon: '🌳', targetX: 50, targetY: 31 },
-      { id: 'mq-reception-secret', label: '모찌 수제 마카롱 찾기', icon: '🧁', targetX: 64, targetY: 44 },
+      { id: 'mq-reception-secret', label: '크림·꼬미 수제 마카롱 찾기', icon: '🧁', targetX: 64, targetY: 44 },
     ],
   },
 };

@@ -194,18 +194,18 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
           </div>
         </div>
 
-        {/* Little Pet Companion Note */}
+        {/* Little Pet Companion Note (Cream & Kkomi Bichon Mother & Daughter) */}
         <div className="mt-4 bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-[#fffdf9] border border-[#d4b48c] flex items-center justify-center shrink-0 overflow-hidden">
-              <PetCatSprite size={48} />
+            <div className="px-2 py-1 rounded-2xl bg-[#fffdf9] border border-[#d4b48c] flex items-center justify-center shrink-0">
+              <PetCatSprite size={44} />
             </div>
             <div className="text-left">
               <div className="text-xs font-bold text-[#3b2f2f]">
-                반려묘 {config.pet.name} · {config.pet.title}
+                🐶 반려견 {config.pet.name} · {config.pet.title}
               </div>
               <div className="text-[11px] text-[#7d6e65] font-sans mt-0.5">
-                픽셀 정원에서 두 사람의 뒤를 졸졸 따라다니며 하객분들을 맞이합니다.
+                복슬복슬 엄마 강아지 ‘크림’이와 애교쟁이 딸 ‘꼬미’가 정원에서 하객분들을 맞이합니다.
               </div>
             </div>
           </div>

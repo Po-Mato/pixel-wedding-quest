@@ -11,7 +11,9 @@ export const PIXEL_ASSETS = {
   groomPortrait: `${PIXEL_ASSET_BASE}/groom-portrait.png`,
   brideSprite: `${PIXEL_ASSET_BASE}/bride-sprite.png`,
   bridePortrait: `${PIXEL_ASSET_BASE}/bride-portrait.png`,
-  catSprite: `${PIXEL_ASSET_BASE}/cat-sprite.png`,
+  dogCreamSprite: `${PIXEL_ASSET_BASE}/dog-cream-sprite.png`,
+  dogKkomiSprite: `${PIXEL_ASSET_BASE}/dog-kkomi-sprite.png`,
+  catSprite: `${PIXEL_ASSET_BASE}/dog-cream-sprite.png`,
   weddingCover: `${PIXEL_ASSET_BASE}/wedding-cover-pixel.jpg`,
   mapHome: `${PIXEL_ASSET_BASE}/map-home.png`,
   mapNeighborhood: `${PIXEL_ASSET_BASE}/map-neighborhood.png`,
@@ -93,21 +95,46 @@ export const BrideSprite: React.FC<CharacterSpriteProps> = ({
 };
 
 /**
- * Artist-Grade High-Resolution Pixel Art Pet Cat ('모찌' 반려묘)
+ * Artist-Grade High-Resolution Pixel Art Pet Dogs ('크림' 엄마 & '꼬미' 딸 비숑 모녀)
  */
+export const PetDogCreamSprite: React.FC<{ size?: number; className?: string }> = ({
+  size = 52,
+  className = '',
+}) => (
+  <img
+    src={PIXEL_ASSETS.dogCreamSprite}
+    alt="엄마 강아지 크림"
+    width={size}
+    height={size}
+    style={{ width: size, height: size }}
+    className={`pixelated select-none object-contain drop-shadow-[0_2px_3px_rgba(59,47,47,0.12)] ${className}`}
+  />
+);
+
+export const PetDogKkomiSprite: React.FC<{ size?: number; className?: string }> = ({
+  size = 46,
+  className = '',
+}) => (
+  <img
+    src={PIXEL_ASSETS.dogKkomiSprite}
+    alt="딸 강아지 꼬미"
+    width={size}
+    height={size}
+    style={{ width: size, height: size }}
+    className={`pixelated select-none object-contain drop-shadow-[0_2px_3px_rgba(59,47,47,0.12)] ${className}`}
+  />
+);
+
 export const PetCatSprite: React.FC<{ size?: number; className?: string }> = ({
-  size = 56,
+  size = 52,
   className = '',
 }) => {
+  const kkomiSize = Math.round(size * 0.88);
   return (
-    <img
-      src={PIXEL_ASSETS.catSprite}
-      alt="반려묘 모찌"
-      width={size}
-      height={size}
-      style={{ width: size, height: size }}
-      className={`pixelated select-none object-contain drop-shadow-[0_2px_3px_rgba(59,47,47,0.12)] ${className}`}
-    />
+    <span className={`inline-flex items-end -space-x-2 select-none ${className}`}>
+      <PetDogCreamSprite size={size} />
+      <PetDogKkomiSprite size={kkomiSize} />
+    </span>
   );
 };
 

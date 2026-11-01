@@ -98,12 +98,16 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     maps: Partial<Record<GardenMapId, HTMLImageElement>>;
     groom: HTMLImageElement | null;
     bride: HTMLImageElement | null;
+    dogCream: HTMLImageElement | null;
+    dogKkomi: HTMLImageElement | null;
     cat: HTMLImageElement | null;
     guests: Partial<Record<AvatarClassId, HTMLImageElement>>;
   }>({
     maps: {},
     groom: null,
     bride: null,
+    dogCream: null,
+    dogKkomi: null,
     cat: null,
     guests: {},
   });
@@ -130,6 +134,8 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     );
     load(PIXEL_ASSETS.groomSprite, (i) => (loadedImagesRef.current.groom = i));
     load(PIXEL_ASSETS.brideSprite, (i) => (loadedImagesRef.current.bride = i));
+    load(PIXEL_ASSETS.dogCreamSprite, (i) => (loadedImagesRef.current.dogCream = i));
+    load(PIXEL_ASSETS.dogKkomiSprite, (i) => (loadedImagesRef.current.dogKkomi = i));
     load(PIXEL_ASSETS.catSprite, (i) => (loadedImagesRef.current.cat = i));
     (Object.keys(GUEST_SPRITES) as AvatarClassId[]).forEach((id) =>
       load(GUEST_SPRITES[id].sprite, (i) => (loadedImagesRef.current.guests[id] = i))
@@ -228,19 +234,21 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     ctx.textAlign = 'center';
     ctx.fillText(pose.tag, photoX + photoW - 91, photoY + 36);
 
-    // 3. Draw Characters (Pet Cat '모찌', Groom, Bride, and Guest Chibi Avatar!)
+    // 3. Draw Characters (Pet Dogs '크림' & '꼬미', Groom, Bride, and Guest Chibi Avatar!)
     const floorY = photoY + photoH - 64;
     const centerX = photoX + photoW / 2;
 
-    const catX = centerX - 168;
-    const groomX = centerX - 74;
-    const brideX = centerX + 26;
-    const guestX = centerX + 144;
+    const creamX = centerX - 196;
+    const kkomiX = centerX - 134;
+    const groomX = centerX - 52;
+    const brideX = centerX + 42;
+    const guestX = centerX + 158;
 
     // Ground shadows
     ctx.fillStyle = 'rgba(42, 30, 28, 0.26)';
     [
-      { x: catX, rx: 28, ry: 9 },
+      { x: creamX, rx: 26, ry: 8 },
+      { x: kkomiX, rx: 22, ry: 7 },
       { x: groomX, rx: 38, ry: 11 },
       { x: brideX, rx: 46, ry: 12 },
       { x: guestX, rx: 38, ry: 11 },
@@ -256,8 +264,9 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
       ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - targetH), w, targetH);
     };
 
-    // Draw Pet Cat '모찌'
-    drawSprite(loadedImagesRef.current.cat, catX, floorY + 4, 108);
+    // Draw Pet Dogs '크림(엄마)' & '꼬미(딸)'
+    drawSprite(loadedImagesRef.current.dogCream, creamX, floorY + 4, 102);
+    drawSprite(loadedImagesRef.current.dogKkomi, kkomiX, floorY + 6, 88);
     // Draw Groom & Bride (3-head-tall chibi)
     drawSprite(loadedImagesRef.current.groom, groomX, floorY, 210);
     drawSprite(loadedImagesRef.current.bride, brideX, floorY + 2, 206);

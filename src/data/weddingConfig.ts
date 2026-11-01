@@ -206,7 +206,7 @@ export const AVATAR_CLASSES: {
   { id: 'archer', name: '스냅 포토그래퍼', roleDesc: '가장 빛나는 순간을 기록', color: '#6b9071' },
   { id: 'bard', name: '세레나데 연주자', roleDesc: '로맨틱한 선율과 박수 갈채', color: '#c59b6d' },
   { id: 'healer', name: '축복의 메신저', roleDesc: '다정한 덕담과 따뜻한 포옹', color: '#e29578' },
-  { id: 'cat', name: '아기 고양이 하객', roleDesc: '정원을 산책하는 귀여운 손님', color: '#e09f3e' },
+  { id: 'cat', name: '비숑 강아지 하객', roleDesc: '정원을 산책하는 복슬복슬 강아지 손님', color: '#e09f3e' },
 ];
 
 export const QUEST_BUILDINGS: {
@@ -557,7 +557,7 @@ export const GARDEN_MAPS: Record<GardenMapId, GardenMapConfig> = {
     tabLabel: '웨딩 가든',
     icon: '🌿',
     title: '보타닉 웨딩 가든 (메인 정원 도착!)',
-    subtitle: '신랑과 반려묘 모찌가 맞이하는 정원! 신부대기실·채플·산책로·연회장으로 이어집니다',
+    subtitle: '신랑과 반려견 크림·꼬미 모녀가 맞이하는 정원! 신부대기실·채플·산책로·연회장으로 이어집니다',
     particleType: 'petals',
     defaultSpawn: { x: 50, y: 74 },
     landmarks: [
@@ -1044,8 +1044,8 @@ export const DEFAULT_WEDDING_CONFIG: WeddingConfig = {
     ],
   },
   pet: {
-    name: '모찌',
-    title: '함께 지내는 반려묘',
+    name: '크림 & 꼬미',
+    title: '함께 지내는 반려견 모녀 (엄마 크림 · 딸 꼬미)',
   },
   wedding: {
     dateISO: '2027-05-22T13:00:00+09:00',
@@ -1235,10 +1235,10 @@ export const DEFAULT_WEDDING_CONFIG: WeddingConfig = {
     },
     {
       id: 'q2',
-      question: 'Q2. 두 사람이 함께 돌보고 있는 귀여운 반려묘의 이름은 무엇일까요?',
-      options: ['치즈', '모찌', '호두', '보리'],
+      question: 'Q2. 두 사람이 함께 키우고 있는 사랑스러운 반려견 모녀(엄마 & 딸)의 이름은?',
+      options: ['구름 & 보리', '크림 & 꼬미', '두부 & 콩이', '우유 & 모카'],
       correctIndex: 1,
-      explanation: '정답입니다! 말랑하고 다정한 치즈냥이 [모찌]가 픽셀 정원에서도 함께 산책하고 있어요.',
+      explanation: '정답입니다! 복슬복슬 다정한 엄마 강아지 [크림]이와 애교쟁이 딸 [꼬미]가 픽셀 정원에서도 함께 뛰놀고 있어요 🐶',
     },
     {
       id: 'q3',

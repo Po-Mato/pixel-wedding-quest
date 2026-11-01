@@ -291,17 +291,21 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const [nearbySecret, setNearbySecret] = useState<SecretPropItem | null>(null);
   const [npcBubbleIndex, setNpcBubbleIndex] = useState<number>(0);
 
-  // Preload all 9 Map Backgrounds + Chibi Character Sprites
+  // Preload all 9 Map Backgrounds + Chibi Character Sprites + Bichon Dogs (Cream & Kkomi)
   const assetsRef = useRef<{
     maps: Partial<Record<GardenMapId, HTMLImageElement>>;
     groom: HTMLImageElement | null;
     bride: HTMLImageElement | null;
+    dogCream: HTMLImageElement | null;
+    dogKkomi: HTMLImageElement | null;
     cat: HTMLImageElement | null;
     guests: Partial<Record<AvatarClassId, HTMLImageElement>>;
   }>({
     maps: {},
     groom: null,
     bride: null,
+    dogCream: null,
+    dogKkomi: null,
     cat: null,
     guests: {},
   });
@@ -329,6 +333,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     );
     loadImg(PIXEL_ASSETS.groomSprite, (img) => (assetsRef.current.groom = img));
     loadImg(PIXEL_ASSETS.brideSprite, (img) => (assetsRef.current.bride = img));
+    loadImg(PIXEL_ASSETS.dogCreamSprite, (img) => (assetsRef.current.dogCream = img));
+    loadImg(PIXEL_ASSETS.dogKkomiSprite, (img) => (assetsRef.current.dogKkomi = img));
     loadImg(PIXEL_ASSETS.catSprite, (img) => (assetsRef.current.cat = img));
     (Object.keys(GUEST_SPRITES) as AvatarClassId[]).forEach((id) =>
       loadImg(GUEST_SPRITES[id].sprite, (img) => (assetsRef.current.guests[id] = img))
@@ -1278,12 +1284,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
       const depthList: DepthRenderable[] = [];
 
-      // Helper to render Groom / Bride / Mochi as Host NPCs when player is in Guest Protagonist mode ('guest')
+      // Helper to render Groom / Bride / Cream / Kkomi as Host NPCs when player is in Guest Protagonist mode ('guest')
       const addHostSpriteNpc = (
         id: string,
         name: string,
         roleTitle: string,
-        avatar: 'groom' | 'bride' | 'mochi',
+        avatar: 'groom' | 'bride' | 'cream' | 'kkomi' | 'mochi',
         img: HTMLImageElement | null,
         wx: number,
         wy: number,
@@ -1352,30 +1358,64 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         });
       };
 
-      // When in Guest Protagonist mode, place Groom & Bride as welcoming hosts on venue maps!
+      // When in Guest Protagonist mode, place Groom, Bride, and Dogs (Cream & Kkomi) as welcoming hosts!
       if (walkModeRef.current === 'guest') {
-        if (activeMapId === 'garden') {
+        if (activeMapId === 'home') {
+          addHostSpriteNpc(
+            'companion-cream-home',
+            '크림 (엄마)',
+            '든든한 엄마 비숑 · 화동 대장',
+            'cream',
+            assetsRef.current.dogCream,
+            34,
+            66,
+            48,
+            '멍멍! 오늘 결혼식 잘 다녀와요~ 웨딩 가든에서 먼저 기다릴게요! 🐾'
+          );
+          addHostSpriteNpc(
+            'companion-kkomi-home',
+            '꼬미 (딸)',
+            '애교쟁이 딸 비숑 · 반지 전달수',
+            'kkomi',
+            assetsRef.current.dogKkomi,
+            63,
+            66,
+            42,
+            '앙앙! 엄마랑 같이 예쁜 리본 매고 결혼식장으로 출발해요! 🎀'
+          );
+        } else if (activeMapId === 'garden') {
           addHostSpriteNpc(
             'host-groom-garden',
             `신랑 ${config.groom.name}`,
             '웨딩 가든 호스트 · 신랑',
             'groom',
             assetsRef.current.groom,
-            48,
+            50,
             61,
             CHIBI_H,
             '어서 오세요! 멀리서부터 귀한 걸음 해주셔서 정말 감사합니다 ♥'
           );
           addHostSpriteNpc(
-            'companion-mochi',
-            config.pet.name,
-            config.pet.title,
-            'mochi',
-            assetsRef.current.cat,
-            39,
+            'companion-cream',
+            '크림 (엄마)',
+            '든든한 엄마 비숑 · 화동 대장',
+            'cream',
+            assetsRef.current.dogCream,
+            37,
             62,
             48,
-            '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾'
+            '멍멍~ 민준 아빠와 서연 엄마의 결혼식에 오신 걸 환영해요! 🐾'
+          );
+          addHostSpriteNpc(
+            'companion-kkomi',
+            '꼬미 (딸)',
+            '애교쟁이 딸 비숑 · 반지 전달수',
+            'kkomi',
+            assetsRef.current.dogKkomi,
+            62,
+            62,
+            42,
+            '왕왕! 저랑 엄마 크림이도 오늘 화동으로 출동했어요! 쓰담쓰담 해주세요 ♥'
           );
         } else if (activeMapId === 'bridal') {
           addHostSpriteNpc(
@@ -1434,6 +1474,28 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             38,
             CHIBI_H,
             '소원나무에 남겨주신 방명록 하나하나 소중히 읽을게요 ♥'
+          );
+          addHostSpriteNpc(
+            'companion-cream-reception',
+            '크림 (엄마)',
+            '든든한 엄마 비숑 · 화동 대장',
+            'cream',
+            assetsRef.current.dogCream,
+            35,
+            40,
+            46,
+            '멍멍! 연회장 수제 마카롱에서 맛있는 냄새가 나요! 🧁🐾'
+          );
+          addHostSpriteNpc(
+            'companion-kkomi-reception',
+            '꼬미 (딸)',
+            '애교쟁이 딸 비숑 · 반지 전달수',
+            'kkomi',
+            assetsRef.current.dogKkomi,
+            65,
+            40,
+            40,
+            '앙앙! 별빛 가든에서 엄마 크림이랑 신나게 뛰어놀아요! ✨'
           );
         }
       }
@@ -1712,50 +1774,98 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
         const brideTrail =
           trailRef.current[Math.min(7, trailRef.current.length - 1)] || posRef.current;
-        const catTrail =
-          trailRef.current[Math.min(16, trailRef.current.length - 1)] || posRef.current;
+        const creamTrail =
+          trailRef.current[Math.min(15, trailRef.current.length - 1)] || posRef.current;
+        const kkomiTrail =
+          trailRef.current[Math.min(22, trailRef.current.length - 1)] || posRef.current;
 
         const brideFootX = (brideTrail.x / 100) * W + 42;
         const brideFootY = (brideTrail.y / 100) * H + 2;
 
-        const catFootX = (catTrail.x / 100) * W - 40;
-        const catFootY = (catTrail.y / 100) * H + 6;
+        const creamFootX = (creamTrail.x / 100) * W - 38;
+        const creamFootY = (creamTrail.y / 100) * H + 6;
 
-        currentFrameNpcs.push({
-          id: 'companion-mochi',
-          name: config.pet.name,
-          roleTitle: config.pet.title,
-          avatar: 'mochi',
-          initialMessage: '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾',
-          x: (catFootX / W) * 100,
-          y: (catFootY / H) * 100,
-        });
+        const kkomiFootX = (kkomiTrail.x / 100) * W - 74;
+        const kkomiFootY = (kkomiTrail.y / 100) * H + 9;
+
+        currentFrameNpcs.push(
+          {
+            id: 'companion-cream',
+            name: '크림 (엄마)',
+            roleTitle: '든든한 엄마 비숑 · 화동 대장',
+            avatar: 'cream',
+            initialMessage: '멍멍~ 민준 아빠와 서연 엄마의 결혼식에 오신 걸 환영해요! 🐾',
+            x: (creamFootX / W) * 100,
+            y: (creamFootY / H) * 100,
+          },
+          {
+            id: 'companion-kkomi',
+            name: '꼬미 (딸)',
+            roleTitle: '애교쟁이 딸 비숑 · 반지 전달수',
+            avatar: 'kkomi',
+            initialMessage: '앙앙! 엄마 크림이랑 같이 신랑·신부 뒤를 졸졸 따라가요! 🎀',
+            x: (kkomiFootX / W) * 100,
+            y: (kkomiFootY / H) * 100,
+          }
+        );
         liveNpcsRef.current = currentFrameNpcs;
 
+        // Draw Mother Dog '크림'
         depthList.push({
-          footY: catFootY,
+          footY: creamFootY,
           draw: () => {
             ctx.fillStyle = 'rgba(59, 47, 47, 0.22)';
             ctx.beginPath();
-            ctx.ellipse(catFootX, catFootY, 14, 5, 0, 0, Math.PI * 2);
+            ctx.ellipse(creamFootX, creamFootY, 14, 5, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            if (assetsRef.current.cat) {
-              const catH = 48;
-              const catW = Math.round(
-                (catH * assetsRef.current.cat.naturalWidth) /
-                  assetsRef.current.cat.naturalHeight
+            const creamImg = assetsRef.current.dogCream || assetsRef.current.cat;
+            if (creamImg) {
+              const dogH = 48;
+              const dogW = Math.round(
+                (dogH * creamImg.naturalWidth) / creamImg.naturalHeight
               );
               ctx.save();
-              ctx.translate(catFootX, catFootY - catH / 2 - walkBob * 0.8);
+              ctx.translate(creamFootX, creamFootY - dogH / 2 - walkBob * 0.8);
               ctx.scale(facingDirRef.current, 1);
               ctx.rotate(strideTilt * 0.8);
               ctx.drawImage(
-                assetsRef.current.cat,
-                Math.round(-catW / 2),
-                Math.round(-catH / 2),
-                catW,
-                catH
+                creamImg,
+                Math.round(-dogW / 2),
+                Math.round(-dogH / 2),
+                dogW,
+                dogH
+              );
+              ctx.restore();
+            }
+          },
+        });
+
+        // Draw Daughter Dog '꼬미'
+        depthList.push({
+          footY: kkomiFootY,
+          draw: () => {
+            ctx.fillStyle = 'rgba(59, 47, 47, 0.2)';
+            ctx.beginPath();
+            ctx.ellipse(kkomiFootX, kkomiFootY, 12, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const kkomiImg = assetsRef.current.dogKkomi || assetsRef.current.cat;
+            if (kkomiImg) {
+              const dogH = 42;
+              const dogW = Math.round(
+                (dogH * kkomiImg.naturalWidth) / kkomiImg.naturalHeight
+              );
+              ctx.save();
+              ctx.translate(kkomiFootX, kkomiFootY - dogH / 2 - walkBob * 0.9);
+              ctx.scale(facingDirRef.current, 1);
+              ctx.rotate(-strideTilt * 0.85);
+              ctx.drawImage(
+                kkomiImg,
+                Math.round(-dogW / 2),
+                Math.round(-dogH / 2),
+                dogW,
+                dogH
               );
               ctx.restore();
             }
@@ -2051,9 +2161,10 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     activeMapConfig.stage === 'commute' ? COMMUTE_MAP_ORDER : VENUE_MAP_ORDER;
 
   const resolveDialoguePortrait = (
-    avatar: AvatarClassId | 'mochi' | 'groom' | 'bride'
+    avatar: AvatarClassId | 'cream' | 'kkomi' | 'mochi' | 'groom' | 'bride'
   ): string => {
-    if (avatar === 'mochi') return PIXEL_ASSETS.catSprite;
+    if (avatar === 'cream' || avatar === 'mochi') return PIXEL_ASSETS.dogCreamSprite;
+    if (avatar === 'kkomi') return PIXEL_ASSETS.dogKkomiSprite;
     if (avatar === 'groom') return PIXEL_ASSETS.groomPortrait;
     if (avatar === 'bride') return PIXEL_ASSETS.bridePortrait;
     return GUEST_SPRITES[avatar].portrait;
@@ -2315,12 +2426,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 onClick={() => {
                   const target =
                     liveNpcsRef.current[0] || {
-                      id: 'companion-mochi',
-                      name: config.pet.name,
-                      roleTitle: config.pet.title,
-                      avatar: 'mochi' as const,
+                      id: 'companion-cream',
+                      name: '크림 (엄마)',
+                      roleTitle: '든든한 엄마 비숑 · 화동 대장',
+                      avatar: 'cream' as const,
                       initialMessage:
-                        '야옹~ 민준 집사와 서연 집사의 결혼식에 오신 걸 환영해요! 🐾',
+                        '멍멍~ 민준 아빠와 서연 엄마의 결혼식에 오신 걸 환영해요! 🐾',
                       x: posRef.current.x,
                       y: posRef.current.y,
                     };
@@ -2668,9 +2779,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                       : 'bg-[#faf5ec] text-[#3b2f2f] border-[#e2d4c0]'
                   }`}
                 >
-                  <div className="text-xs font-bold">👫 신랑·신부 커플 산책</div>
+                  <div className="text-xs font-bold">👫 신랑·신부 & 크림·꼬미 산책</div>
                   <div className="text-[10px] opacity-85 mt-0.5">
-                    신랑·신부와 반려묘 모찌가 함께 산책합니다
+                    신랑·신부와 반려견 크림(엄마)·꼬미(딸)가 함께 산책합니다
                   </div>
                 </button>
               </div>
