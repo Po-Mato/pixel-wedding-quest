@@ -258,8 +258,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     }
   }, [npcAffinities]);
 
-  // Player Tile-Grid Position & A* Tile Queue State (Starts in 'home' at 46, 66)
-  const initialSpawnTile = worldToTile(46, 66);
+  // Player Tile-Grid Position & A* Tile Queue State (Starts in 'home' at 48, 70)
+  const initialSpawnTile = worldToTile(48, 70);
   const posRef = useRef<{ x: number; y: number }>({
     x: initialSpawnTile.x,
     y: initialSpawnTile.y,
@@ -1540,8 +1540,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               ]
             : activeMapId === 'train'
             ? [
-                { x: 28, y: 52 },
-                { x: 72, y: 52 },
+                { x: 40, y: 48 },
+                { x: 60, y: 48 },
               ]
             : [
                 { x: 34, y: 58 },

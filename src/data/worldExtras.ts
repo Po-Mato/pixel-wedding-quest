@@ -49,11 +49,11 @@ export const WORLD_SECRET_PROPS: SecretPropItem[] = [
     mapId: 'station',
     icon: '🎫',
     title: '행운의 골든 웨딩 패스 티켓',
-    clueLabel: '승강장 벤치 옆에 금빛 티켓이 반짝여요',
+    clueLabel: '승강장 벤치 앞에 금빛 티켓이 반짝여요',
     storyText:
       '좌석 번호 0522가 찍힌 스페셜 웨딩행 열차 기념 승차권이에요! 소중히 간직하면 평생 좋은 인연이 함께합니다.',
     x: 45,
-    y: 28,
+    y: 36,
   },
   {
     id: 'secret-train-musicbox',

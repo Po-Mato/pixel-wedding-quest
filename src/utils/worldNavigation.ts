@@ -31,35 +31,42 @@ export const TILE_GRID_SIZE = 24;
 
 export const MAP_OBSTACLES: Record<GardenMapId, MapObstacleConfig> = {
   home: {
-    circles: [],
+    circles: [
+      { x: 51, y: 54, r: 7.2, label: '거실 원형 티테이블' },
+    ],
     rects: [
-      { minX: 70, maxX: 93, minY: 16, maxY: 46, label: '거실 패브릭 소파' },
-      { minX: 10, maxX: 25, minY: 73, maxY: 89, label: '현관 원목 신발장' },
+      { minX: 74, maxX: 93, minY: 32, maxY: 77, label: '거실 아이보리 소파' },
+      { minX: 6, maxX: 39, minY: 78, maxY: 94, label: '하객 의상 행거 & 신발장' },
+      { minX: 9, maxX: 35, minY: 16, maxY: 28, label: '현관 콘솔 테이블' },
     ],
   },
   neighborhood: {
     circles: [
-      { x: 13, y: 31, r: 5.2, label: '좌측 가로수 화단' },
-      { x: 40, y: 31, r: 5.2, label: '중앙 가로수 화단' },
-      { x: 73, y: 31, r: 5.2, label: '우측 가로수 화단' },
+      { x: 26, y: 60, r: 4.8, label: '좌측 벚꽃 가로수' },
+      { x: 73, y: 60, r: 4.8, label: '우측 벚꽃 가로수' },
     ],
     rects: [
-      // Roadway blocked except the central crosswalk (x: 35..52)!
-      { minX: 6, maxX: 34.5, minY: 44, maxY: 64, label: '동네 차도 (서측)' },
-      { minX: 52.5, maxX: 94, minY: 44, maxY: 64, label: '동네 차도 (동측)' },
+      // Roadway blocked except the central zebra crosswalk (x: 41.5..58.5)!
+      { minX: 6, maxX: 41.5, minY: 41, maxY: 57, label: '동네 차도 (서측)' },
+      { minX: 58.5, maxX: 94, minY: 41, maxY: 57, label: '동네 차도 (동측)' },
+      { minX: 8, maxX: 29, minY: 74, maxY: 92, label: '좌측 정원 생울타리' },
+      { minX: 71, maxX: 92, minY: 74, maxY: 92, label: '우측 정원 생울타리' },
     ],
   },
   station: {
     circles: [],
     rects: [
-      { minX: 25, maxX: 66, minY: 13, maxY: 20, label: '승강장 상단 우드 벤치' },
+      { minX: 23, maxX: 41, minY: 16, maxY: 34, label: '골드 노선도 키오스크' },
+      { minX: 48, maxX: 80, minY: 24, maxY: 34, label: '승강장 원목 대기 벤치' },
+      { minX: 6, maxX: 94, minY: 77, maxY: 95, label: '승강장 안전 스크린도어' },
     ],
   },
   train: {
     circles: [],
     rects: [
-      { minX: 14, maxX: 86, minY: 14, maxY: 38, label: '객차 상단 좌석' },
-      { minX: 14, maxX: 86, minY: 62, maxY: 92, label: '객차 하단 좌석' },
+      { minX: 8, maxX: 92, minY: 14, maxY: 41, label: '객차 상단 파노라마 좌석' },
+      { minX: 8, maxX: 41, minY: 72, maxY: 93, label: '객차 하단 좌측 좌석' },
+      { minX: 58, maxX: 92, minY: 72, maxY: 93, label: '객차 하단 우측 좌석' },
     ],
   },
   garden: {
@@ -75,9 +82,9 @@ export const MAP_OBSTACLES: Record<GardenMapId, MapObstacleConfig> = {
   bridal: {
     circles: [],
     rects: [
-      { minX: 8, maxX: 23, minY: 42, maxY: 74, label: '대기실 좌측 벨벳 소파' },
-      { minX: 79, maxX: 93, minY: 36, maxY: 75, label: '대기실 우측 골드 화장대' },
-      { minX: 14, maxX: 86, minY: 8, maxY: 25, label: '신부대기실 플라워 월' },
+      { minX: 6, maxX: 21, minY: 50, maxY: 76, label: '대기실 좌측 벨벳 소파' },
+      { minX: 77, maxX: 93, minY: 46, maxY: 72, label: '대기실 우측 골드 화장대' },
+      { minX: 28, maxX: 72, minY: 8, maxY: 33, label: '신부대기실 플라워 월 & 소파' },
     ],
   },
   chapel: {
