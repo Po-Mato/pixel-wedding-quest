@@ -86,20 +86,22 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
   const handleCopyJson = () => {
     soundEngine.playCoin();
-    navigator.clipboard?.writeText(JSON.stringify(draft, null, 2)).catch(() => {});
+    const synced = syncAccountHolderNames(config, draft);
+    navigator.clipboard?.writeText(JSON.stringify(synced, null, 2)).catch(() => {});
     setCopiedJson(true);
     setTimeout(() => setCopiedJson(false), 2500);
   };
 
   const handleDownloadJson = () => {
     soundEngine.playCoin();
-    const blob = new Blob([JSON.stringify(draft, null, 2)], {
+    const synced = syncAccountHolderNames(config, draft);
+    const blob = new Blob([JSON.stringify(synced, null, 2) + '\n'], {
       type: 'application/json;charset=utf-8',
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'wedding-config-backup.json';
+    a.download = 'wedding.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -289,17 +291,40 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto font-sans">
       <div className="pixel-card w-full max-w-xl bg-[#fffdf9] max-h-[92vh] flex flex-col overflow-hidden animate-fadeIn">
         {/* Top Header */}
-        <div className="p-3.5 bg-[#3b2f2f] text-[#fffdf9] border-b border-[#c59b6d] flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-bold">
-            <Unlock className="w-4 h-4 text-[#e6d5b8]" />
-            <span>청첩장 통합 관리자 콘솔 (Admin)</span>
+        <div className="p-3.5 bg-[#3b2f2f] text-[#fffdf9] border-b border-[#c59b6d] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-bold min-w-0">
+            <Unlock className="w-4 h-4 text-[#e6d5b8] shrink-0" />
+            <span className="truncate">wedding.json 미리보기 · 생성 도구</span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full bg-[#4e3f3f] text-[#fffdf9] hover:bg-[#d97b84]"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleCopyJson}
+              className="px-2.5 py-1 rounded-lg bg-[#faf5ec] text-[#3b2f2f] hover:bg-[#f3e9d8] text-[11px] font-bold"
+            >
+              {copiedJson ? '✓ 복사됨' : '📋 JSON 복사'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadJson}
+              className="px-2.5 py-1 rounded-lg bg-[#d97b84] text-white hover:bg-[#c56770] text-[11px] font-bold"
+            >
+              💾 wedding.json 저장
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full bg-[#4e3f3f] text-[#fffdf9] hover:bg-[#d97b84]"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Notice Banner */}
+        <div className="px-3.5 py-2 bg-[#fff8e7] border-b border-[#e6d5b8] text-[11px] text-[#5c4d47] leading-snug">
+          💡 모든 하객에게 반영되는 실제 데이터는{' '}
+          <code className="font-bold text-[#b85d67]">src/data/wedding.json</code> 파일과{' '}
+          <code className="font-bold text-[#b85d67]">public/photos/</code> 폴더에서 직접 관리됩니다.
         </div>
 
         {/* 5 Admin Category Tabs */}

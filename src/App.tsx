@@ -21,7 +21,6 @@ import {
   GuestbookEntry,
 } from './data/weddingConfig';
 import { soundEngine } from './utils/soundEngine';
-import { migrateLegacyProfileTexts, syncAccountHolderNames } from './utils/configSync';
 import { TitleScreen } from './components/TitleScreen';
 import { VillageCanvas } from './components/VillageCanvas';
 import { ClassicWeddingView } from './components/ClassicWeddingView';
@@ -41,75 +40,17 @@ import {
 
 type AppScreenMode = 'title' | 'world' | 'classic';
 
-const STORAGE_CONFIG_KEY = 'pixel_wedding_quest_config_v2';
 const STORAGE_GUESTBOOK_KEY = 'pixel_wedding_quest_guestbook_v2';
 
 export function App() {
+  // 모든 청첩장 설정은 src/data/wedding.json 단일 파일에서 불러오며,
+  // 이전 버전의 브라우저 localStorage 캐시가 덮어쓰지 않도록 정리합니다.
   const [config, setConfig] = useState<WeddingConfig>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_CONFIG_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as WeddingConfig;
-        // Migrate legacy placeholder '김민준 / 이서연' defaults or sync short names if fullName was edited
-        const groomFullName =
-          parsed.groom?.fullName === '김민준'
-            ? DEFAULT_WEDDING_CONFIG.groom.fullName
-            : parsed.groom?.fullName || DEFAULT_WEDDING_CONFIG.groom.fullName;
-        const brideFullName =
-          parsed.bride?.fullName === '이서연'
-            ? DEFAULT_WEDDING_CONFIG.bride.fullName
-            : parsed.bride?.fullName || DEFAULT_WEDDING_CONFIG.bride.fullName;
-        const groomName =
-          !parsed.groom?.name || parsed.groom.name === '민준'
-            ? groomFullName.length >= 2
-              ? groomFullName.slice(-2)
-              : groomFullName
-            : parsed.groom.name;
-        const brideName =
-          !parsed.bride?.name || parsed.bride.name === '서연'
-            ? brideFullName.length >= 2
-              ? brideFullName.slice(-2)
-              : brideFullName
-            : parsed.bride.name;
-        const isLegacyVenue =
-          parsed.wedding?.venueName === '아르카디아 보타닉 가든 채플';
-        const merged: WeddingConfig = {
-          ...DEFAULT_WEDDING_CONFIG,
-          ...parsed,
-          groom: {
-            ...DEFAULT_WEDDING_CONFIG.groom,
-            ...parsed.groom,
-            fullName: groomFullName,
-            name: groomName,
-          },
-          bride: {
-            ...DEFAULT_WEDDING_CONFIG.bride,
-            ...parsed.bride,
-            fullName: brideFullName,
-            name: brideName,
-          },
-          wedding: isLegacyVenue
-            ? DEFAULT_WEDDING_CONFIG.wedding
-            : { ...DEFAULT_WEDDING_CONFIG.wedding, ...parsed.wedding },
-          // 퀴즈는 관리자 편집 항목이 아니므로 항상 최신 템플릿({groom}/{bride} 토큰)을 사용
-          quiz: DEFAULT_WEDDING_CONFIG.quiz,
-          initialGuestbook: DEFAULT_WEDDING_CONFIG.initialGuestbook,
-        };
-        // 샘플 이름이 남아 있는 계좌 예금주·소개 문구를 현재 성함 기준으로 정리
-        const legacySample: WeddingConfig = {
-          ...DEFAULT_WEDDING_CONFIG,
-          groom: { ...DEFAULT_WEDDING_CONFIG.groom, fullName: '김민준' },
-          bride: { ...DEFAULT_WEDDING_CONFIG.bride, fullName: '이서연' },
-        };
-        return migrateLegacyProfileTexts(
-          syncAccountHolderNames(
-            legacySample,
-            syncAccountHolderNames(DEFAULT_WEDDING_CONFIG, merged)
-          )
-        );
-      }
+      localStorage.removeItem('pixel_wedding_quest_config_v2');
+      localStorage.removeItem('pixel_wedding_quest_config_v1');
     } catch {
-      // fallback
+      // ignore
     }
     return DEFAULT_WEDDING_CONFIG;
   });
@@ -203,12 +144,6 @@ export function App() {
   };
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(config));
-    } catch {
-      // ignore
-    }
-
     // Dynamically sync browser tab <title> & OpenGraph meta tags with couple names and wedding date
     const y = config.wedding.year;
     const m = String(config.wedding.month).padStart(2, '0');
