@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { Award, Play, RotateCcw, Sparkles, HelpCircle } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
+import { fillCoupleText } from '../../utils/coupleText';
 
 interface MiniGameSectionProps {
   config: WeddingConfig;
@@ -325,7 +326,7 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
               >
                 <div className="text-xs sm:text-sm font-bold text-[#3b2f2f] font-serif flex items-start gap-1.5">
                   <HelpCircle className="w-4 h-4 text-[#d97b84] shrink-0 mt-0.5" />
-                  <span>{q.question}</span>
+                  <span>{fillCoupleText(q.question, config)}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -367,7 +368,7 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
                   >
                     {isCorrect ? (
                       <span className="flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5" /> {q.explanation}
+                        <Sparkles className="w-3.5 h-3.5" /> {fillCoupleText(q.explanation, config)}
                       </span>
                     ) : (
                       <span>다른 보기를 한 번 더 선택해 보세요 😊</span>

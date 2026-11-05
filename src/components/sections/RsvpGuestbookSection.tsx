@@ -9,6 +9,7 @@ import {
 } from '../../data/weddingConfig';
 import { GuestAvatarSprite } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
+import { fillCoupleText } from '../../utils/coupleText';
 
 interface RsvpGuestbookSectionProps {
   config: WeddingConfig;
@@ -295,7 +296,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                 </div>
 
                 <p className="text-xs text-[#4a3b32] mt-1.5 leading-relaxed break-keep">
-                  {item.message}
+                  {fillCoupleText(item.message, config)}
                 </p>
               </div>
             </div>

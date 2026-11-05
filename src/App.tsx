@@ -21,6 +21,7 @@ import {
   GuestbookEntry,
 } from './data/weddingConfig';
 import { soundEngine } from './utils/soundEngine';
+import { migrateLegacyProfileTexts, syncAccountHolderNames } from './utils/configSync';
 import { TitleScreen } from './components/TitleScreen';
 import { VillageCanvas } from './components/VillageCanvas';
 import { ClassicWeddingView } from './components/ClassicWeddingView';
@@ -72,7 +73,7 @@ export function App() {
             : parsed.bride.name;
         const isLegacyVenue =
           parsed.wedding?.venueName === '아르카디아 보타닉 가든 채플';
-        return {
+        const merged: WeddingConfig = {
           ...DEFAULT_WEDDING_CONFIG,
           ...parsed,
           groom: {
@@ -90,7 +91,22 @@ export function App() {
           wedding: isLegacyVenue
             ? DEFAULT_WEDDING_CONFIG.wedding
             : { ...DEFAULT_WEDDING_CONFIG.wedding, ...parsed.wedding },
+          // 퀴즈는 관리자 편집 항목이 아니므로 항상 최신 템플릿({groom}/{bride} 토큰)을 사용
+          quiz: DEFAULT_WEDDING_CONFIG.quiz,
+          initialGuestbook: DEFAULT_WEDDING_CONFIG.initialGuestbook,
         };
+        // 샘플 이름이 남아 있는 계좌 예금주·소개 문구를 현재 성함 기준으로 정리
+        const legacySample: WeddingConfig = {
+          ...DEFAULT_WEDDING_CONFIG,
+          groom: { ...DEFAULT_WEDDING_CONFIG.groom, fullName: '김민준' },
+          bride: { ...DEFAULT_WEDDING_CONFIG.bride, fullName: '이서연' },
+        };
+        return migrateLegacyProfileTexts(
+          syncAccountHolderNames(
+            legacySample,
+            syncAccountHolderNames(DEFAULT_WEDDING_CONFIG, merged)
+          )
+        );
       }
     } catch {
       // fallback
@@ -101,7 +117,16 @@ export function App() {
   const [guestbook, setGuestbook] = useState<GuestbookEntry[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_GUESTBOOK_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        // 예전 버전에서 샘플 이름이 박힌 채 저장된 기본 방명록(gb-*)은 최신 템플릿 문구로 교체
+        const samples = new Map(
+          DEFAULT_WEDDING_CONFIG.initialGuestbook.map((entry) => [entry.id, entry])
+        );
+        return (JSON.parse(saved) as GuestbookEntry[]).map((entry) => {
+          const sample = samples.get(entry.id);
+          return sample ? { ...entry, message: sample.message } : entry;
+        });
+      }
     } catch {
       // fallback
     }

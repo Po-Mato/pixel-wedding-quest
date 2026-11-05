@@ -29,6 +29,7 @@ import {
 } from '../data/worldExtras';
 import { PIXEL_ASSETS, GUEST_SPRITES } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
+import { fillCoupleText } from '../utils/coupleText';
 import {
   TILE_GRID_SIZE,
   TileCoord,
@@ -408,7 +409,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       setActiveStoryToast({
         badge: `SECRET DISCOVERED · ${prop.icon}`,
         title: prop.title,
-        text: prop.storyText,
+        text: fillCoupleText(prop.storyText, config),
       });
 
       setDiscoveredSecrets((prev) => {
@@ -491,7 +492,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         setActiveStoryToast({
           badge: landmark.badge,
           title: landmark.name,
-          text: landmark.storySnippet,
+          text: fillCoupleText(landmark.storySnippet, config),
         });
       }
 
@@ -673,7 +674,10 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     }));
     setTalkedToAnyNpc(true);
 
-    const reply = resolveNpcAffinityReply(activeDialogueNpc, choiceId, nextPts);
+    const reply = fillCoupleText(
+      resolveNpcAffinityReply(activeDialogueNpc, choiceId, nextPts),
+      config
+    );
     setDialogueReplyText(reply);
 
     spawnFloatingReaction(choiceMeta.emoji, false, {
@@ -1162,7 +1166,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             setActiveStoryToast({
               badge: closestLandmark.badge,
               title: closestLandmark.name,
-              text: closestLandmark.storySnippet,
+              text: fillCoupleText(closestLandmark.storySnippet, config),
             });
           }
           return closestLandmark;
@@ -1522,7 +1526,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             ? Math.abs(Math.sin(tick * 0.18 + idx)) * 6
             : Math.max(0, Math.sin(tick * 0.08 + idx * 1.5)) * 2.5;
           const npcName = guestbook[idx]?.name || `하객 ${idx + 1}`;
-          const npcMsg = guestbook[idx]?.message || spot.cheer;
+          const npcMsg = fillCoupleText(guestbook[idx]?.message || spot.cheer, config);
 
           currentFrameNpcs.push({
             id: `chapel-npc-${idx}`,
@@ -1626,7 +1630,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             name: g.name,
             roleTitle: g.titleBadge || '결혼식 동행 하객',
             avatar: g.avatar,
-            initialMessage: g.message,
+            initialMessage: fillCoupleText(g.message, config),
             x: spot.x,
             y: spot.y,
           });
@@ -1635,7 +1639,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             x: fx,
             y: fy - h - bob,
             name: g.name,
-            msg: g.message,
+            msg: fillCoupleText(g.message, config),
           });
 
           depthList.push({
@@ -2953,7 +2957,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                           {prop.icon} {found ? prop.title : '??? (반짝이는 소품)'}
                         </div>
                         <p className="text-[11px] text-[#6e5d53] mt-1 leading-relaxed font-serif">
-                          {found ? prop.storyText : `힌트: ${prop.clueLabel}`}
+                          {found ? fillCoupleText(prop.storyText, config) : `힌트: ${prop.clueLabel}`}
                         </p>
                       </div>
 

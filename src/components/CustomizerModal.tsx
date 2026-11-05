@@ -20,6 +20,7 @@ import {
   GalleryItem,
 } from '../data/weddingConfig';
 import { soundEngine } from '../utils/soundEngine';
+import { syncAccountHolderNames } from '../utils/configSync';
 
 interface CustomizerModalProps {
   config: WeddingConfig;
@@ -72,7 +73,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     soundEngine.playFanfare();
-    onUpdateConfig(draft);
+    onUpdateConfig(syncAccountHolderNames(config, draft));
     onClose();
   };
 
@@ -363,8 +364,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                           const prevAutoShort = draft.groom.fullName.slice(-2);
                           const shouldSyncShort =
                             !draft.groom.name ||
-                            draft.groom.name === prevAutoShort ||
-                            draft.groom.name === '민준';
+                            draft.groom.name === prevAutoShort;
                           setDraft({
                             ...draft,
                             groom: {
@@ -506,8 +506,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                           const prevAutoShort = draft.bride.fullName.slice(-2);
                           const shouldSyncShort =
                             !draft.bride.name ||
-                            draft.bride.name === prevAutoShort ||
-                            draft.bride.name === '서연';
+                            draft.bride.name === prevAutoShort;
                           setDraft({
                             ...draft,
                             bride: {

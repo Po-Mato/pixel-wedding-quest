@@ -3,6 +3,7 @@ import { Phone, MessageSquare, Heart, Sparkles } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { GroomSprite, BrideSprite, PetCatSprite, PixelHeart } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
+import { fillCoupleText } from '../../utils/coupleText';
 
 interface StorySectionProps {
   config: WeddingConfig;
@@ -170,7 +171,7 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
               {config.groom.mbti}
             </div>
             <p className="mt-3 text-xs text-[#5c4d47] italic bg-[#fffdf9] p-2.5 rounded-lg border border-[#efe6d8] w-full">
-              {config.groom.quote}
+              {fillCoupleText(config.groom.quote, config)}
             </p>
           </div>
 
@@ -189,7 +190,7 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
               {config.bride.mbti}
             </div>
             <p className="mt-3 text-xs text-[#5c4d47] italic bg-[#fffdf9] p-2.5 rounded-lg border border-[#f5e1e3] w-full">
-              {config.bride.quote}
+              {fillCoupleText(config.bride.quote, config)}
             </p>
           </div>
         </div>
