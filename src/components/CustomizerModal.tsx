@@ -44,9 +44,6 @@ interface CustomizerModalProps {
 
 type AdminTabId = 'couple' | 'venue' | 'accounts' | 'gallery' | 'guestbook' | 'security';
 
-const STORAGE_ADMIN_PW_KEY = 'pixel_wedding_quest_admin_pw_v1';
-const DEFAULT_ADMIN_PW = 'wedding2026';
-
 export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   config,
   onUpdateConfig,
@@ -70,14 +67,6 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
   const [newPasswordInput, setNewPasswordInput] = useState<string>('');
   const [pwChangeNotice, setPwChangeNotice] = useState<string>('');
-
-  const getSavedPassword = (): string => {
-    try {
-      return localStorage.getItem(STORAGE_ADMIN_PW_KEY) || DEFAULT_ADMIN_PW;
-    } catch {
-      return DEFAULT_ADMIN_PW;
-    }
-  };
 
   const loadCloudOverview = async (tokenOverride?: string) => {
     const tokenToUse = tokenOverride || adminToken;
@@ -107,16 +96,16 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
     try {
       const pw = passwordInput.trim();
       const loginRes = await adminLogin(pw);
-      const expectedLocal = getSavedPassword();
       if (loginRes.ok && loginRes.token) {
         soundEngine.playFanfare();
         setAdminToken(loginRes.token);
         setIsUnlocked(true);
         setPasswordError('');
-      } else if (pw === expectedLocal) {
-        soundEngine.playFanfare();
-        setIsUnlocked(true);
-        setPasswordError('');
+      } else if (loginRes.error === 'too_many_login_attempts') {
+        soundEngine.playBlip(220);
+        setPasswordError(
+          `로그인 시도가 너무 많습니다. ${loginRes.retryAfterSec || 900}초 후 다시 시도해 주세요.`
+        );
       } else {
         soundEngine.playBlip(260);
         setPasswordError('비밀번호가 일치하지 않습니다. 다시 확인해 주세요.');
@@ -276,22 +265,28 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
   const handleChangePassword = async () => {
     const pw = newPasswordInput.trim();
-    if (pw.length < 4) {
-      setPwChangeNotice('비밀번호는 4자 이상 입력해 주세요.');
+    if (pw.length < 8) {
+      setPwChangeNotice('보안을 위해 비밀번호는 8자 이상 입력해 주세요.');
+      return;
+    }
+    if (!adminToken) {
+      setPwChangeNotice('관리자 세션이 유효하지 않습니다. 다시 로그인해 주세요.');
       return;
     }
     try {
-      localStorage.setItem(STORAGE_ADMIN_PW_KEY, pw);
-      const cloudChanged = adminToken
-        ? await adminChangePassword(adminToken, pw)
-        : false;
-      soundEngine.playFanfare();
-      setPwChangeNotice(
-        cloudChanged
-          ? '✓ 관리자 비밀번호가 Cloudflare D1 데이터베이스에 변경·적용되었습니다.'
-          : '✓ 관리자 비밀번호가 변경되었습니다.'
-      );
-      setNewPasswordInput('');
+      const res = await adminChangePassword(adminToken, pw);
+      if (res.ok) {
+        if (res.token) {
+          setAdminToken(res.token);
+        }
+        soundEngine.playFanfare();
+        setPwChangeNotice(
+          '✓ 관리자 비밀번호가 PBKDF2-SHA256 암호화로 안전하게 변경되었으며 이전 세션 토큰은 폐기되었습니다.'
+        );
+        setNewPasswordInput('');
+      } else {
+        setPwChangeNotice('비밀번호 변경에 실패했습니다.');
+      }
     } catch {
       setPwChangeNotice('비밀번호 저장에 실패했습니다.');
     }
@@ -1410,7 +1405,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                     type="password"
                     value={newPasswordInput}
                     onChange={(e) => setNewPasswordInput(e.target.value)}
-                    placeholder="새로운 관리자 비밀번호 (4자 이상)"
+                    placeholder="새로운 관리자 비밀번호 (8자 이상)"
                     className="flex-1 bg-[#fffdf9] border border-[#d4b48c] rounded-lg px-3 py-1.5"
                   />
                   <button

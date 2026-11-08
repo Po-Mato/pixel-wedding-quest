@@ -44,11 +44,6 @@ const VALID_AVATARS: AvatarClassId[] = [
 
 export function getConfiguredApiBase(): string {
   try {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = params.get('api');
-    if (fromQuery && fromQuery.startsWith('http')) {
-      return fromQuery.replace(/\/+$/, '');
-    }
     const envObj = (
       import.meta as unknown as { env?: { VITE_WORKER_URL?: string } }
     ).env;
@@ -282,7 +277,13 @@ export async function fetchCloudWeddingConfig(): Promise<WeddingConfig | null> {
  */
 export async function adminLogin(
   password: string
-): Promise<{ ok: boolean; token?: string; expiresAt?: string }> {
+): Promise<{
+  ok: boolean;
+  token?: string;
+  expiresAt?: string;
+  error?: string;
+  retryAfterSec?: number;
+}> {
   const apiBase = getConfiguredApiBase();
   try {
     const res = await fetch(`${apiBase}/api/admin/login`, {
@@ -290,10 +291,27 @@ export async function adminLogin(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     });
-    if (!res.ok) return { ok: false };
-    return (await res.json()) as { ok: boolean; token: string; expiresAt: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      token?: string;
+      expiresAt?: string;
+      error?: string;
+      retryAfterSec?: number;
+    };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: data.error || 'unauthorized',
+        retryAfterSec: data.retryAfterSec,
+      };
+    }
+    return {
+      ok: Boolean(data.ok && data.token),
+      token: data.token,
+      expiresAt: data.expiresAt,
+    };
   } catch {
-    return { ok: false };
+    return { ok: false, error: 'network_error' };
   }
 }
 
@@ -376,7 +394,7 @@ export async function adminToggleGuestbookHidden(
 export async function adminChangePassword(
   token: string,
   newPassword: string
-): Promise<boolean> {
+): Promise<{ ok: boolean; token?: string }> {
   const apiBase = getConfiguredApiBase();
   try {
     const res = await fetch(`${apiBase}/api/admin/password`, {
@@ -387,8 +405,13 @@ export async function adminChangePassword(
       },
       body: JSON.stringify({ newPassword }),
     });
-    return res.ok;
+    if (!res.ok) return { ok: false };
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      token?: string;
+    };
+    return { ok: true, token: data.token };
   } catch {
-    return false;
+    return { ok: false };
   }
 }
