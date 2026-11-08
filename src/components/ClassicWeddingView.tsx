@@ -17,6 +17,7 @@ interface ClassicWeddingViewProps {
   earnedTitle: string | null;
   onUnlockTitle: (title: string) => void;
   onAddGuestbook: (entry: GuestbookEntry) => void;
+  onDeleteGuestbook?: (id: string) => void;
   onSwitchToGardenMode: () => void;
 }
 
@@ -26,6 +27,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   earnedTitle,
   onUnlockTitle,
   onAddGuestbook,
+  onDeleteGuestbook,
   onSwitchToGardenMode,
 }) => {
   const [showBonusEvent, setShowBonusEvent] = useState(false);
@@ -185,6 +187,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           guestbook={guestbook}
           earnedTitle={earnedTitle}
           onAddGuestbook={onAddGuestbook}
+          onDeleteGuestbook={onDeleteGuestbook}
         />
       </section>
 

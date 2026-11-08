@@ -31,6 +31,10 @@ import { PIXEL_ASSETS, GUEST_SPRITES } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
 import { fillCoupleText } from '../utils/coupleText';
 import {
+  incrementReactionCounter,
+  getConfiguredApiBase,
+} from '../utils/weddingCloudSync';
+import {
   TILE_GRID_SIZE,
   TileCoord,
   worldToTile,
@@ -342,11 +346,31 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     );
   }, []);
 
+  // Sync live blessing count from Cloudflare D1 on mount
+  useEffect(() => {
+    const apiBase = getConfiguredApiBase();
+    fetch(`${apiBase}/api/reactions`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { blessingCount?: number } | null) => {
+        if (data && typeof data.blessingCount === 'number') {
+          setBlessingCount(data.blessingCount);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Spawn floating emoji reactions on the canvas
   const spawnFloatingReaction = useCallback(
     (emoji: string, fromBroadcast = false, customOrigin?: { x: number; y: number }) => {
       if (!fromBroadcast) {
         soundEngine.playCoin();
+        incrementReactionCounter('blessing')
+          .then((res) => {
+            if (res && typeof res.blessingCount === 'number') {
+              setBlessingCount(res.blessingCount);
+            }
+          })
+          .catch(() => {});
       }
       setBlessingCount((c) => c + 1);
 

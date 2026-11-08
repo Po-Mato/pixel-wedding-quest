@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Send, Sparkles, MessageCircleHeart } from 'lucide-react';
+import { Send, Sparkles, MessageCircleHeart, Trash2, Cloud } from 'lucide-react';
 import {
   AVATAR_CLASSES,
   AvatarClassId,
@@ -10,12 +10,17 @@ import {
 import { GuestAvatarSprite } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { fillCoupleText } from '../../utils/coupleText';
+import {
+  canEditOwnGuestbookEntry,
+  deleteOwnGuestbookEntry,
+} from '../../utils/weddingCloudSync';
 
 interface RsvpGuestbookSectionProps {
   config: WeddingConfig;
   guestbook: GuestbookEntry[];
   earnedTitle: string | null;
   onAddGuestbook: (entry: GuestbookEntry) => void;
+  onDeleteGuestbook?: (id: string) => void;
 }
 
 export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
@@ -23,6 +28,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   guestbook,
   earnedTitle,
   onAddGuestbook,
+  onDeleteGuestbook,
 }) => {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<AvatarClassId>('knight');
@@ -269,38 +275,66 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
             <MessageCircleHeart className="w-4 h-4 text-[#d97b84]" />
             <span>축하 방명록 ({guestbook.length})</span>
           </div>
-          <span className="text-[11px] text-[#8c7a70] font-sans">
-            따뜻한 마음에 감사드립니다
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#edf5ef] text-[#3b6e4c] border border-[#b7d9c0] font-sans font-semibold flex items-center gap-1">
+            <Cloud className="w-3 h-3" />
+            <span>실시간 DB 연동중</span>
           </span>
         </div>
 
         <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-          {guestbook.map((item) => (
-            <div
-              key={item.id}
-              className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-3.5 flex items-start gap-3"
-            >
-              <GuestAvatarSprite avatar={item.avatar} size={46} />
+          {guestbook.map((item) => {
+            const isMine = canEditOwnGuestbookEntry(item.id);
+            return (
+              <div
+                key={item.id}
+                className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-3.5 flex items-start gap-3"
+              >
+                <GuestAvatarSprite avatar={item.avatar} size={46} />
 
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-1 font-sans">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-[#3b2f2f]">
-                      {item.name}
-                    </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#fffdf9] text-[#8c7a70] border border-[#e2d4c0]">
-                      {item.titleBadge}
-                    </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-1 font-sans">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-bold text-[#3b2f2f]">
+                        {item.name}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#fffdf9] text-[#8c7a70] border border-[#e2d4c0]">
+                        {item.titleBadge}
+                      </span>
+                      {item.attendance === 'attend' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#fcf0f1] text-[#b85d67] border border-[#e8b8be]">
+                          참석{item.companions && item.companions > 1 ? ` · ${item.companions}명` : ''}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-[#9c897e]">{item.createdAt}</span>
+                      {isMine && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm('작성하신 방명록 메시지를 삭제하시겠습니까?')) return;
+                            const ok = await deleteOwnGuestbookEntry(item.id);
+                            if (ok && onDeleteGuestbook) {
+                              onDeleteGuestbook(item.id);
+                            }
+                          }}
+                          title="내 방명록 삭제"
+                          className="text-[10px] text-[#b85d67] hover:text-[#d97b84] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#fffdf9] border border-[#e2d4c0]"
+                        >
+                          <Trash2 className="w-2.5 h-2.5" />
+                          <span>삭제</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-[10px] text-[#9c897e]">{item.createdAt}</span>
-                </div>
 
-                <p className="text-xs text-[#4a3b32] mt-1.5 leading-relaxed break-keep">
-                  {fillCoupleText(item.message, config)}
-                </p>
+                  <p className="text-xs text-[#4a3b32] mt-1.5 leading-relaxed break-keep">
+                    {fillCoupleText(item.message, config)}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

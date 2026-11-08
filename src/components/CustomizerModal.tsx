@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Save,
@@ -12,6 +12,10 @@ import {
   Upload,
   Download,
   KeyRound,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Cloud,
 } from 'lucide-react';
 import {
   WeddingConfig,
@@ -21,6 +25,16 @@ import {
 } from '../data/weddingConfig';
 import { soundEngine } from '../utils/soundEngine';
 import { syncAccountHolderNames } from '../utils/configSync';
+import {
+  adminLogin,
+  fetchAdminOverview,
+  saveCloudWeddingConfig,
+  adminDeleteGuestbookEntry,
+  adminToggleGuestbookHidden,
+  adminChangePassword,
+  AdminGuestbookRow,
+  AdminOverviewStats,
+} from '../utils/weddingCloudSync';
 
 interface CustomizerModalProps {
   config: WeddingConfig;
@@ -28,7 +42,7 @@ interface CustomizerModalProps {
   onClose: () => void;
 }
 
-type AdminTabId = 'couple' | 'venue' | 'accounts' | 'gallery' | 'security';
+type AdminTabId = 'couple' | 'venue' | 'accounts' | 'gallery' | 'guestbook' | 'security';
 
 const STORAGE_ADMIN_PW_KEY = 'pixel_wedding_quest_admin_pw_v1';
 const DEFAULT_ADMIN_PW = 'wedding2026';
@@ -39,12 +53,20 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   onClose,
 }) => {
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [adminToken, setAdminToken] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [passwordError, setPasswordError] = useState<string>('');
+  const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
 
   const [activeTab, setActiveTab] = useState<AdminTabId>('couple');
   const [draft, setDraft] = useState<WeddingConfig>(config);
   const [copiedJson, setCopiedJson] = useState(false);
+  const [isSavingCloud, setIsSavingCloud] = useState(false);
+  const [cloudSaveMessage, setCloudSaveMessage] = useState<string>('');
+
+  const [adminEntries, setAdminEntries] = useState<AdminGuestbookRow[]>([]);
+  const [rsvpSummary, setRsvpSummary] = useState<AdminOverviewStats | null>(null);
+  const [isLoadingOverview, setIsLoadingOverview] = useState<boolean>(false);
 
   const [newPasswordInput, setNewPasswordInput] = useState<string>('');
   const [pwChangeNotice, setPwChangeNotice] = useState<string>('');
@@ -57,24 +79,70 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
     }
   };
 
-  const handleUnlockSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const expected = getSavedPassword();
-    if (passwordInput.trim() === expected) {
-      soundEngine.playFanfare();
-      setIsUnlocked(true);
-      setPasswordError('');
-    } else {
-      soundEngine.playBlip(260);
-      setPasswordError('비밀번호가 일치하지 않습니다. 다시 확인해 주세요.');
+  const loadCloudOverview = async (tokenOverride?: string) => {
+    const tokenToUse = tokenOverride || adminToken;
+    if (!tokenToUse) return;
+    setIsLoadingOverview(true);
+    try {
+      const overview = await fetchAdminOverview(tokenToUse);
+      if (overview) {
+        setAdminEntries(overview.entries);
+        setRsvpSummary(overview.stats);
+      }
+    } finally {
+      setIsLoadingOverview(false);
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isUnlocked && adminToken) {
+      loadCloudOverview(adminToken);
+    }
+  }, [isUnlocked, adminToken]);
+
+  const handleUnlockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAuthenticating(true);
+    setPasswordError('');
+    try {
+      const pw = passwordInput.trim();
+      const loginRes = await adminLogin(pw);
+      const expectedLocal = getSavedPassword();
+      if (loginRes.ok && loginRes.token) {
+        soundEngine.playFanfare();
+        setAdminToken(loginRes.token);
+        setIsUnlocked(true);
+        setPasswordError('');
+      } else if (pw === expectedLocal) {
+        soundEngine.playFanfare();
+        setIsUnlocked(true);
+        setPasswordError('');
+      } else {
+        soundEngine.playBlip(260);
+        setPasswordError('비밀번호가 일치하지 않습니다. 다시 확인해 주세요.');
+      }
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingCloud(true);
+    setCloudSaveMessage('');
+    const synced = syncAccountHolderNames(config, draft);
+    onUpdateConfig(synced);
+    const savedToCloud = adminToken
+      ? await saveCloudWeddingConfig(adminToken, synced)
+      : false;
+    setIsSavingCloud(false);
     soundEngine.playFanfare();
-    onUpdateConfig(syncAccountHolderNames(config, draft));
-    onClose();
+    if (savedToCloud) {
+      setCloudSaveMessage('✓ Cloudflare D1 데이터베이스에 실시간 저장되었습니다!');
+      setTimeout(() => onClose(), 600);
+    } else {
+      onClose();
+    }
   };
 
   const handleReset = () => {
@@ -206,18 +274,46 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
     });
   };
 
-  const handleChangePassword = () => {
-    if (newPasswordInput.trim().length < 4) {
+  const handleChangePassword = async () => {
+    const pw = newPasswordInput.trim();
+    if (pw.length < 4) {
       setPwChangeNotice('비밀번호는 4자 이상 입력해 주세요.');
       return;
     }
     try {
-      localStorage.setItem(STORAGE_ADMIN_PW_KEY, newPasswordInput.trim());
+      localStorage.setItem(STORAGE_ADMIN_PW_KEY, pw);
+      const cloudChanged = adminToken
+        ? await adminChangePassword(adminToken, pw)
+        : false;
       soundEngine.playFanfare();
-      setPwChangeNotice('✓ 관리자 비밀번호가 성공적으로 변경되었습니다.');
+      setPwChangeNotice(
+        cloudChanged
+          ? '✓ 관리자 비밀번호가 Cloudflare D1 데이터베이스에 변경·적용되었습니다.'
+          : '✓ 관리자 비밀번호가 변경되었습니다.'
+      );
       setNewPasswordInput('');
     } catch {
       setPwChangeNotice('비밀번호 저장에 실패했습니다.');
+    }
+  };
+
+  const handleToggleEntryHidden = async (entry: AdminGuestbookRow) => {
+    if (!adminToken) return;
+    soundEngine.playSelect();
+    const nextHidden = !entry.isHidden;
+    const ok = await adminToggleGuestbookHidden(adminToken, entry.id, nextHidden);
+    if (ok) {
+      await loadCloudOverview();
+    }
+  };
+
+  const handleAdminDeleteEntry = async (entry: AdminGuestbookRow) => {
+    if (!adminToken) return;
+    if (!window.confirm(`'${entry.name}'님의 방명록을 삭제하시겠습니까?`)) return;
+    soundEngine.playBlip(360);
+    const ok = await adminDeleteGuestbookEntry(adminToken, entry.id);
+    if (ok) {
+      await loadCloudOverview();
     }
   };
 
@@ -241,8 +337,8 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
           <form onSubmit={handleUnlockSubmit} className="p-5 space-y-4">
             <div className="text-xs text-[#5c4d47] leading-relaxed bg-[#faf5ec] p-3 rounded-xl border border-[#e6d5b8]">
-              🔒 신랑·신부 성함, 혼주 연락처, 웨딩홀, 계좌번호, 웨딩 사진을 수정할 수 있는{' '}
-              <strong>숨겨진 관리자 페이지</strong>입니다.
+              🔒 신랑·신부 정보, 웨딩홀, 계좌번호, 웨딩 사진, <strong>방명록 · 참석 여부(RSVP) DB</strong>를
+              실시간 관리할 수 있는 관리자 콘솔입니다.
             </div>
 
             <div>
@@ -274,10 +370,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-[#3b2f2f] hover:bg-[#2a2020] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                disabled={isAuthenticating}
+                className="px-5 py-2 rounded-xl bg-[#3b2f2f] hover:bg-[#2a2020] disabled:opacity-60 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
               >
                 <Unlock className="w-3.5 h-3.5 text-[#e6d5b8]" />
-                <span>관리자 인증하기</span>
+                <span>{isAuthenticating ? '인증 중...' : '관리자 인증하기'}</span>
               </button>
             </div>
           </form>
@@ -286,15 +383,15 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
     );
   }
 
-  // 2. UNLOCKED 5-TAB ADMIN CONSOLE VIEW
+  // 2. UNLOCKED 6-TAB ADMIN CONSOLE VIEW
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto font-sans">
       <div className="pixel-card w-full max-w-xl bg-[#fffdf9] max-h-[92vh] flex flex-col overflow-hidden animate-fadeIn">
         {/* Top Header */}
         <div className="p-3.5 bg-[#3b2f2f] text-[#fffdf9] border-b border-[#c59b6d] flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm font-bold min-w-0">
-            <Unlock className="w-4 h-4 text-[#e6d5b8] shrink-0" />
-            <span className="truncate">wedding.json 미리보기 · 생성 도구</span>
+            <Cloud className="w-4 h-4 text-[#93c9a2] shrink-0" />
+            <span className="truncate">청첩장 클라우드 DB 관리자 콘솔</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
@@ -321,19 +418,20 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
         </div>
 
         {/* Notice Banner */}
-        <div className="px-3.5 py-2 bg-[#fff8e7] border-b border-[#e6d5b8] text-[11px] text-[#5c4d47] leading-snug">
-          💡 모든 하객에게 반영되는 실제 데이터는{' '}
-          <code className="font-bold text-[#b85d67]">src/data/wedding.json</code> 파일과{' '}
-          <code className="font-bold text-[#b85d67]">public/photos/</code> 폴더에서 직접 관리됩니다.
+        <div className="px-3.5 py-2 bg-[#f2f9f4] border-b border-[#c3dfc8] text-[11px] text-[#355e40] leading-snug flex items-center justify-between gap-2">
+          <span>
+            ☁️ <strong>Cloudflare D1 DB 실시간 연동됨:</strong> 하단 [변경사항 저장하기]를 누르면 모든 하객의 청첩장에 즉시 반영되며, 정적 기본값은 <code className="font-bold">src/data/wedding.json</code>에서 관리할 수 있습니다.
+          </span>
         </div>
 
-        {/* 5 Admin Category Tabs */}
-        <div className="grid grid-cols-5 gap-1 p-2 bg-[#faf5ec] border-b border-[#e6d5b8] text-[11px] font-bold">
+        {/* 6 Admin Category Tabs */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 p-2 bg-[#faf5ec] border-b border-[#e6d5b8] text-[11px] font-bold">
           {[
             { id: 'couple' as const, label: '👫 신랑·신부' },
             { id: 'venue' as const, label: '🏛️ 웨딩홀' },
             { id: 'accounts' as const, label: '💝 계좌번호' },
             { id: 'gallery' as const, label: '🖼️ 웨딩사진' },
+            { id: 'guestbook' as const, label: '📊 방명록·RSVP' },
             { id: 'security' as const, label: '🔐 보안·백업' },
           ].map((tab) => (
             <button
@@ -1161,13 +1259,151 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
             </div>
           )}
 
-          {/* TAB 5: SECURITY & JSON BACKUP */}
+          {/* TAB 5: GUESTBOOK & RSVP REAL-TIME CLOUD DB MANAGEMENT */}
+          {activeTab === 'guestbook' && (
+            <div className="space-y-3">
+              <div className="bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-[#3b2f2f]">
+                      📊 실시간 참석 의사(RSVP) · 방명록 집계 현황
+                    </div>
+                    <div className="text-[10px] text-[#8c7a70]">
+                      Cloudflare D1 데이터베이스(pixel-wedding-quest-db)에 저장된 전체 하객 데이터입니다
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadCloudOverview()}
+                    disabled={isLoadingOverview}
+                    className="px-2.5 py-1.5 rounded-lg bg-[#fffdf9] border border-[#c59b6d] text-[#3b2f2f] text-[11px] font-bold flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingOverview ? 'animate-spin' : ''}`} />
+                    <span>새로고침</span>
+                  </button>
+                </div>
+
+                {rsvpSummary && (
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                    <div className="bg-[#fffdf9] p-2.5 rounded-lg border border-[#e2d4c0] text-center">
+                      <div className="text-[10px] text-[#8c7a70]">전체 방명록</div>
+                      <div className="text-base font-bold text-[#3b2f2f]">
+                        {rsvpSummary.totalEntries}건
+                      </div>
+                    </div>
+                    <div className="bg-[#f2f9f4] p-2.5 rounded-lg border border-[#c3dfc8] text-center">
+                      <div className="text-[10px] text-[#355e40]">참석 총인원</div>
+                      <div className="text-base font-bold text-[#355e40]">
+                        {rsvpSummary.attendingGuests}명
+                      </div>
+                    </div>
+                    <div className="bg-[#fffdf9] p-2.5 rounded-lg border border-[#e2d4c0] text-center">
+                      <div className="text-[10px] text-[#8c7a70]">식사 예정</div>
+                      <div className="text-base font-bold text-[#d97b84]">
+                        {rsvpSummary.mealYesGuests}명
+                      </div>
+                    </div>
+                    <div className="bg-[#fffdf9] p-2.5 rounded-lg border border-[#e2d4c0] text-center">
+                      <div className="text-[10px] text-[#8c7a70]">🤵 신랑측 인원</div>
+                      <div className="text-base font-bold text-[#3b2f2f]">
+                        {rsvpSummary.groomSideGuests}명
+                      </div>
+                    </div>
+                    <div className="bg-[#fffdf9] p-2.5 rounded-lg border border-[#e2d4c0] text-center">
+                      <div className="text-[10px] text-[#8c7a70]">👰 신부측 인원</div>
+                      <div className="text-base font-bold text-[#b85d67]">
+                        {rsvpSummary.brideSideGuests}명
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Guestbook Entries Table / List */}
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {adminEntries.length === 0 ? (
+                  <div className="p-6 text-center text-[#8c7a70] bg-[#faf5ec] rounded-xl border border-[#e6d5b8]">
+                    {isLoadingOverview
+                      ? 'Cloudflare D1 데이터베이스에서 방명록을 불러오는 중...'
+                      : '등록된 방명록이 없습니다.'}
+                  </div>
+                ) : (
+                  adminEntries.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`p-3 rounded-xl border flex items-start justify-between gap-2 ${
+                        item.isHidden
+                          ? 'bg-[#f5efe6] border-[#d6c7b2] opacity-70'
+                          : 'bg-[#fffdf9] border-[#e6d5b8]'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-bold text-[#3b2f2f]">{item.name}</span>
+                          {item.titleBadge && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#faf5ec] border border-[#e2d4c0] text-[#7d6e65]">
+                              {item.titleBadge}
+                            </span>
+                          )}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#fcf3f4] border border-[#f2d0d4] text-[#b85d67] font-bold">
+                            {item.side === 'bride' ? '신부측' : item.side === 'both' ? '공통' : '신랑측'} ·{' '}
+                            {item.attendance === 'attend'
+                              ? `참석(${item.companions || 1}명)`
+                              : item.attendance === 'unable'
+                              ? '마음전달'
+                              : '미정'}{' '}
+                            · 식사:{item.meal === 'yes' ? '예정' : item.meal === 'no' ? '안함' : '미정'}
+                          </span>
+                          {item.isHidden && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#3b2f2f] text-white font-bold">
+                              숨김 처리됨
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#4a3c36] break-words">{item.message}</p>
+                        <div className="text-[10px] text-[#9c8b80]">{item.createdAt}</div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleEntryHidden(item)}
+                          title={item.isHidden ? '표시하기' : '숨기기'}
+                          className="px-2 py-1 rounded bg-[#faf5ec] hover:bg-[#f0e6d6] border border-[#d4b48c] text-[#5c4d47] text-[10px] font-bold flex items-center gap-1"
+                        >
+                          {item.isHidden ? (
+                            <>
+                              <Eye className="w-3 h-3" /> 표시
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="w-3 h-3" /> 숨김
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAdminDeleteEntry(item)}
+                          title="방명록 삭제"
+                          className="p-1.5 rounded bg-[#fcf0f1] hover:bg-[#f8dfe1] border border-[#e2a3a9] text-[#c94a56]"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: SECURITY & JSON BACKUP */}
           {activeTab === 'security' && (
             <div className="space-y-4">
               <div className="bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8] space-y-2.5">
                 <div className="font-bold text-[#3b2f2f] flex items-center gap-1.5">
                   <KeyRound className="w-4 h-4 text-[#d97b84]" />
-                  <span>관리자 비밀번호 변경</span>
+                  <span>관리자 비밀번호 변경 (Cloudflare D1 동기화)</span>
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -1192,13 +1428,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
               <div className="bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8] space-y-2.5">
                 <div className="font-bold text-[#3b2f2f]">
-                  📦 설정 데이터 백업 & 코드 파일(src/data/weddingConfig.ts) 안내
+                  📦 설정 데이터 백업 & 코드 파일(src/data/wedding.json) 안내
                 </div>
                 <p className="text-[11px] text-[#5c4d47] leading-relaxed">
-                  • 여기에서 수정 후 <strong>[변경사항 저장]</strong>을 누르면 현재 브라우저에 즉시 반영됩니다.
-                  <br />• 모든 하객에게 영구 배포하려면 아래 <strong>[JSON 복사]</strong> 또는{' '}
-                  <strong>[백업 다운로드]</strong> 후 <code>src/data/weddingConfig.ts</code>의{' '}
-                  <code>DEFAULT_WEDDING_CONFIG</code>에 붙여넣으시면 됩니다.
+                  • 여기에서 수정 후 <strong>[변경사항 저장하기]</strong>를 누르면 <strong>Cloudflare D1 DB</strong>에 즉시 저장되어 모든 하객에게 실시간으로 반영됩니다.
+                  <br />• 정적 저장소 파일에도 함께 백업해 두시려면 아래 <strong>[wedding.json 다운로드]</strong> 후 <code>src/data/wedding.json</code> 파일을 교체하시면 됩니다.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -1222,7 +1456,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                     onClick={handleDownloadJson}
                     className="px-3 py-2 rounded-lg bg-[#fffdf9] border border-[#c59b6d] text-[#3b2f2f] font-bold flex items-center gap-1.5"
                   >
-                    <Download className="w-3.5 h-3.5 text-[#d97b84]" /> 설정 JSON 다운로드
+                    <Download className="w-3.5 h-3.5 text-[#d97b84]" /> wedding.json 다운로드
                   </button>
 
                   <button
@@ -1240,13 +1474,21 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
           {/* Bottom Save Footer */}
           <div className="flex items-center justify-between gap-2 pt-3 border-t border-[#e6d5b8]">
             <span className="text-[11px] text-[#8c7a70]">
-              💡 팁: 하단 부부 이름 5회 연속 터치 또는 <code>?admin=1</code> 접속으로 열 수 있습니다
+              {cloudSaveMessage ? (
+                <strong className="text-[#355e40]">{cloudSaveMessage}</strong>
+              ) : (
+                <>
+                  💡 팁: 하단 부부 이름 5회 연속 터치 또는 <code>?admin=1</code> 접속으로 열 수 있습니다
+                </>
+              )}
             </span>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-[#d97b84] hover:bg-[#c56871] text-white font-bold flex items-center gap-1.5 shadow-sm shrink-0"
+              disabled={isSavingCloud}
+              className="px-5 py-2.5 rounded-xl bg-[#d97b84] hover:bg-[#c56871] disabled:opacity-60 text-white font-bold flex items-center gap-1.5 shadow-sm shrink-0"
             >
-              <Save className="w-4 h-4" /> 변경사항 저장하기
+              <Save className="w-4 h-4" />
+              <span>{isSavingCloud ? 'DB 저장 중...' : '변경사항 저장하기 (DB 동기화)'}</span>
             </button>
           </div>
         </form>

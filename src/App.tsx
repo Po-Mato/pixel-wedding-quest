@@ -36,6 +36,7 @@ import { CertificateModal } from './components/CertificateModal';
 import {
   fetchSyncedGuestbook,
   publishGuestbookEntry,
+  fetchCloudWeddingConfig,
 } from './utils/weddingCloudSync';
 
 type AppScreenMode = 'title' | 'world' | 'classic';
@@ -175,10 +176,16 @@ export function App() {
     }
   }, [guestbook]);
 
-  // Initial Cloud D1 + BroadcastChannel Sync for Guestbook
+  // Initial Cloud D1 Sync for Config + Guestbook + BroadcastChannel
   useEffect(() => {
-    fetchSyncedGuestbook(guestbook).then(({ entries }) => {
-      if (entries.length > guestbook.length) {
+    fetchCloudWeddingConfig().then((remoteConfig) => {
+      if (remoteConfig && remoteConfig.groom?.fullName && remoteConfig.bride?.fullName) {
+        setConfig(remoteConfig);
+      }
+    });
+
+    fetchSyncedGuestbook(DEFAULT_WEDDING_CONFIG.initialGuestbook).then(({ entries }) => {
+      if (entries.length > 0) {
         setGuestbook(entries);
       }
     });
@@ -208,8 +215,19 @@ export function App() {
   }, []);
 
   const handleAddGuestbook = (entry: GuestbookEntry) => {
+    const tempId = entry.id;
     setGuestbook((prev) => [entry, ...prev]);
-    publishGuestbookEntry(entry).catch(() => {});
+    publishGuestbookEntry(entry)
+      .then(({ savedEntry }) => {
+        setGuestbook((prev) =>
+          prev.map((item) => (item.id === tempId ? savedEntry : item))
+        );
+      })
+      .catch(() => {});
+  };
+
+  const handleDeleteGuestbook = (id: string) => {
+    setGuestbook((prev) => prev.filter((item) => item.id !== id));
   };
 
   const stampCount = Object.values(visitedQuests).filter(Boolean).length;
@@ -428,6 +446,7 @@ export function App() {
               earnedTitle={earnedTitle}
               onUnlockTitle={setEarnedTitle}
               onAddGuestbook={handleAddGuestbook}
+              onDeleteGuestbook={handleDeleteGuestbook}
               onSwitchToGardenMode={() => setScreenMode('world')}
             />
           )}
@@ -511,6 +530,7 @@ export function App() {
                   guestbook={guestbook}
                   earnedTitle={earnedTitle}
                   onAddGuestbook={handleAddGuestbook}
+                  onDeleteGuestbook={handleDeleteGuestbook}
                 />
               )}
             </div>

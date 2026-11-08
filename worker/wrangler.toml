@@ -1,0 +1,13 @@
+name = "pixel-wedding-quest-api"
+main = "src/index.ts"
+compatibility_date = "2026-08-07"
+
+[vars]
+ALLOWED_ORIGINS = "https://po-mato.github.io,http://localhost:5177,http://127.0.0.1:5177,http://localhost:5173,http://127.0.0.1:5173"
+DEFAULT_INVITATION_ID = "default"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pixel-wedding-quest-db"
+database_id = "58d12170-2def-438e-a62c-927153b185cb"
+migrations_dir = "migrations"
