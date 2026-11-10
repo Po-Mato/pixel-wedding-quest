@@ -15,12 +15,14 @@ interface TitleScreenProps {
   config: WeddingConfig;
   onStartWorldMode: (withBgm: boolean) => void;
   onStartClassicMode: () => void;
+  onStartParentsMode?: () => void;
 }
 
 export const TitleScreen: React.FC<TitleScreenProps> = ({
   config,
   onStartWorldMode,
   onStartClassicMode,
+  onStartParentsMode,
 }) => {
   const [coverType, setCoverType] = useState<'pixel' | 'photo'>('pixel');
 
@@ -158,6 +160,19 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           <span>픽셀 가든 산책하며 보기 (인터랙티브 정원)</span>
           <Volume2 className="w-3.5 h-3.5 text-[#c59b6d]" />
         </button>
+
+        {onStartParentsMode && (
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playSelect();
+              onStartParentsMode();
+            }}
+            className="w-full py-3 px-4 rounded-xl bg-[#faf5ec] hover:bg-[#f1e7d6] text-[#3b2f2f] border border-[#c9b69c] text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all"
+          >
+            <span>부모님 · 어르신 지인 전달용 (큰글씨 청첩장) 보기</span>
+          </button>
+        )}
       </div>
 
       <p className="mt-4 text-[11px] text-[#9c897e] font-sans">

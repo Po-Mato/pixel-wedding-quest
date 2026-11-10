@@ -67,6 +67,26 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
   const [newPasswordInput, setNewPasswordInput] = useState<string>('');
   const [pwChangeNotice, setPwChangeNotice] = useState<string>('');
+  const [copiedLinkType, setCopiedLinkType] = useState<string | null>(null);
+
+  const handleCopyShareLink = (kind: 'friends' | 'parents' | 'groom_parents' | 'bride_parents') => {
+    soundEngine.playCoin();
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    if (kind === 'parents') {
+      url.searchParams.set('mode', 'parents');
+    } else if (kind === 'groom_parents') {
+      url.searchParams.set('mode', 'parents');
+      url.searchParams.set('side', 'groom');
+    } else if (kind === 'bride_parents') {
+      url.searchParams.set('mode', 'parents');
+      url.searchParams.set('side', 'bride');
+    }
+    navigator.clipboard?.writeText(url.toString()).catch(() => {});
+    setCopiedLinkType(kind);
+    setTimeout(() => setCopiedLinkType(null), 2500);
+  };
 
   const loadCloudOverview = async (tokenOverride?: string) => {
     const tokenToUse = tokenOverride || adminToken;
@@ -412,11 +432,29 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
           </div>
         </div>
 
-        {/* Notice Banner */}
-        <div className="px-3.5 py-2 bg-[#f2f9f4] border-b border-[#c3dfc8] text-[11px] text-[#355e40] leading-snug flex items-center justify-between gap-2">
-          <span>
-            ☁️ <strong>Cloudflare D1 DB 실시간 연동됨:</strong> 하단 [변경사항 저장하기]를 누르면 모든 하객의 청첩장에 즉시 반영되며, 정적 기본값은 <code className="font-bold">src/data/wedding.json</code>에서 관리할 수 있습니다.
-          </span>
+        {/* Notice Banner & Target Audience Link Copy Bar */}
+        <div className="px-3.5 py-2 bg-[#f2f9f4] border-b border-[#c3dfc8] text-[11px] text-[#355e40] leading-snug space-y-1.5">
+          <div>
+            ☁️ <strong>Cloudflare D1 DB 실시간 연동됨:</strong> 하단 [변경사항 저장하기]를 누르면 신랑·신부 지인용과 부모님 지인용 청첩장 모두에 즉시 반영됩니다.
+          </div>
+          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+            <span className="font-bold text-[#284b31] mr-1">🔗 청첩장 주소 복사:</span>
+            {[
+              { id: 'friends' as const, label: '👫 신랑·신부 지인용' },
+              { id: 'parents' as const, label: '👴👵 부모님용(통합)' },
+              { id: 'groom_parents' as const, label: '🤵 신랑측 혼주용' },
+              { id: 'bride_parents' as const, label: '👰 신부측 혼주용' },
+            ].map((btn) => (
+              <button
+                key={btn.id}
+                type="button"
+                onClick={() => handleCopyShareLink(btn.id)}
+                className="px-2 py-0.5 rounded bg-white hover:bg-[#e5f3e8] border border-[#9ac4a3] text-[#284b31] text-[10px] font-bold transition-colors"
+              >
+                {copiedLinkType === btn.id ? '✓ 주소 복사됨!' : btn.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 6 Admin Category Tabs */}

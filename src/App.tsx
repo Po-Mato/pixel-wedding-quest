@@ -24,6 +24,7 @@ import { soundEngine } from './utils/soundEngine';
 import { TitleScreen } from './components/TitleScreen';
 import { VillageCanvas } from './components/VillageCanvas';
 import { ClassicWeddingView } from './components/ClassicWeddingView';
+import { ParentsWeddingView, ParentsSideFilter } from './components/ParentsWeddingView';
 import { StorySection } from './components/sections/StorySection';
 import { CeremonySection } from './components/sections/CeremonySection';
 import { GallerySection } from './components/sections/GallerySection';
@@ -39,9 +40,35 @@ import {
   fetchCloudWeddingConfig,
 } from './utils/weddingCloudSync';
 
-type AppScreenMode = 'title' | 'world' | 'classic';
+type AppScreenMode = 'title' | 'world' | 'classic' | 'parents';
 
 const STORAGE_GUESTBOOK_KEY = 'pixel_wedding_quest_guestbook_v2';
+
+function detectInitialScreenMode(): AppScreenMode {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode') || params.get('target');
+    if (mode === 'parents' || window.location.hash === '#parents') {
+      return 'parents';
+    }
+    if (mode === 'classic') return 'classic';
+    if (mode === 'world' || mode === 'garden') return 'world';
+  } catch {
+    // ignore
+  }
+  return 'title';
+}
+
+function detectInitialParentsSide(): ParentsSideFilter {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const side = params.get('side');
+    if (side === 'groom' || side === 'bride') return side;
+  } catch {
+    // ignore
+  }
+  return 'all';
+}
 
 export function App() {
   // 모든 청첩장 설정은 src/data/wedding.json 단일 파일에서 불러오며,
@@ -75,7 +102,8 @@ export function App() {
     return DEFAULT_WEDDING_CONFIG.initialGuestbook;
   });
 
-  const [screenMode, setScreenMode] = useState<AppScreenMode>('title');
+  const [screenMode, setScreenMode] = useState<AppScreenMode>(detectInitialScreenMode);
+  const [parentsSide, setParentsSide] = useState<ParentsSideFilter>(detectInitialParentsSide);
   const [activeQuest, setActiveQuest] = useState<QuestBuildingId | null>(null);
   const [visitedQuests, setVisitedQuests] = useState<Record<QuestBuildingId, boolean>>({
     story: false,
@@ -307,6 +335,14 @@ export function App() {
     handleOpenQuest(QUEST_BUILDINGS[nextIdx].id);
   };
 
+  const handleStartParentsMode = (side: ParentsSideFilter = parentsSide) => {
+    soundEngine.stopBgm();
+    setBgmPlaying(false);
+    setParentsSide(side);
+    setScreenMode('parents');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div
       className={`min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center justify-start ${
@@ -317,107 +353,125 @@ export function App() {
     >
       <div
         className={`w-full flex flex-col ${
-          screenMode === 'world' ? 'max-w-[520px] gap-1.5' : 'max-w-[480px] gap-3'
+          screenMode === 'parents'
+            ? 'max-w-[540px] gap-3'
+            : screenMode === 'world'
+            ? 'max-w-[520px] gap-1.5'
+            : 'max-w-[480px] gap-3'
         }`}
       >
-        {/* Top Elegant Mode Switcher & Audio Bar (Ultra-slim in World Mode) */}
-        <header
-          className={`pixel-card bg-[#fffdf9] flex items-center justify-between gap-1 font-sans ${
-            screenMode === 'world' ? 'px-2.5 py-1.5' : 'px-3 py-2.5'
-          }`}
-        >
-          {/* Left: Cover & Mode Toggle Pills */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                soundEngine.playBlip();
-                setActiveQuest(null);
-                setScreenMode('title');
-              }}
-              title="표지 화면으로"
-              className="p-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border border-[#e2d4c0]"
-            >
-              <Home className="w-3.5 h-3.5" />
-            </button>
-
-            <div className="inline-flex rounded-full bg-[#f5efe6] p-0.5 border border-[#e2d4c0]">
+        {/* Top Mode Switcher Bar (Hidden in dedicated Parents Mode to keep senior UX distraction-free) */}
+        {screenMode !== 'parents' && (
+          <header
+            className={`pixel-card bg-[#fffdf9] flex items-center justify-between gap-1 font-sans ${
+              screenMode === 'world' ? 'px-2.5 py-1.5' : 'px-3 py-2.5'
+            }`}
+          >
+            {/* Left: Cover & Mode Toggle Pills */}
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => {
-                  soundEngine.playSelect();
+                  soundEngine.playBlip();
                   setActiveQuest(null);
-                  handleStartClassicMode();
+                  setScreenMode('title');
                 }}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
-                  screenMode === 'classic'
-                    ? 'bg-[#3b2f2f] text-[#fffdf9] shadow-xs'
-                    : 'text-[#7d6e65] hover:text-[#3b2f2f]'
-                }`}
+                title="표지 화면으로"
+                className="p-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border border-[#e2d4c0]"
               >
-                <BookOpen className="w-3 h-3" />
-                <span>일반 청첩장</span>
+                <Home className="w-3.5 h-3.5" />
               </button>
 
+              <div className="inline-flex rounded-full bg-[#f5efe6] p-0.5 border border-[#e2d4c0]">
+                <button
+                  onClick={() => {
+                    soundEngine.playSelect();
+                    setActiveQuest(null);
+                    handleStartClassicMode();
+                  }}
+                  className={`px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
+                    screenMode === 'classic'
+                      ? 'bg-[#3b2f2f] text-[#fffdf9] shadow-xs'
+                      : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                  }`}
+                >
+                  <BookOpen className="w-3 h-3" />
+                  <span>일반</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    soundEngine.playSelect();
+                    setActiveQuest(null);
+                    setScreenMode('world');
+                  }}
+                  className={`px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
+                    screenMode === 'world'
+                      ? 'bg-[#d97b84] text-white shadow-xs'
+                      : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>픽셀 가든</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    soundEngine.playSelect();
+                    setActiveQuest(null);
+                    handleStartParentsMode();
+                  }}
+                  title="부모님·어르신 지인 전달용 큰글씨 청첩장"
+                  className="px-2 py-1 rounded-full text-[11px] font-bold text-[#7d6e65] hover:text-[#3b2f2f] transition-all"
+                >
+                  <span>부모님용</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Right: Compact Stamp Badge (in World Mode) + Music-Box BGM */}
+            <div className="flex items-center gap-1">
+              {screenMode === 'world' && (
+                <button
+                  onClick={() => {
+                    soundEngine.playFanfare();
+                    setShowCertificate(true);
+                  }}
+                  title="가든 산책 스탬프 & 초대권 확인"
+                  className={`px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 shrink-0 transition-colors ${
+                    stampCount >= 3
+                      ? 'bg-[#fcf0f1] text-[#b85d67] border-[#d97b84]'
+                      : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0]'
+                  }`}
+                >
+                  <Award className="w-3 h-3 text-[#d97b84]" />
+                  <span>스탬프 {stampCount}/7</span>
+                </button>
+              )}
+
               <button
-                onClick={() => {
-                  soundEngine.playSelect();
-                  setActiveQuest(null);
-                  setScreenMode('world');
-                }}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
-                  screenMode === 'world'
-                    ? 'bg-[#d97b84] text-white shadow-xs'
-                    : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                onClick={handleToggleBgm}
+                className={`px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 transition-colors ${
+                  bgmPlaying
+                    ? 'bg-[#fcf0f1] text-[#b85d67] border-[#e2a3a9]'
+                    : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
                 }`}
+                title="오르골 웨딩 BGM 켜기/끄기"
               >
-                <Sparkles className="w-3 h-3" />
-                <span>픽셀 가든</span>
+                {bgmPlaying ? (
+                  <>
+                    <Volume2 className="w-3 h-3 animate-pulse" />
+                    <span>BGM</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="w-3 h-3" />
+                    <span>BGM</span>
+                  </>
+                )}
               </button>
             </div>
-          </div>
-
-          {/* Right: Compact Stamp Badge (in World Mode) + Music-Box BGM */}
-          <div className="flex items-center gap-1">
-            {screenMode === 'world' && (
-              <button
-                onClick={() => {
-                  soundEngine.playFanfare();
-                  setShowCertificate(true);
-                }}
-                title="가든 산책 스탬프 & 초대권 확인"
-                className={`px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 shrink-0 transition-colors ${
-                  stampCount >= 3
-                    ? 'bg-[#fcf0f1] text-[#b85d67] border-[#d97b84]'
-                    : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0]'
-                }`}
-              >
-                <Award className="w-3 h-3 text-[#d97b84]" />
-                <span>스탬프 {stampCount}/7</span>
-              </button>
-            )}
-
-            <button
-              onClick={handleToggleBgm}
-              className={`px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 transition-colors ${
-                bgmPlaying
-                  ? 'bg-[#fcf0f1] text-[#b85d67] border-[#e2a3a9]'
-                  : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
-              }`}
-              title="오르골 웨딩 BGM 켜기/끄기"
-            >
-              {bgmPlaying ? (
-                <>
-                  <Volume2 className="w-3 h-3 animate-pulse" />
-                  <span>BGM</span>
-                </>
-              ) : (
-                <>
-                  <VolumeX className="w-3 h-3" />
-                  <span>BGM</span>
-                </>
-              )}
-            </button>
-          </div>
-        </header>
+          </header>
+        )}
 
         {/* MAIN VIEWPORT */}
         <main className="w-full">
@@ -426,6 +480,7 @@ export function App() {
               config={config}
               onStartWorldMode={handleStartWorldMode}
               onStartClassicMode={handleStartClassicMode}
+              onStartParentsMode={() => handleStartParentsMode('all')}
             />
           )}
 
@@ -450,10 +505,20 @@ export function App() {
               onSwitchToGardenMode={() => setScreenMode('world')}
             />
           )}
+
+          {screenMode === 'parents' && (
+            <ParentsWeddingView
+              config={config}
+              guestbook={guestbook}
+              initialSide={parentsSide}
+              onAddGuestbook={handleAddGuestbook}
+              onDeleteGuestbook={handleDeleteGuestbook}
+            />
+          )}
         </main>
 
         {/* Footer Share & Couple Mark (5-tap secret trigger for Admin Console) */}
-        <footer className="pixel-card p-3.5 bg-[#fffdf9] flex items-center justify-between text-xs">
+        <footer className="pixel-card p-3.5 bg-[#fffdf9] flex items-center justify-between gap-2 text-xs font-sans">
           <div
             onClick={handleSecretFooterTap}
             className="text-xs text-[#6e5d53] select-none cursor-default"
@@ -465,20 +530,32 @@ export function App() {
             {String(config.wedding.day).padStart(2, '0')}
           </div>
 
-          <button
-            onClick={handleShareLink}
-            className="px-3.5 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-sans font-semibold flex items-center gap-1.5 transition-colors"
-          >
-            {copiedLink ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-[#6b9071]" /> 링크 복사됨
-              </>
-            ) : (
-              <>
-                <Share2 className="w-3.5 h-3.5 text-[#c59b6d]" /> 청첩장 공유하기
-              </>
-            )}
-          </button>
+          {screenMode === 'parents' ? (
+            <button
+              onClick={() => {
+                setScreenMode('title');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="px-3 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold shrink-0"
+            >
+              신랑·신부 지인용 보기
+            </button>
+          ) : (
+            <button
+              onClick={handleShareLink}
+              className="px-3.5 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+            >
+              {copiedLink ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-[#6b9071]" /> 링크 복사됨
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5 text-[#c59b6d]" /> 청첩장 공유하기
+                </>
+              )}
+            </button>
+          )}
         </footer>
       </div>
 
