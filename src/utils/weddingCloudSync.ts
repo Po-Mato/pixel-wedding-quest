@@ -184,6 +184,7 @@ export async function publishGuestbookEntry(
         attendance: mappedAttendance,
         companions: entry.companions ?? 1,
         meal: mappedMeal,
+        phone: entry.phone || '',
       }),
     });
 

@@ -31,6 +31,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   onDeleteGuestbook,
 }) => {
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [avatar, setAvatar] = useState<AvatarClassId>('knight');
   const [side, setSide] = useState<'groom' | 'bride' | 'both'>('groom');
   const [attendance, setAttendance] = useState<'attend' | 'maybe' | 'unable'>('attend');
@@ -67,12 +68,14 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
       message: message.trim(),
       createdAt: '방금 전',
       attendance,
-      companions,
-      meal,
+      companions: attendance === 'unable' ? 0 : companions,
+      meal: attendance === 'unable' ? 'no' : meal,
+      phone: phone.trim(),
     };
 
     onAddGuestbook(newEntry);
     setName('');
+    setPhone('');
     setMessage('');
     setSubmittedToast(true);
     setTimeout(() => setSubmittedToast(false), 4000);
@@ -196,9 +199,10 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
             </label>
             <div className="flex gap-1.5">
               <select
-                value={meal}
+                value={attendance === 'unable' ? 'no' : meal}
+                disabled={attendance === 'unable'}
                 onChange={(e) => setMeal(e.target.value as 'yes' | 'no' | 'undecided')}
-                className="flex-1 bg-[#fffdf9] border border-[#e2d4c0] rounded text-xs text-[#3b2f2f] px-2 py-1.5"
+                className="flex-1 bg-[#fffdf9] disabled:opacity-60 border border-[#e2d4c0] rounded text-xs text-[#3b2f2f] px-2 py-1.5"
               >
                 <option value="yes">식사 예정</option>
                 <option value="no">식사 안함</option>
@@ -206,8 +210,9 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               </select>
               <select
                 value={companions}
+                disabled={attendance === 'unable'}
                 onChange={(e) => setCompanions(Number(e.target.value))}
-                className="w-20 bg-[#fffdf9] border border-[#e2d4c0] rounded text-xs text-[#3b2f2f] px-2 py-1.5"
+                className="w-20 bg-[#fffdf9] disabled:opacity-60 border border-[#e2d4c0] rounded text-xs text-[#3b2f2f] px-2 py-1.5"
               >
                 {[1, 2, 3, 4, 5].map((n) => (
                   <option key={n} value={n}>
@@ -219,21 +224,37 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           </div>
         </div>
 
-        {/* Name & Message */}
+        {/* Name, Phone & Message */}
         <div className="space-y-2.5">
-          <div>
-            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
-              성함 (또는 관계) *
-            </label>
-            <input
-              type="text"
-              required
-              maxLength={20}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="예: 이지훈 (대학동기) / 박수빈"
-              className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f]"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+                성함 (또는 관계) *
+              </label>
+              <input
+                type="text"
+                required
+                maxLength={20}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="예: 이지훈 (대학동기) / 박수빈"
+                className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+                연락처 (선택 · 신랑신부에게만 전달)
+              </label>
+              <input
+                type="tel"
+                maxLength={20}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="예: 010-1234-5678 (비공개)"
+                className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f]"
+              />
+            </div>
           </div>
 
           <div>

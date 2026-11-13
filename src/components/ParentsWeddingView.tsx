@@ -18,12 +18,15 @@ import {
   ChevronRight,
   X,
   Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { WeddingConfig, GuestbookEntry, BankAccount } from '../data/weddingConfig';
 import {
   canEditOwnGuestbookEntry,
   deleteOwnGuestbookEntry,
 } from '../utils/weddingCloudSync';
+import { copyTextToClipboard } from '../utils/clipboard';
+import { fillCoupleText } from '../utils/coupleText';
 
 export type ParentsSideFilter = 'all' | 'groom' | 'bride';
 type FontScaleMode = 'normal' | 'large' | 'xlarge';
@@ -54,6 +57,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
   // Simple Senior-Friendly RSVP + Guestbook Form State
   const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
   const [guestSide, setGuestSide] = useState<'groom' | 'bride'>(
     initialSide === 'bride' ? 'bride' : 'groom'
   );
@@ -121,16 +125,41 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
   const encodedVenue = encodeURIComponent(config.wedding.venueName);
   const encodedAddr = encodeURIComponent(config.wedding.addressRoad);
+  const hasValidCoords =
+    Number.isFinite(config.wedding.lat) &&
+    Number.isFinite(config.wedding.lng) &&
+    config.wedding.lat !== 0 &&
+    config.wedding.lng !== 0;
 
-  const handleCopyAddress = () => {
-    navigator.clipboard?.writeText(config.wedding.addressRoad).catch(() => {});
+  const kakaoNavUrl = hasValidCoords
+    ? `https://map.kakao.com/link/to/${encodedVenue},${config.wedding.lat},${config.wedding.lng}`
+    : `https://map.kakao.com/link/search/${encodedAddr}`;
+
+  const tmapDeepLink = hasValidCoords
+    ? `tmap://route?goalname=${encodedVenue}&goalx=${config.wedding.lng}&goaly=${config.wedding.lat}`
+    : `tmap://search?name=${encodedVenue}`;
+
+  const handleOpenTmap = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (!isMobile) {
+      e.preventDefault();
+      window.open(
+        `https://map.naver.com/p/search/${encodedAddr}`,
+        '_blank',
+        'noopener,noreferrer'
+      );
+    }
+  };
+
+  const handleCopyAddress = async () => {
+    await copyTextToClipboard(config.wedding.addressRoad);
     setCopiedAddress(true);
     setTimeout(() => setCopiedAddress(false), 3000);
   };
 
-  const handleCopyAccount = (acc: BankAccount, key: string) => {
+  const handleCopyAccount = async (acc: BankAccount, key: string) => {
     const textToCopy = `${acc.bank} ${acc.accountNumber}`;
-    navigator.clipboard?.writeText(textToCopy).catch(() => {});
+    await copyTextToClipboard(textToCopy);
     setCopiedKey(key);
     try {
       confetti({
@@ -162,7 +191,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     return url.toString();
   };
 
-  const handleShareParentsPage = (sideParam?: ParentsSideFilter, label = 'main') => {
+  const handleShareParentsPage = async (sideParam?: ParentsSideFilter, label = 'main') => {
     const shareUrl = buildShareUrl(sideParam);
     const sideTitle =
       sideParam === 'groom'
@@ -180,7 +209,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         })
         .catch(() => {});
     } else {
-      navigator.clipboard?.writeText(shareUrl).catch(() => {});
+      await copyTextToClipboard(shareUrl);
       setCopiedShare(label);
       setTimeout(() => setCopiedShare(null), 3000);
     }
@@ -201,10 +230,12 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       attendance,
       companions: attendance === 'unable' ? 0 : companions,
       meal: attendance === 'unable' ? 'no' : meal,
+      phone: guestPhone.trim(),
     };
 
     onAddGuestbook(newEntry);
     setGuestName('');
+    setGuestPhone('');
     setMessage('');
     setSubmittedBanner(true);
     setTimeout(() => setSubmittedBanner(false), 5000);
@@ -620,7 +651,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <a
-              href={`https://map.kakao.com/link/search/${encodedAddr}`}
+              href={kakaoNavUrl}
               target="_blank"
               rel="noopener noreferrer"
               className={`${textScale.btn} rounded-2xl bg-[#fee500] text-[#191919] border border-[#dfca00] font-bold flex items-center justify-center gap-2 shadow-xs`}
@@ -638,9 +669,8 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               <span>네이버 지도 보기</span>
             </a>
             <a
-              href={`https://apis.openapi.sk.com/tmap/app/routes?appKey=l7xx&name=${encodedVenue}&lon=${config.wedding.lng}&lat=${config.wedding.lat}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={tmapDeepLink}
+              onClick={handleOpenTmap}
               className={`${textScale.btn} rounded-2xl bg-[#2d221e] text-white border border-[#1d1513] font-bold flex items-center justify-center gap-2 shadow-xs`}
             >
               <Navigation className="w-5 h-5 shrink-0" />
@@ -782,27 +812,41 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleCopyAccount(acc, key)}
-                  className={`w-full ${textScale.btn} rounded-xl font-bold border flex items-center justify-center gap-2 transition-colors ${
-                    isCopied
-                      ? 'bg-[#355e40] text-white border-[#2a4c33]'
-                      : 'bg-[#2d221e] hover:bg-[#1e1613] text-white border-[#2d221e]'
-                  }`}
-                >
-                  {isCopied ? (
-                    <>
-                      <Check className="w-5 h-5" />
-                      <span>복사 완료 ({acc.bank} {acc.name})</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-5 h-5 text-[#e6d5b8]" />
-                      <span>계좌번호 복사하기</span>
-                    </>
+                <div className={`grid ${acc.kakaoPayUrl ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyAccount(acc, key)}
+                    className={`w-full ${textScale.btn} rounded-xl font-bold border flex items-center justify-center gap-2 transition-colors ${
+                      isCopied
+                        ? 'bg-[#355e40] text-white border-[#2a4c33]'
+                        : 'bg-[#2d221e] hover:bg-[#1e1613] text-white border-[#2d221e]'
+                    }`}
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        <span>복사 완료 ({acc.bank} {acc.name})</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5 text-[#e6d5b8]" />
+                        <span>계좌번호 복사하기</span>
+                      </>
+                    )}
+                  </button>
+
+                  {acc.kakaoPayUrl && (
+                    <a
+                      href={acc.kakaoPayUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`w-full ${textScale.btn} rounded-xl font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-2 transition-colors`}
+                    >
+                      <ExternalLink className="w-5 h-5 shrink-0" />
+                      <span>카카오페이 송금</span>
+                    </a>
                   )}
-                </button>
+                </div>
               </div>
             );
           })}
@@ -856,18 +900,33 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
 
         <form onSubmit={handleSubmitGuestbook} className="space-y-4 bg-[#faf5ec] p-5 rounded-2xl border border-[#dfd2be]">
-          <div>
-            <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
-              성함 (또는 직함/모임명)
-            </label>
-            <input
-              type="text"
-              required
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder="예: 홍길동 (신랑 아버지 친구)"
-              className={`w-full bg-[#fffdf9] border-2 border-[#c9b69c] focus:border-[#b35c66] outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e]`}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
+                성함 (또는 직함/모임명) *
+              </label>
+              <input
+                type="text"
+                required
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="예: 홍길동 (신랑 아버지 친구)"
+                className={`w-full bg-[#fffdf9] border-2 border-[#c9b69c] focus:border-[#b35c66] outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e]`}
+              />
+            </div>
+
+            <div>
+              <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
+                연락처 (선택 · 혼주에게만 전달)
+              </label>
+              <input
+                type="tel"
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+                placeholder="예: 010-1234-5678 (비공개)"
+                className={`w-full bg-[#fffdf9] border-2 border-[#c9b69c] focus:border-[#b35c66] outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e]`}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
@@ -1027,7 +1086,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                     </div>
                   </div>
                   <p className={`${textScale.body} text-[#2d221e] break-keep`}>
-                    {item.message}
+                    {fillCoupleText(item.message, config)}
                   </p>
                 </div>
               );

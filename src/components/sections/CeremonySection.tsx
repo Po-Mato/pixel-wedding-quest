@@ -120,6 +120,45 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
     URL.revokeObjectURL(url);
   };
 
+  const formatTimeHm = (ms: number) => {
+    const d = new Date(ms);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
+  const getCeremonySchedule = () => {
+    const parsed = new Date(config.wedding.dateISO);
+    const baseMs = Number.isNaN(parsed.getTime())
+      ? new Date('2027-05-01T17:10:00+09:00').getTime()
+      : parsed.getTime();
+    const min = 60 * 1000;
+    return [
+      {
+        time: `${formatTimeHm(baseMs - 60 * min)} ~ ${formatTimeHm(baseMs)}`,
+        title: '포토부스 & 신부대기실 맞이',
+        desc: `${config.wedding.hallName} 로비에서 하객 맞이와 신부대기실 기념 촬영이 진행됩니다.`,
+      },
+      {
+        time: `${formatTimeHm(baseMs)} ~ ${formatTimeHm(baseMs + 40 * min)}`,
+        title: '1부 · 본식 예식 진행',
+        desc: '따뜻한 축가와 성혼선언으로 두 사람의 서약식이 진행됩니다.',
+      },
+      {
+        time: `${formatTimeHm(baseMs + 40 * min)} ~ ${formatTimeHm(baseMs + 60 * min)}`,
+        title: '부케 토스 & 기념 사진 촬영',
+        desc: '가족, 친지 및 하객분들과 함께 소중한 순간을 사진으로 남깁니다.',
+      },
+      {
+        time: `${formatTimeHm(baseMs - 30 * min)} ~ ${formatTimeHm(baseMs + 120 * min)}`,
+        title: '2부 · 연회장 식사 대접',
+        desc: '정성껏 준비한 연회장 식사로 감사의 마음을 대접합니다.',
+      },
+    ];
+  };
+
+  const ceremonySteps = getCeremonySchedule();
+
   return (
     <div className="space-y-6">
       {/* Elegant Bridal Calendar & Countdown Card */}
@@ -248,28 +287,7 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          {[
-            {
-              time: '12:00 ~ 13:00',
-              title: '포토부스 & 신부대기실 맞이',
-              desc: '3층 가든 로비에서 웰컴 티와 기념 포토부스를 이용하실 수 있습니다.',
-            },
-            {
-              time: '13:00 ~ 13:40',
-              title: '1부 · 본식 예식 진행',
-              desc: '따뜻한 축가와 성혼선언으로 두 사람의 서약식이 진행됩니다.',
-            },
-            {
-              time: '13:40 ~ 14:00',
-              title: '부케 토스 & 기념 사진 촬영',
-              desc: '가족, 친지 및 하객분들과 함께 소중한 순간을 사진으로 남깁니다.',
-            },
-            {
-              time: '12:30 ~ 15:30',
-              title: '2부 · 연회장 식사 대접',
-              desc: '정성껏 준비한 코스 및 뷔페 식사로 감사의 마음을 대접합니다.',
-            },
-          ].map((step, i) => (
+          {ceremonySteps.map((step, i) => (
             <div
               key={i}
               className="bg-[#faf5ec] border border-[#e6d5b8] rounded-lg p-3.5"

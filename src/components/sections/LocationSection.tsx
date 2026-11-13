@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MapPin, Copy, Check, Train, Bus, Car, Navigation } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
+import { copyTextToClipboard } from '../../utils/clipboard';
 
 interface LocationSectionProps {
   config: WeddingConfig;
@@ -10,31 +11,59 @@ interface LocationSectionProps {
 export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleCopyAddress = () => {
+  const handleCopyAddress = async () => {
     soundEngine.playCoin();
-    navigator.clipboard?.writeText(config.wedding.addressRoad).catch(() => {});
+    await copyTextToClipboard(config.wedding.addressRoad);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
 
   const encodedVenue = encodeURIComponent(config.wedding.venueName);
   const encodedAddr = encodeURIComponent(config.wedding.addressRoad);
+  const hasValidCoords =
+    Number.isFinite(config.wedding.lat) &&
+    Number.isFinite(config.wedding.lng) &&
+    config.wedding.lat !== 0 &&
+    config.wedding.lng !== 0;
+
+  const tmapDeepLink = hasValidCoords
+    ? `tmap://route?goalname=${encodedVenue}&goalx=${config.wedding.lng}&goaly=${config.wedding.lat}`
+    : `tmap://search?name=${encodedVenue}`;
+
+  const handleOpenTmap = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    soundEngine.playSelect();
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (!isMobile) {
+      e.preventDefault();
+      window.open(
+        `https://map.naver.com/p/search/${encodedAddr}`,
+        '_blank',
+        'noopener,noreferrer'
+      );
+    }
+  };
 
   const navLinks = [
     {
       name: '네이버 지도',
       bg: 'bg-[#03c75a] text-white border-[#02b350]',
       url: `https://map.naver.com/p/search/${encodedAddr}`,
+      external: true,
     },
     {
       name: '카카오맵',
       bg: 'bg-[#fee500] text-[#191919] border-[#e6cf00]',
-      url: `https://map.kakao.com/link/search/${encodedAddr}`,
+      url: hasValidCoords
+        ? `https://map.kakao.com/link/to/${encodedVenue},${config.wedding.lat},${config.wedding.lng}`
+        : `https://map.kakao.com/link/search/${encodedAddr}`,
+      external: true,
     },
     {
       name: '티맵 (T-Map)',
       bg: 'bg-[#3b2f2f] text-white border-[#2a2121]',
-      url: `https://apis.openapi.sk.com/tmap/app/routes?appKey=l7xx&name=${encodedVenue}&lon=${config.wedding.lng}&lat=${config.wedding.lat}`,
+      url: tmapDeepLink,
+      external: false,
+      onClick: handleOpenTmap,
     },
   ];
 
@@ -132,9 +161,15 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
             <a
               key={nav.name}
               href={nav.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => soundEngine.playSelect()}
+              target={nav.external ? '_blank' : undefined}
+              rel={nav.external ? 'noopener noreferrer' : undefined}
+              onClick={(e) => {
+                if (nav.onClick) {
+                  nav.onClick(e);
+                } else {
+                  soundEngine.playSelect();
+                }
+              }}
               className={`py-2.5 px-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1 shadow-sm transition-transform active:scale-95 ${nav.bg}`}
             >
               <Navigation className="w-3.5 h-3.5 shrink-0" />

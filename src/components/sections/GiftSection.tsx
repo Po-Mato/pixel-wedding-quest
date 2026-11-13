@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Copy, Check, Heart, Sparkles } from 'lucide-react';
+import { Copy, Check, Heart, Sparkles, ExternalLink } from 'lucide-react';
 import { WeddingConfig, BankAccount } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
+import { copyTextToClipboard } from '../../utils/clipboard';
 
 interface GiftSectionProps {
   config: WeddingConfig;
@@ -12,10 +13,10 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
   const [activeSide, setActiveSide] = useState<'groom' | 'bride'>('groom');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const handleCopyAccount = (acc: BankAccount, key: string) => {
+  const handleCopyAccount = async (acc: BankAccount, key: string) => {
     soundEngine.playCoin();
     const textToCopy = `${acc.bank} ${acc.accountNumber}`;
-    navigator.clipboard?.writeText(textToCopy).catch(() => {});
+    await copyTextToClipboard(textToCopy);
     setCopiedKey(key);
 
     try {
@@ -117,26 +118,41 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
                 </div>
               </div>
 
-              <button
-                onClick={() => handleCopyAccount(acc, key)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 shrink-0 transition-all ${
-                  isCopied
-                    ? 'bg-[#6b9071] text-white border-[#587a5e]'
-                    : 'bg-[#fffdf9] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#d4b48c]'
-                }`}
-              >
-                {isCopied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>복사되었습니다</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-[#c59b6d]" />
-                    <span>계좌번호 복사</span>
-                  </>
+              <div className="flex items-center gap-2 shrink-0">
+                {acc.kakaoPayUrl && (
+                  <a
+                    href={acc.kakaoPayUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => soundEngine.playCoin()}
+                    className="px-3.5 py-2 rounded-lg text-xs font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-1 transition-all"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>카카오페이</span>
+                  </a>
                 )}
-              </button>
+
+                <button
+                  onClick={() => handleCopyAccount(acc, key)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-all flex-1 sm:flex-initial ${
+                    isCopied
+                      ? 'bg-[#6b9071] text-white border-[#587a5e]'
+                      : 'bg-[#fffdf9] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#d4b48c]'
+                  }`}
+                >
+                  {isCopied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>복사되었습니다</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-[#c59b6d]" />
+                      <span>계좌번호 복사</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           );
         })}

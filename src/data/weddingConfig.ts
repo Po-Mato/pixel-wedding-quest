@@ -83,6 +83,7 @@ export interface GuestbookEntry {
   attendance?: 'attend' | 'maybe' | 'unable';
   companions?: number;
   meal?: 'yes' | 'no' | 'undecided';
+  phone?: string;
 }
 
 export interface GalleryItem {

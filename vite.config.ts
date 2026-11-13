@@ -12,10 +12,12 @@ function weddingMetaPlugin(): Plugin {
   const couple = `${c.groom.fullName} ♥ ${c.bride.fullName}`
   const escape = (v: string) =>
     v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const basePath = (process.env.VITE_BASE_PATH || './').replace(/\/?$/, '/')
   const values: Record<string, string> = {
     WEDDING_PAGE_TITLE: `${couple} 모바일 청첩장 | ${date}`,
     WEDDING_OG_TITLE: `${couple} 결혼합니다 | ${date}`,
     WEDDING_OG_DESCRIPTION: `${c.wedding.dateDisplay} ${c.wedding.timeDisplay} · ${c.wedding.venueName} ${c.wedding.hallName} | 소중한 분들을 초대합니다`,
+    WEDDING_OG_IMAGE: `${basePath}assets/pixel/wedding-cover-pixel.jpg`,
   }
   return {
     name: 'wedding-meta',

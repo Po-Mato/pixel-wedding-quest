@@ -11,6 +11,7 @@ import {
 } from '../../data/weddingConfig';
 import { PIXEL_ASSETS, GUEST_SPRITES } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
+import { incrementReactionCounter } from '../../utils/weddingCloudSync';
 
 interface PhotoBoothModalProps {
   config: WeddingConfig;
@@ -369,6 +370,13 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     setFlashActive(true);
     window.setTimeout(() => setFlashActive(false), 260);
     setSnappedCount((c) => c + 1);
+    incrementReactionCounter('snap')
+      .then((res) => {
+        if (res && typeof res.snapCount === 'number') {
+          setSnappedCount(res.snapCount);
+        }
+      })
+      .catch(() => {});
 
     if (onUnlockTitle) {
       onUnlockTitle('📸 오늘의 베스트 포토그래퍼');

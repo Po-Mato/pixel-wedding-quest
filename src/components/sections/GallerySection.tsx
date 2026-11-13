@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, Grid, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { WeddingConfig, GalleryItem } from '../../data/weddingConfig';
 import { PixelHeart, PixelSceneBanner } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
+import { incrementReactionCounter } from '../../utils/weddingCloudSync';
 import { PhotoBoothModal } from './PhotoBoothModal';
+
+const STORAGE_GALLERY_LIKES_KEY = 'pixel_wedding_quest_gallery_likes_v1';
 
 interface GallerySectionProps {
   config: WeddingConfig;
@@ -22,9 +25,30 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
     config.gallery.forEach((g) => {
       init[g.id] = g.initialLikes;
     });
+    try {
+      const saved = localStorage.getItem(STORAGE_GALLERY_LIKES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Record<string, number>;
+        config.gallery.forEach((g) => {
+          if (typeof parsed[g.id] === 'number' && parsed[g.id] >= g.initialLikes) {
+            init[g.id] = parsed[g.id];
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
     return init;
   });
   const [imgErrorMap, setImgErrorMap] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_GALLERY_LIKES_KEY, JSON.stringify(likesMap));
+    } catch {
+      // ignore
+    }
+  }, [likesMap]);
 
   const activeItem: GalleryItem = config.gallery[selectedIdx] || config.gallery[0];
 
@@ -34,6 +58,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
       ...prev,
       [id]: (prev[id] || 0) + 1,
     }));
+    incrementReactionCounter('blessing').catch(() => {});
   };
 
   const handlePrev = () => {

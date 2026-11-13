@@ -21,6 +21,8 @@ import {
   GuestbookEntry,
 } from './data/weddingConfig';
 import { soundEngine } from './utils/soundEngine';
+import { copyTextToClipboard } from './utils/clipboard';
+import { PIXEL_ASSETS } from './components/PixelSprites';
 import { TitleScreen } from './components/TitleScreen';
 import { VillageCanvas } from './components/VillageCanvas';
 import { ClassicWeddingView } from './components/ClassicWeddingView';
@@ -194,7 +196,59 @@ export function App() {
         `${config.wedding.dateDisplay} ${config.wedding.timeDisplay} · ${config.wedding.venueName} ${config.wedding.hallName} | 소중한 분들을 초대합니다`
       );
     }
+    const ogImg = document.querySelector('meta[property="og:image"]');
+    if (ogImg) {
+      try {
+        ogImg.setAttribute(
+          'content',
+          new URL(PIXEL_ASSETS.weddingCover, window.location.href).href
+        );
+      } catch {
+        // ignore
+      }
+    }
   }, [config]);
+
+  // Synchronize screenMode & activeQuest with browser History API so mobile 'Back' button
+  // closes modals or returns to the cover instead of exiting the KakaoTalk in-app browser
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      const state = e.state as {
+        screenMode?: AppScreenMode;
+        activeQuest?: QuestBuildingId | null;
+      } | null;
+      if (state && state.screenMode) {
+        setScreenMode(state.screenMode);
+        setActiveQuest(state.activeQuest || null);
+      } else {
+        setActiveQuest(null);
+        setScreenMode(detectInitialScreenMode());
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const pushNavigationState = (
+    nextMode: AppScreenMode,
+    nextQuest: QuestBuildingId | null = null
+  ) => {
+    try {
+      const url = new URL(window.location.href);
+      if (nextMode === 'title') {
+        url.searchParams.delete('mode');
+      } else {
+        url.searchParams.set('mode', nextMode);
+      }
+      window.history.pushState(
+        { screenMode: nextMode, activeQuest: nextQuest },
+        '',
+        url.toString()
+      );
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     try {
@@ -262,6 +316,7 @@ export function App() {
 
   const handleOpenQuest = (id: QuestBuildingId) => {
     setActiveQuest(id);
+    pushNavigationState(screenMode, id);
     setVisitedQuests((prev) => {
       const next = { ...prev, [id]: true };
       const prevCount = Object.values(prev).filter(Boolean).length;
@@ -298,14 +353,16 @@ export function App() {
       setBgmPlaying(false);
     }
     setScreenMode('world');
+    pushNavigationState('world', null);
   };
 
   const handleStartClassicMode = () => {
     setScreenMode('classic');
+    pushNavigationState('classic', null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleShareLink = () => {
+  const handleShareLink = async () => {
     soundEngine.playCoin();
     const url = window.location.href;
     if (navigator.share) {
@@ -317,7 +374,7 @@ export function App() {
         })
         .catch(() => {});
     } else {
-      navigator.clipboard?.writeText(url).catch(() => {});
+      await copyTextToClipboard(url);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
     }
@@ -340,6 +397,7 @@ export function App() {
     setBgmPlaying(false);
     setParentsSide(side);
     setScreenMode('parents');
+    pushNavigationState('parents', null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -374,6 +432,7 @@ export function App() {
                   soundEngine.playBlip();
                   setActiveQuest(null);
                   setScreenMode('title');
+                  pushNavigationState('title', null);
                 }}
                 title="표지 화면으로"
                 className="p-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border border-[#e2d4c0]"
@@ -403,6 +462,7 @@ export function App() {
                     soundEngine.playSelect();
                     setActiveQuest(null);
                     setScreenMode('world');
+                    pushNavigationState('world', null);
                   }}
                   className={`px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
                     screenMode === 'world'

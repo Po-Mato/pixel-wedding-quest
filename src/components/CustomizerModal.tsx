@@ -24,6 +24,7 @@ import {
   GalleryItem,
 } from '../data/weddingConfig';
 import { soundEngine } from '../utils/soundEngine';
+import { copyTextToClipboard } from '../utils/clipboard';
 import { syncAccountHolderNames } from '../utils/configSync';
 import {
   adminLogin,
@@ -69,7 +70,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   const [pwChangeNotice, setPwChangeNotice] = useState<string>('');
   const [copiedLinkType, setCopiedLinkType] = useState<string | null>(null);
 
-  const handleCopyShareLink = (kind: 'friends' | 'parents' | 'groom_parents' | 'bride_parents') => {
+  const handleCopyShareLink = async (kind: 'friends' | 'parents' | 'groom_parents' | 'bride_parents') => {
     soundEngine.playCoin();
     const url = new URL(window.location.href);
     url.search = '';
@@ -83,7 +84,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
       url.searchParams.set('mode', 'parents');
       url.searchParams.set('side', 'bride');
     }
-    navigator.clipboard?.writeText(url.toString()).catch(() => {});
+    await copyTextToClipboard(url.toString());
     setCopiedLinkType(kind);
     setTimeout(() => setCopiedLinkType(null), 2500);
   };
@@ -161,12 +162,57 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
     onUpdateConfig(DEFAULT_WEDDING_CONFIG);
   };
 
-  const handleCopyJson = () => {
+  const handleCopyJson = async () => {
     soundEngine.playCoin();
     const synced = syncAccountHolderNames(config, draft);
-    navigator.clipboard?.writeText(JSON.stringify(synced, null, 2)).catch(() => {});
+    await copyTextToClipboard(JSON.stringify(synced, null, 2));
     setCopiedJson(true);
     setTimeout(() => setCopiedJson(false), 2500);
+  };
+
+  const handleDownloadRsvpCsv = () => {
+    soundEngine.playCoin();
+    const escapeCsv = (val: unknown) => {
+      const str = String(val ?? '').replace(/\r?\n/g, ' ');
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+    const headers = [
+      '구분',
+      '성함',
+      '연락처',
+      '참석여부',
+      '방문인원',
+      '식사여부',
+      '축하메시지',
+      '상태',
+      '작성일시',
+    ];
+    const rows = adminEntries.map((r) => [
+      r.side === 'bride' ? '신부측' : r.side === 'both' ? '공통' : '신랑측',
+      r.name,
+      r.phone || '',
+      r.attendance === 'attend' ? '참석' : r.attendance === 'unable' ? '마음전달' : '미정',
+      r.attendance === 'unable' ? 0 : r.companions || 1,
+      r.meal === 'yes' ? '식사예정' : r.meal === 'no' ? '식사안함' : '미정',
+      r.message,
+      r.isHidden ? '숨김' : '공개',
+      r.createdAtISO || r.createdAt,
+    ]);
+    const csvBody = [
+      headers.map(escapeCsv).join(','),
+      ...rows.map((row) => row.map(escapeCsv).join(',')),
+    ].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvBody], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rsvp-guestbook-${draft.groom.name}-${draft.bride.name}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleDownloadJson = () => {
@@ -818,6 +864,101 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Pet Companion Info */}
+              <div className="bg-[#faf5ec] p-3 rounded-xl border border-[#e6d5b8] space-y-2">
+                <div className="font-bold text-[#3b2f2f]">🐶 반려동물 소개</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-[#8c7a70]">반려동물 이름</label>
+                    <input
+                      type="text"
+                      value={draft.pet.name}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          pet: { ...draft.pet, name: e.target.value },
+                        })
+                      }
+                      className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#8c7a70]">반려동물 소개 한 줄</label>
+                    <input
+                      type="text"
+                      value={draft.pet.title}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          pet: { ...draft.pet, title: e.target.value },
+                        })
+                      }
+                      className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Our Seasons Story Timeline */}
+              <div className="bg-[#faf5ec] p-3 rounded-xl border border-[#e6d5b8] space-y-2.5">
+                <div className="font-bold text-[#3b2f2f]">
+                  🌸 우리가 함께 걸어온 사계절 (타임라인)
+                </div>
+                {draft.storyLog.map((st, sIdx) => (
+                  <div
+                    key={sIdx}
+                    className="p-2.5 bg-[#fffdf9] rounded-lg border border-[#e2d4c0] space-y-1.5"
+                  >
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <input
+                        type="text"
+                        value={st.chapter}
+                        placeholder="챕터 (예: 첫 번째 봄)"
+                        onChange={(e) => {
+                          const next = [...draft.storyLog];
+                          next[sIdx] = { ...next[sIdx], chapter: e.target.value };
+                          setDraft({ ...draft, storyLog: next });
+                        }}
+                        className="bg-[#faf5ec] border border-[#d4b48c] rounded px-2 py-1"
+                      />
+                      <input
+                        type="text"
+                        value={st.date}
+                        placeholder="시기 (예: 2023. 05)"
+                        onChange={(e) => {
+                          const next = [...draft.storyLog];
+                          next[sIdx] = { ...next[sIdx], date: e.target.value };
+                          setDraft({ ...draft, storyLog: next });
+                        }}
+                        className="bg-[#faf5ec] border border-[#d4b48c] rounded px-2 py-1"
+                      />
+                      <input
+                        type="text"
+                        value={st.title}
+                        placeholder="제목"
+                        onChange={(e) => {
+                          const next = [...draft.storyLog];
+                          next[sIdx] = { ...next[sIdx], title: e.target.value };
+                          setDraft({ ...draft, storyLog: next });
+                        }}
+                        className="bg-[#faf5ec] border border-[#d4b48c] rounded px-2 py-1 font-bold"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={st.desc}
+                      placeholder="이야기 설명"
+                      onChange={(e) => {
+                        const next = [...draft.storyLog];
+                        next[sIdx] = { ...next[sIdx], desc: e.target.value };
+                        setDraft({ ...draft, storyLog: next });
+                      }}
+                      className="w-full bg-[#faf5ec] border border-[#d4b48c] rounded px-2 py-1"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -855,6 +996,72 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-[#8c7a70]">연도 (Year)</label>
+                    <input
+                      type="number"
+                      value={draft.wedding.year}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          wedding: { ...draft.wedding, year: Number(e.target.value) || 2027 },
+                        })
+                      }
+                      className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#8c7a70]">월 (Month)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={draft.wedding.month}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          wedding: { ...draft.wedding, month: Number(e.target.value) || 5 },
+                        })
+                      }
+                      className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#8c7a70]">일 (Day)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={draft.wedding.day}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          wedding: { ...draft.wedding, day: Number(e.target.value) || 1 },
+                        })
+                      }
+                      className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-[#8c7a70]">
+                    카운트다운·본식 기준 시각 (ISO 8601)
+                  </label>
+                  <input
+                    type="text"
+                    value={draft.wedding.dateISO}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        wedding: { ...draft.wedding, dateISO: e.target.value },
+                      })
+                    }
+                    className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5 font-mono text-[11px]"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -1296,7 +1503,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
           {activeTab === 'guestbook' && (
             <div className="space-y-3">
               <div className="bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8] space-y-2.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
                     <div className="font-bold text-[#3b2f2f]">
                       📊 실시간 참석 의사(RSVP) · 방명록 집계 현황
@@ -1305,15 +1512,26 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                       Cloudflare D1 데이터베이스(pixel-wedding-quest-db)에 저장된 전체 하객 데이터입니다
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => loadCloudOverview()}
-                    disabled={isLoadingOverview}
-                    className="px-2.5 py-1.5 rounded-lg bg-[#fffdf9] border border-[#c59b6d] text-[#3b2f2f] text-[11px] font-bold flex items-center gap-1"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingOverview ? 'animate-spin' : ''}`} />
-                    <span>새로고침</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleDownloadRsvpCsv}
+                      disabled={adminEntries.length === 0}
+                      className="px-2.5 py-1.5 rounded-lg bg-[#355e40] hover:bg-[#2a4c33] disabled:opacity-50 text-white text-[11px] font-bold flex items-center gap-1"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>엑셀(CSV) 저장</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => loadCloudOverview()}
+                      disabled={isLoadingOverview}
+                      className="px-2.5 py-1.5 rounded-lg bg-[#fffdf9] border border-[#c59b6d] text-[#3b2f2f] text-[11px] font-bold flex items-center gap-1"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingOverview ? 'animate-spin' : ''}`} />
+                      <span>새로고침</span>
+                    </button>
+                  </div>
                 </div>
 
                 {rsvpSummary && (
@@ -1387,6 +1605,11 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                               : '미정'}{' '}
                             · 식사:{item.meal === 'yes' ? '예정' : item.meal === 'no' ? '안함' : '미정'}
                           </span>
+                          {item.phone && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#edf3ee] border border-[#b7d9c0] text-[#355e40] font-semibold">
+                              📞 {item.phone}
+                            </span>
+                          )}
                           {item.isHidden && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#3b2f2f] text-white font-bold">
                               숨김 처리됨
