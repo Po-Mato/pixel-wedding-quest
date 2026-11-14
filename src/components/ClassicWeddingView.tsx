@@ -1,5 +1,5 @@
-import React, { useState, Suspense } from 'react';
-import { Sparkles, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Sparkles, ChevronDown, ChevronUp, Image as ImageIcon, ArrowUp } from 'lucide-react';
 import {
   WeddingConfig,
   GuestbookEntry,
@@ -32,6 +32,7 @@ interface ClassicWeddingViewProps {
   config: WeddingConfig;
   guestbook: GuestbookEntry[];
   earnedTitle: string | null;
+  initialSide?: 'groom' | 'bride';
   phase?: WeddingPhase;
   isPreviewPhase?: boolean;
   onResetPhasePreview?: () => void;
@@ -41,10 +42,20 @@ interface ClassicWeddingViewProps {
   onSwitchToGardenMode: () => void;
 }
 
+const NAV_SECTION_IDS: QuestBuildingId[] = [
+  'story',
+  'ceremony',
+  'gallery',
+  'location',
+  'gift',
+  'rsvp',
+];
+
 export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   config,
   guestbook,
   earnedTitle,
+  initialSide = 'groom',
   phase = 'upcoming',
   isPreviewPhase = false,
   onResetPhasePreview,
@@ -55,8 +66,40 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
 }) => {
   const [showBonusEvent, setShowBonusEvent] = useState(false);
   const [heroStyle, setHeroStyle] = useState<'pixel' | 'photo'>('pixel');
+  const [activeSectionId, setActiveSectionId] = useState<QuestBuildingId | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      setShowScrollTop(scrollY > 420);
+
+      if (scrollY < 260) {
+        setActiveSectionId(null);
+        return;
+      }
+
+      const triggerLine = window.innerHeight * 0.32;
+      let current: QuestBuildingId | null = 'story';
+      for (const id of NAV_SECTION_IDS) {
+        const el = document.getElementById(`classic-${id}`);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= triggerLine) {
+            current = id;
+          }
+        }
+      }
+      setActiveSectionId(current);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const scrollToClassicSection = (sectionId: QuestBuildingId) => {
+    setActiveSectionId(sectionId);
     document
       .getElementById(`classic-${sectionId}`)
       ?.scrollIntoView({ behavior: 'smooth' });
@@ -189,27 +232,36 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
         </div>
       </div>
 
-      {/* Sticky Quick-Jump Navigation Bar */}
-      <div className="sticky top-1 z-30 bg-[#fffdf9]/95 backdrop-blur-sm border border-[#d4b48c] rounded-full px-3 py-2 shadow-sm flex items-center justify-between gap-1 overflow-x-auto font-sans">
-        {QUEST_BUILDINGS.filter((b) => b.id !== 'minigame').map((b) => (
-          <button
-            key={b.id}
-            onClick={() => {
-              soundEngine.playBlip();
-              document
-                .getElementById(`classic-${b.id}`)
-                ?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="px-2.5 py-1 rounded-full hover:bg-[#faf5ec] text-[#5c4d47] hover:text-[#3b2f2f] text-xs font-medium shrink-0 transition-colors"
-          >
-            {b.shortName}
-          </button>
-        ))}
-      </div>
+      {/* Sticky Quick-Jump Navigation Bar with Active Section Scroll Spy */}
+      <nav
+        aria-label="청첩장 섹션 바로가기"
+        className="sticky top-1 z-30 bg-[#fffdf9]/95 backdrop-blur-sm border border-[#d4b48c] rounded-full px-2.5 py-1.5 shadow-sm flex items-center justify-between gap-1 overflow-x-auto font-sans"
+      >
+        {QUEST_BUILDINGS.filter((b) => b.id !== 'minigame').map((b) => {
+          const isActive = activeSectionId === b.id;
+          return (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => {
+                soundEngine.playBlip();
+                scrollToClassicSection(b.id);
+              }}
+              className={`px-2.5 py-1 rounded-full text-xs shrink-0 transition-all ${
+                isActive
+                  ? 'bg-[#3b2f2f] text-[#fffdf9] font-bold shadow-2xs'
+                  : 'hover:bg-[#faf5ec] text-[#5c4d47] hover:text-[#3b2f2f] font-medium'
+              }`}
+            >
+              {b.shortName}
+            </button>
+          );
+        })}
+      </nav>
 
       {/* 1. Invitation & Couple Story */}
       <section id="classic-story">
-        <StorySection config={config} />
+        <StorySection config={config} initialSide={initialSide} />
       </section>
 
       {/* 2. Ceremony Calendar & D-Day */}
@@ -229,7 +281,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
 
       {/* 5. Blessing Gift Accounts */}
       <section id="classic-gift">
-        <GiftSection config={config} />
+        <GiftSection config={config} initialSide={initialSide} />
       </section>
 
       {/* 6. RSVP & Guestbook */}
@@ -238,6 +290,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           config={config}
           guestbook={guestbook}
           earnedTitle={earnedTitle}
+          initialSide={initialSide}
           onAddGuestbook={onAddGuestbook}
           onDeleteGuestbook={onDeleteGuestbook}
         />
@@ -288,6 +341,22 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           </div>
         )}
       </section>
+
+      {/* Floating Scroll-To-Top Button */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => {
+            soundEngine.playBlip(680);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          aria-label="맨 위로 이동"
+          className="fixed bottom-5 right-4 z-40 px-3 py-2 rounded-full bg-[#3b2f2f]/90 hover:bg-[#3b2f2f] text-[#fffdf9] border border-[#d4b48c] shadow-lg text-xs font-sans font-bold flex items-center gap-1 backdrop-blur-xs transition-all"
+        >
+          <ArrowUp className="w-3.5 h-3.5" />
+          <span>맨 위로</span>
+        </button>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, Suspense } from 'react';
-import { Eye, Grid, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { Eye, Grid, ChevronLeft, ChevronRight, Camera, Maximize2, X } from 'lucide-react';
 import { WeddingConfig, GalleryItem } from '../../data/weddingConfig';
 import { PixelHeart, PixelSceneBanner } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
@@ -24,6 +24,8 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
   const [viewMode, setViewMode] = useState<'photo' | 'pixel'>('photo');
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const [showPhotoBooth, setShowPhotoBooth] = useState<boolean>(false);
+  const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [likesMap, setLikesMap] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {};
     config.gallery.forEach((g) => {
@@ -75,6 +77,44 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
     setSelectedIdx((prev) => (prev + 1) % config.gallery.length);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      if (dx < 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLightboxOpen(false);
+      } else if (e.key === 'ArrowLeft') {
+        setSelectedIdx((prev) => (prev - 1 + config.gallery.length) % config.gallery.length);
+      } else if (e.key === 'ArrowRight') {
+        setSelectedIdx((prev) => (prev + 1) % config.gallery.length);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightboxOpen, config.gallery.length]);
+
   return (
     <div className="pixel-card p-5 sm:p-6 bg-[#fffdf9] space-y-5">
       {/* Gallery Header & View Mode Switcher */}
@@ -122,21 +162,40 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
       <div className="bg-[#faf5ec] p-3 sm:p-4 rounded-xl border border-[#e6d5b8]">
         <div className="flex items-center justify-between text-[11px] text-[#8c7a70] font-sans mb-2">
           <span className="font-semibold text-[#c59b6d]">{activeItem.seasonTag}</span>
-          <span>
-            {selectedIdx + 1} / {config.gallery.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[#9c897e]">좌우 스와이프 · 탭하여 확대</span>
+            <span className="font-semibold text-[#5c4d47]">
+              {selectedIdx + 1} / {config.gallery.length}
+            </span>
+          </div>
         </div>
 
-        <div className="relative aspect-[4/3] w-full bg-[#f3ede2] rounded-lg border border-[#d4b48c] overflow-hidden shadow-sm">
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="relative aspect-[4/3] w-full bg-[#f3ede2] rounded-lg border border-[#d4b48c] overflow-hidden shadow-sm select-none"
+        >
           {viewMode === 'pixel' || imgErrorMap[activeItem.id] ? (
-            <div className="w-full h-full relative">
+            <div
+              onClick={() => {
+                soundEngine.playSelect();
+                setLightboxOpen(true);
+              }}
+              className="w-full h-full relative cursor-zoom-in"
+            >
               <PixelSceneBanner theme={activeItem.pixelTheme} />
               <div className="absolute top-2.5 right-2.5 bg-[#fffdf9]/90 border border-[#d4b48c] px-2.5 py-0.5 rounded-full text-[10px] text-[#5c4d47] font-sans">
                 🎨 Pastel Pixel Art
               </div>
             </div>
           ) : (
-            <div className="w-full h-full relative">
+            <div
+              onClick={() => {
+                soundEngine.playSelect();
+                setLightboxOpen(true);
+              }}
+              className="w-full h-full relative cursor-zoom-in"
+            >
               <img
                 src={activeItem.imageUrl}
                 alt={activeItem.title}
@@ -153,6 +212,20 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
               )}
             </div>
           )}
+
+          {/* Fullscreen Zoom Button */}
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playSelect();
+              setLightboxOpen(true);
+            }}
+            aria-label="사진 크게 보기"
+            className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-[#3b2f2f]/75 hover:bg-[#3b2f2f] text-white text-[10px] font-sans font-semibold flex items-center gap-1 backdrop-blur-xs shadow"
+          >
+            <Maximize2 className="w-3 h-3" />
+            <span>크게 보기</span>
+          </button>
 
           {/* Left / Right Navigation */}
           <button
@@ -264,6 +337,99 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
             onUnlockTitle={onUnlockTitle}
           />
         </Suspense>
+      )}
+
+      {/* Fullscreen Lightbox Modal with Touch Swipe */}
+      {lightboxOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="웨딩 갤러리 확대 보기"
+          onClick={() => setLightboxOpen(false)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs flex flex-col items-center justify-center p-3 sm:p-6 animate-fadeIn select-none"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl flex flex-col gap-3"
+          >
+            {/* Top Bar */}
+            <div className="flex items-center justify-between text-white font-sans text-xs px-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/25 font-bold">
+                  {selectedIdx + 1} / {config.gallery.length}
+                </span>
+                <span className="text-[#f4acb7] font-semibold">
+                  {activeItem.seasonTag}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(false)}
+                className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white font-bold flex items-center gap-1"
+              >
+                <X className="w-4 h-4" />
+                <span>닫기</span>
+              </button>
+            </div>
+
+            {/* Image Container */}
+            <div className="relative w-full aspect-[4/3] sm:aspect-[16/11] bg-[#1f1917] rounded-xl overflow-hidden border border-white/20 flex items-center justify-center">
+              {viewMode === 'pixel' || imgErrorMap[activeItem.id] ? (
+                <div className="w-full h-full">
+                  <PixelSceneBanner theme={activeItem.pixelTheme} />
+                </div>
+              ) : (
+                <img
+                  src={activeItem.imageUrl}
+                  alt={activeItem.title}
+                  className="max-w-full max-h-[72vh] w-full h-full object-contain"
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={handlePrev}
+                aria-label="이전 사진"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/55 hover:bg-black/75 border border-white/30 text-white flex items-center justify-center shadow-lg"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleNext}
+                aria-label="다음 사진"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/55 hover:bg-black/75 border border-white/30 text-white flex items-center justify-center shadow-lg"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Caption & Like in Lightbox */}
+            <div className="bg-[#fffdf9] rounded-xl p-3.5 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] text-[#8c7a70] font-sans">
+                  {activeItem.subtitle}
+                </div>
+                <div className="text-sm font-bold text-[#3b2f2f]">
+                  {activeItem.title}
+                </div>
+                <div className="text-xs text-[#5c4d47] mt-0.5">
+                  {activeItem.description}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleLike(activeItem.id)}
+                className="px-3.5 py-2 rounded-full bg-[#fcf0f1] border border-[#e2a3a9] text-[#b85d67] text-xs font-sans font-bold shrink-0 flex items-center gap-1.5"
+              >
+                <PixelHeart size={14} color="#d97b84" />
+                <span>{likesMap[activeItem.id] || 0}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

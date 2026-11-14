@@ -7,10 +7,19 @@ import { fillCoupleText } from '../../utils/coupleText';
 
 interface StorySectionProps {
   config: WeddingConfig;
+  initialSide?: 'groom' | 'bride';
 }
 
-export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
+export const StorySection: React.FC<StorySectionProps> = ({
+  config,
+  initialSide = 'groom',
+}) => {
   const [showContacts, setShowContacts] = useState(false);
+
+  const orderedContactGroups =
+    initialSide === 'bride'
+      ? (['bride', 'groom'] as const)
+      : (['groom', 'bride'] as const);
 
   return (
     <div className="space-y-6">
@@ -71,75 +80,61 @@ export const StorySection: React.FC<StorySectionProps> = ({ config }) => {
 
         {showContacts && (
           <div className="mt-4 pt-4 border-t border-[#efe6d8] grid grid-cols-1 sm:grid-cols-2 gap-3 text-left font-sans animate-fadeIn">
-            {/* Groom Side */}
-            <div className="bg-[#faf5ec] p-3.5 rounded-lg border border-[#e6d5b8] space-y-2">
-              <div className="text-xs font-bold text-[#5c4d47] mb-1">
-                신랑측 연락처
-              </div>
-              {[
-                { label: `신랑 ${config.groom.fullName}`, phone: config.groom.phone },
-                { label: `아버지 ${config.groom.fatherName}`, phone: config.groom.fatherPhone },
-                { label: `어머니 ${config.groom.motherName}`, phone: config.groom.motherPhone },
-              ].map((c, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between text-xs bg-[#fffdf9] px-3 py-2 rounded border border-[#efe6d8]"
-                >
-                  <span className="text-[#3b2f2f] font-medium">{c.label}</span>
-                  <div className="flex items-center gap-1.5">
-                    <a
-                      href={`tel:${c.phone}`}
-                      className="p-1.5 rounded-full bg-[#edf3ee] text-[#4d6b53] hover:opacity-85"
-                      title="전화 걸기"
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                    </a>
-                    <a
-                      href={`sms:${c.phone}`}
-                      className="p-1.5 rounded-full bg-[#f9ebea] text-[#b85d67] hover:opacity-85"
-                      title="문자 보내기"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {orderedContactGroups.map((group) => {
+              const isGroom = group === 'groom';
+              const contacts = isGroom
+                ? [
+                    { label: `신랑 ${config.groom.fullName}`, phone: config.groom.phone },
+                    { label: `아버지 ${config.groom.fatherName}`, phone: config.groom.fatherPhone },
+                    { label: `어머니 ${config.groom.motherName}`, phone: config.groom.motherPhone },
+                  ]
+                : [
+                    { label: `신부 ${config.bride.fullName}`, phone: config.bride.phone },
+                    { label: `아버지 ${config.bride.fatherName}`, phone: config.bride.fatherPhone },
+                    { label: `어머니 ${config.bride.motherName}`, phone: config.bride.motherPhone },
+                  ];
 
-            {/* Bride Side */}
-            <div className="bg-[#faf5ec] p-3.5 rounded-lg border border-[#e6d5b8] space-y-2">
-              <div className="text-xs font-bold text-[#b85d67] mb-1">
-                신부측 연락처
-              </div>
-              {[
-                { label: `신부 ${config.bride.fullName}`, phone: config.bride.phone },
-                { label: `아버지 ${config.bride.fatherName}`, phone: config.bride.fatherPhone },
-                { label: `어머니 ${config.bride.motherName}`, phone: config.bride.motherPhone },
-              ].map((c, i) => (
+              return (
                 <div
-                  key={i}
-                  className="flex items-center justify-between text-xs bg-[#fffdf9] px-3 py-2 rounded border border-[#efe6d8]"
+                  key={group}
+                  className="bg-[#faf5ec] p-3.5 rounded-lg border border-[#e6d5b8] space-y-2"
                 >
-                  <span className="text-[#3b2f2f] font-medium">{c.label}</span>
-                  <div className="flex items-center gap-1.5">
-                    <a
-                      href={`tel:${c.phone}`}
-                      className="p-1.5 rounded-full bg-[#f9ebea] text-[#b85d67] hover:opacity-85"
-                      title="전화 걸기"
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                    </a>
-                    <a
-                      href={`sms:${c.phone}`}
-                      className="p-1.5 rounded-full bg-[#edf3ee] text-[#4d6b53] hover:opacity-85"
-                      title="문자 보내기"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                    </a>
+                  <div
+                    className={`text-xs font-bold mb-1 ${
+                      isGroom ? 'text-[#5c4d47]' : 'text-[#b85d67]'
+                    }`}
+                  >
+                    {isGroom ? '신랑측 연락처' : '신부측 연락처'}
                   </div>
+                  {contacts.map((c, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between text-xs bg-[#fffdf9] px-3 py-2 rounded border border-[#efe6d8]"
+                    >
+                      <span className="text-[#3b2f2f] font-medium">{c.label}</span>
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={`tel:${c.phone}`}
+                          className="px-2 py-1 rounded-full bg-[#edf3ee] text-[#4d6b53] hover:opacity-85 flex items-center gap-1 text-[11px] font-bold"
+                          title="전화 걸기"
+                        >
+                          <Phone className="w-3 h-3" />
+                          <span>전화</span>
+                        </a>
+                        <a
+                          href={`sms:${c.phone}`}
+                          className="px-2 py-1 rounded-full bg-[#f9ebea] text-[#b85d67] hover:opacity-85 flex items-center gap-1 text-[11px] font-bold"
+                          title="문자 보내기"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          <span>문자</span>
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
       </div>

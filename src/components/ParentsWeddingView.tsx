@@ -172,8 +172,9 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     ) {
       return;
     }
-    const textToCopy = `${acc.bank} ${acc.accountNumber}`;
-    await copyTextToClipboard(textToCopy);
+    const cleanAccountNumber =
+      acc.accountNumber.replace(/[^0-9-]/g, '').trim() || acc.accountNumber.trim();
+    await copyTextToClipboard(cleanAccountNumber);
     setCopiedKey(key);
     fireCelebrationConfetti({
       particleCount: 24,

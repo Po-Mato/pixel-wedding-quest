@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Copy, Check, Heart, Sparkles, ExternalLink, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Copy, Check, Heart, Sparkles, ExternalLink, AlertCircle, Send } from 'lucide-react';
 import { WeddingConfig, BankAccount } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
@@ -8,11 +8,20 @@ import { isSampleAccountNumber } from '../../utils/weddingPhase';
 
 interface GiftSectionProps {
   config: WeddingConfig;
+  initialSide?: 'groom' | 'bride';
 }
 
-export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
-  const [activeSide, setActiveSide] = useState<'groom' | 'bride'>('groom');
+export const GiftSection: React.FC<GiftSectionProps> = ({
+  config,
+  initialSide = 'groom',
+}) => {
+  const [activeSide, setActiveSide] = useState<'groom' | 'bride'>(initialSide);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [copiedSummary, setCopiedSummary] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveSide(initialSide);
+  }, [initialSide]);
 
   const handleCopyAccount = async (acc: BankAccount, key: string) => {
     if (
@@ -24,9 +33,12 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
       return;
     }
     soundEngine.playCoin();
-    const textToCopy = `${acc.bank} ${acc.accountNumber}`;
-    await copyTextToClipboard(textToCopy);
+    // Copy only digits and hyphens so mobile banking apps accept paste cleanly
+    const cleanAccountNumber =
+      acc.accountNumber.replace(/[^0-9-]/g, '').trim() || acc.accountNumber.trim();
+    await copyTextToClipboard(cleanAccountNumber);
     setCopiedKey(key);
+    setCopiedSummary(`${acc.bank} ${cleanAccountNumber} (예금주: ${acc.name})`);
 
     fireCelebrationConfetti({
       particleCount: 28,
@@ -36,7 +48,31 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
 
     setTimeout(() => {
       setCopiedKey((prev) => (prev === key ? null : prev));
-    }, 3000);
+    }, 3500);
+  };
+
+  const handleOpenToss = async (acc: BankAccount, key: string) => {
+    if (
+      isSampleAccountNumber(acc.accountNumber) &&
+      !window.confirm(
+        '현재 표시된 계좌번호는 청첩장 제작용 예시 번호입니다.\n실제 송금 전 예금주와 계좌번호를 꼭 확인해 주세요. 진행하시겠습니까?'
+      )
+    ) {
+      return;
+    }
+    soundEngine.playCoin();
+    const digitsOnly = acc.accountNumber.replace(/[^0-9]/g, '');
+    const cleanAccountNumber =
+      acc.accountNumber.replace(/[^0-9-]/g, '').trim() || acc.accountNumber.trim();
+    await copyTextToClipboard(cleanAccountNumber);
+    setCopiedKey(key);
+    setCopiedSummary(`${acc.bank} ${cleanAccountNumber} (예금주: ${acc.name})`);
+
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile && digitsOnly) {
+      const tossUrl = `supertoss://send?bank=${encodeURIComponent(acc.bank)}&accountNo=${digitsOnly}`;
+      window.location.href = tossUrl;
+    }
   };
 
   const accounts =
@@ -138,14 +174,14 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 flex-wrap shrink-0">
                 {acc.kakaoPayUrl && (
                   <a
                     href={acc.kakaoPayUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => soundEngine.playCoin()}
-                    className="px-3.5 py-2 rounded-lg text-xs font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-1 transition-all"
+                    className="px-3 py-2 rounded-lg text-xs font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-1 transition-all"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>카카오페이</span>
@@ -153,8 +189,19 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
                 )}
 
                 <button
+                  type="button"
+                  onClick={() => handleOpenToss(acc, key)}
+                  title="계좌번호 복사 후 토스 앱 송금 화면 열기"
+                  className="px-3 py-2 rounded-lg text-xs font-bold border bg-[#eef4ff] hover:bg-[#dfeaff] text-[#1b64da] border-[#bdd4ff] flex items-center justify-center gap-1 transition-all"
+                >
+                  <Send className="w-3 h-3" />
+                  <span>토스 송금</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleCopyAccount(acc, key)}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-all flex-1 sm:flex-initial ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-all flex-1 sm:flex-initial ${
                     isCopied
                       ? 'bg-[#6b9071] text-white border-[#587a5e]'
                       : 'bg-[#fffdf9] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#d4b48c]'
@@ -163,7 +210,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
                   {isCopied ? (
                     <>
                       <Check className="w-3.5 h-3.5" />
-                      <span>복사되었습니다</span>
+                      <span>번호 복사됨</span>
                     </>
                   ) : (
                     <>
@@ -179,9 +226,14 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
       </div>
 
       {copiedKey && (
-        <div className="bg-[#edf3ee] border border-[#a3bfa8] rounded-lg p-3 text-center text-xs font-sans font-medium text-[#3b5249] flex items-center justify-center gap-1.5 animate-fadeIn">
-          <Sparkles className="w-3.5 h-3.5 text-[#6b9071]" />
-          <span>클립보드에 계좌번호가 복사되었습니다. 따뜻한 축복에 감사드립니다.</span>
+        <div className="bg-[#edf3ee] border border-[#a3bfa8] rounded-lg p-3 text-center text-xs font-sans font-medium text-[#3b5249] flex flex-col items-center justify-center gap-1 animate-fadeIn">
+          <div className="flex items-center gap-1.5 font-bold">
+            <Sparkles className="w-3.5 h-3.5 text-[#6b9071]" />
+            <span>은행 앱에 바로 붙여넣을 수 있도록 계좌번호만 복사되었습니다.</span>
+          </div>
+          {copiedSummary && (
+            <span className="text-[11px] text-[#4d6b53]">{copiedSummary}</span>
+          )}
         </div>
       )}
     </div>

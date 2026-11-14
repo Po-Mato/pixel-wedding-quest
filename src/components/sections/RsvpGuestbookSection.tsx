@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Send, Sparkles, MessageCircleHeart, Trash2, Cloud, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Send, Sparkles, MessageCircleHeart, Trash2, Cloud, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import {
   AVATAR_CLASSES,
   AvatarClassId,
@@ -19,14 +19,23 @@ interface RsvpGuestbookSectionProps {
   config: WeddingConfig;
   guestbook: GuestbookEntry[];
   earnedTitle: string | null;
+  initialSide?: 'groom' | 'bride';
   onAddGuestbook: (entry: GuestbookEntry) => void;
   onDeleteGuestbook?: (id: string) => void;
 }
+
+const QUICK_BLESSING_CHIPS = [
+  '결혼을 진심으로 축하합니다! 늘 행복하세요 💕',
+  '두 분의 앞날에 따뜻한 봄날만 가득하길 바랍니다 🌸',
+  '예식날 기쁜 마음으로 참석하겠습니다! 축하해요 🎉',
+  '멀리서나마 두 분의 아름다운 출발을 진심으로 축복합니다 ✨',
+];
 
 export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   config,
   guestbook,
   earnedTitle,
+  initialSide = 'groom',
   onAddGuestbook,
   onDeleteGuestbook,
 }) => {
@@ -35,12 +44,18 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [privacyError, setPrivacyError] = useState(false);
   const [avatar, setAvatar] = useState<AvatarClassId>('knight');
-  const [side, setSide] = useState<'groom' | 'bride' | 'both'>('groom');
+  const [side, setSide] = useState<'groom' | 'bride' | 'both'>(initialSide);
   const [attendance, setAttendance] = useState<'attend' | 'maybe' | 'unable'>('attend');
   const [companions, setCompanions] = useState<number>(1);
   const [meal, setMeal] = useState<'yes' | 'no' | 'undecided'>('yes');
   const [message, setMessage] = useState('');
   const [submittedToast, setSubmittedToast] = useState(false);
+
+  useEffect(() => {
+    setSide(initialSide);
+  }, [initialSide]);
+
+  const myLatestEntry = guestbook.find((item) => canEditOwnGuestbookEntry(item.id));
 
   const selectedClassInfo =
     AVATAR_CLASSES.find((c) => c.id === avatar) || AVATAR_CLASSES[0];
@@ -98,6 +113,42 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           소중한 걸음 해주시는 분들을 정성껏 모실 수 있도록 참석 여부와 따뜻한 축하 메시지를 남겨주세요.
         </p>
       </div>
+
+      {/* My Registered RSVP Summary Badge (if already submitted on this device) */}
+      {myLatestEntry && (
+        <div className="bg-[#edf5ef] border border-[#a3bfa8] rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 font-sans">
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-[#3b6e4c] shrink-0 mt-0.5" />
+            <div className="text-xs text-[#2f453c]">
+              <div className="font-bold">
+                내가 등록한 참석 의사 · {myLatestEntry.name}님
+              </div>
+              <div className="text-[11px] text-[#4d6b53] mt-0.5">
+                {myLatestEntry.side === 'groom'
+                  ? '신랑측'
+                  : myLatestEntry.side === 'bride'
+                  ? '신부측'
+                  : '공통지인'}{' '}
+                ·{' '}
+                {myLatestEntry.attendance === 'attend'
+                  ? `참석 가능 (총 ${myLatestEntry.companions || 1}명 · ${
+                      myLatestEntry.meal === 'yes'
+                        ? '식사 예정'
+                        : myLatestEntry.meal === 'no'
+                        ? '식사 안함'
+                        : '식사 미정'
+                    })`
+                  : myLatestEntry.attendance === 'unable'
+                  ? '마음 전달 (불참)'
+                  : '참석 미정'}
+              </div>
+            </div>
+          </div>
+          <span className="text-[10px] text-[#4d6b53] bg-white/80 px-2.5 py-1 rounded-full border border-[#b7d9c0] self-start sm:self-center shrink-0">
+            아래 방명록에서 본인 글 삭제 후 재등록 가능
+          </span>
+        </div>
+      )}
 
       {/* Form */}
       <form
@@ -299,9 +350,36 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
-              축하 메시지 *
-            </label>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <label className="block text-[11px] font-semibold text-[#7d6e65]">
+                축하 메시지 *
+              </label>
+              <span className="text-[10px] text-[#9c897e]">
+                문구 칩을 누르면 바로 입력됩니다
+              </span>
+            </div>
+
+            {/* 1-Tap Quick Blessing Chips */}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {QUICK_BLESSING_CHIPS.map((chip, idx) => (
+                <button
+                  type="button"
+                  key={idx}
+                  onClick={() => {
+                    soundEngine.playBlip(700);
+                    setMessage(chip);
+                  }}
+                  className={`px-2.5 py-1 rounded-full text-[11px] border transition-all text-left ${
+                    message === chip
+                      ? 'bg-[#fcf0f1] border-[#d97b84] text-[#b85d67] font-bold'
+                      : 'bg-[#fffdf9] hover:bg-[#f5efe6] border-[#e2d4c0] text-[#5c4d47]'
+                  }`}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
             <textarea
               required
               rows={2}

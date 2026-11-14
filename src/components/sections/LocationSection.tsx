@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Copy, Check, Train, Bus, Car, Navigation } from 'lucide-react';
+import { MapPin, Copy, Check, Train, Bus, Car, Navigation, Phone } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
@@ -90,8 +90,9 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
           (지번 : {config.wedding.addressJibun} · Tel. {config.wedding.tel})
         </p>
 
-        <div className="mt-3.5 flex justify-center">
+        <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2">
           <button
+            type="button"
             onClick={handleCopyAddress}
             className="px-4 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-xs font-sans font-medium text-[#5c4d47] flex items-center gap-1.5 transition-colors"
           >
@@ -107,6 +108,50 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
               </>
             )}
           </button>
+
+          {config.wedding.tel && (
+            <a
+              href={`tel:${config.wedding.tel}`}
+              onClick={() => soundEngine.playBlip()}
+              className="px-3.5 py-1.5 rounded-full bg-[#fffdf9] hover:bg-[#faf5ec] border border-[#d4b48c] text-xs font-sans font-medium text-[#5c4d47] flex items-center gap-1.5 transition-colors"
+            >
+              <Phone className="w-3.5 h-3.5 text-[#d97b84]" />
+              <span>웨딩홀 전화 ({config.wedding.tel})</span>
+            </a>
+          )}
+        </div>
+
+        {/* 3-Column Quick Venue Checkpoint Badges */}
+        <div className="mt-4 grid grid-cols-3 gap-2 text-left font-sans">
+          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-2.5">
+            <div className="text-[10px] font-bold text-[#4d6b53] flex items-center gap-1">
+              <Train className="w-3 h-3 shrink-0" />
+              <span>지하철 안내</span>
+            </div>
+            <div className="text-[11px] font-bold text-[#3b2f2f] mt-1 leading-snug break-keep">
+              {config.wedding.subwayGuide[0]?.split('(')[0]?.trim() || '역삼역 3번 출구'}
+            </div>
+          </div>
+
+          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-2.5">
+            <div className="text-[10px] font-bold text-[#b85d67] flex items-center gap-1">
+              <Bus className="w-3 h-3 shrink-0" />
+              <span>셔틀버스</span>
+            </div>
+            <div className="text-[11px] font-bold text-[#3b2f2f] mt-1 leading-snug break-keep">
+              10분 간격 수시 운행
+            </div>
+          </div>
+
+          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-2.5">
+            <div className="text-[10px] font-bold text-[#8a6220] flex items-center gap-1">
+              <Car className="w-3 h-3 shrink-0" />
+              <span>주차 안내</span>
+            </div>
+            <div className="text-[11px] font-bold text-[#3b2f2f] mt-1 leading-snug break-keep">
+              하객 2시간 무료주차
+            </div>
+          </div>
         </div>
       </div>
 

@@ -434,13 +434,53 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const defaultGuestSide: 'groom' | 'bride' =
+    parentsSide === 'bride' ? 'bride' : 'groom';
+
+  const buildShareTargetUrl = (sideParam: ParentsSideFilter = parentsSide) => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('admin');
+      url.searchParams.delete('quest');
+      if (sideParam === 'groom' || sideParam === 'bride') {
+        url.searchParams.set('side', sideParam);
+      } else {
+        url.searchParams.delete('side');
+      }
+      return url.toString();
+    } catch {
+      return window.location.href;
+    }
+  };
+
+  const handleSelectShareSide = (nextSide: ParentsSideFilter) => {
+    soundEngine.playBlip();
+    setParentsSide(nextSide);
+    try {
+      const nextUrl = buildShareTargetUrl(nextSide);
+      window.history.replaceState(
+        { screenMode, activeQuest, side: nextSide },
+        '',
+        nextUrl
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   const handleShareLink = async () => {
     soundEngine.playCoin();
-    const url = window.location.href;
+    const url = buildShareTargetUrl(parentsSide);
+    const sidePrefix =
+      parentsSide === 'groom'
+        ? '[신랑측 초대장] '
+        : parentsSide === 'bride'
+        ? '[신부측 초대장] '
+        : '';
     if (navigator.share) {
       navigator
         .share({
-          title: `${config.groom.fullName} ♥ ${config.bride.fullName} 결혼합니다`,
+          title: `${sidePrefix}${config.groom.fullName} ♥ ${config.bride.fullName} 결혼합니다`,
           text: `${config.wedding.dateDisplay} ${config.wedding.timeDisplay} · ${config.wedding.venueName}`,
           url,
         })
@@ -454,7 +494,14 @@ export function App() {
 
   const handleShareKakao = async () => {
     soundEngine.playCoin();
-    const res = await shareViaKakaoTalk(config);
+    const url = buildShareTargetUrl(parentsSide);
+    const prefix =
+      parentsSide === 'groom'
+        ? '[신랑측 모바일 청첩장]'
+        : parentsSide === 'bride'
+        ? '[신부측 모바일 청첩장]'
+        : '[모바일 청첩장]';
+    const res = await shareViaKakaoTalk(config, url, prefix);
     if (res === 'copied_card') {
       setCopiedKakao(true);
       setTimeout(() => setCopiedKakao(false), 3000);
@@ -661,6 +708,7 @@ export function App() {
                 config={config}
                 guestbook={guestbook}
                 earnedTitle={earnedTitle}
+                initialSide={defaultGuestSide}
                 phase={activePhase}
                 isPreviewPhase={Boolean(phaseOverride)}
                 onResetPhasePreview={() => setPhaseOverride(null)}
@@ -744,36 +792,67 @@ export function App() {
           </div>
 
           {screenMode !== 'parents' && (
-            <div className="pt-2 border-t border-[#efe6d8] flex items-center justify-between gap-2 text-[11px] text-[#8c7a70]">
-              <span>시점별 화면 미리보기</span>
-              <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e2d4c0]">
-                {[
-                  { id: 'upcoming' as const, label: '예식 전(기본)' },
-                  { id: 'dday' as const, label: '💍 예식 당일' },
-                  { id: 'post' as const, label: '💐 예식 후 감사장' },
-                ].map((item) => {
-                  const isCurrent = activePhase === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        soundEngine.playBlip();
-                        setPhaseOverride(item.id === 'upcoming' ? null : item.id);
-                        if (screenMode === 'title') {
-                          handleStartClassicMode();
-                        }
-                      }}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                        isCurrent
-                          ? 'bg-[#3b2f2f] text-white'
-                          : 'text-[#7d6e65] hover:text-[#3b2f2f]'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  );
-                })}
+            <div className="pt-2 border-t border-[#efe6d8] space-y-2 text-[11px] text-[#8c7a70]">
+              <div className="flex items-center justify-between gap-2">
+                <span>공유 링크 맞춤 설정 (계좌·방명록 기본 탭)</span>
+                <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e2d4c0]">
+                  {[
+                    { id: 'all' as const, label: '기본' },
+                    { id: 'groom' as const, label: '신랑측 지인용' },
+                    { id: 'bride' as const, label: '신부측 지인용' },
+                  ].map((s) => {
+                    const isSelected = parentsSide === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => handleSelectShareSide(s.id)}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                          isSelected
+                            ? s.id === 'bride'
+                              ? 'bg-[#d97b84] text-white'
+                              : 'bg-[#3b2f2f] text-white'
+                            : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <span>시점별 화면 미리보기</span>
+                <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e2d4c0]">
+                  {[
+                    { id: 'upcoming' as const, label: '예식 전(기본)' },
+                    { id: 'dday' as const, label: '💍 예식 당일' },
+                    { id: 'post' as const, label: '💐 예식 후 감사장' },
+                  ].map((item) => {
+                    const isCurrent = activePhase === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          soundEngine.playBlip();
+                          setPhaseOverride(item.id === 'upcoming' ? null : item.id);
+                          if (screenMode === 'title') {
+                            handleStartClassicMode();
+                          }
+                        }}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                          isCurrent
+                            ? 'bg-[#3b2f2f] text-white'
+                            : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -817,13 +896,17 @@ export function App() {
 
             {/* Scrollable Pavilion Content */}
             <div className="p-3 sm:p-4 overflow-y-auto flex-1">
-              {activeQuest === 'story' && <StorySection config={config} />}
+              {activeQuest === 'story' && (
+                <StorySection config={config} initialSide={defaultGuestSide} />
+              )}
               {activeQuest === 'ceremony' && <CeremonySection config={config} />}
               {activeQuest === 'gallery' && (
                 <GallerySection config={config} onUnlockTitle={setEarnedTitle} />
               )}
               {activeQuest === 'location' && <LocationSection config={config} />}
-              {activeQuest === 'gift' && <GiftSection config={config} />}
+              {activeQuest === 'gift' && (
+                <GiftSection config={config} initialSide={defaultGuestSide} />
+              )}
               {activeQuest === 'minigame' && (
                 <Suspense fallback={null}>
                   <MiniGameSection
@@ -838,6 +921,7 @@ export function App() {
                   config={config}
                   guestbook={guestbook}
                   earnedTitle={earnedTitle}
+                  initialSide={defaultGuestSide}
                   onAddGuestbook={handleAddGuestbook}
                   onDeleteGuestbook={handleDeleteGuestbook}
                 />
