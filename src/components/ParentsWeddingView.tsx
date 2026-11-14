@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
 import {
   Phone,
   MessageSquare,
@@ -19,6 +18,8 @@ import {
   X,
   Trash2,
   ExternalLink,
+  ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { WeddingConfig, GuestbookEntry, BankAccount } from '../data/weddingConfig';
 import {
@@ -27,6 +28,9 @@ import {
 } from '../utils/weddingCloudSync';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { fillCoupleText } from '../utils/coupleText';
+import { fireCelebrationConfetti } from '../utils/motion';
+import { isSampleAccountNumber } from '../utils/weddingPhase';
+import { shareViaKakaoTalk } from '../utils/kakaoShare';
 
 export type ParentsSideFilter = 'all' | 'groom' | 'bride';
 type FontScaleMode = 'normal' | 'large' | 'xlarge';
@@ -58,6 +62,8 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   // Simple Senior-Friendly RSVP + Guestbook Form State
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [privacyError, setPrivacyError] = useState(false);
   const [guestSide, setGuestSide] = useState<'groom' | 'bride'>(
     initialSide === 'bride' ? 'bride' : 'groom'
   );
@@ -158,19 +164,23 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   };
 
   const handleCopyAccount = async (acc: BankAccount, key: string) => {
+    if (
+      isSampleAccountNumber(acc.accountNumber) &&
+      !window.confirm(
+        '현재 표시된 계좌번호는 청첩장 제작용 예시 번호입니다.\n실제 송금 전 예금주와 계좌번호를 꼭 확인해 주세요. 번호를 복사하시겠습니까?'
+      )
+    ) {
+      return;
+    }
     const textToCopy = `${acc.bank} ${acc.accountNumber}`;
     await copyTextToClipboard(textToCopy);
     setCopiedKey(key);
-    try {
-      confetti({
-        particleCount: 24,
-        spread: 50,
-        origin: { y: 0.78 },
-        colors: ['#c96f78', '#c59b6d', '#6b9071'],
-      });
-    } catch {
-      // ignore
-    }
+    fireCelebrationConfetti({
+      particleCount: 24,
+      spread: 50,
+      origin: { y: 0.78 },
+      colors: ['#c96f78', '#c59b6d', '#6b9071'],
+    });
     setTimeout(() => {
       setCopiedKey((prev) => (prev === key ? null : prev));
     }, 3500);
@@ -215,9 +225,29 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     }
   };
 
+  const handleShareKakaoParents = async () => {
+    const shareUrl = buildShareUrl(initialSide !== 'all' ? initialSide : undefined);
+    const prefix =
+      initialSide === 'groom'
+        ? '[신랑측 혼주 초청]'
+        : initialSide === 'bride'
+        ? '[신부측 혼주 초청]'
+        : '[혼주 초청장]';
+    const res = await shareViaKakaoTalk(config, shareUrl, prefix);
+    if (res === 'copied_card') {
+      setCopiedShare('kakao');
+      setTimeout(() => setCopiedShare(null), 3500);
+    }
+  };
+
   const handleSubmitGuestbook = (e: React.FormEvent) => {
     e.preventDefault();
     if (!guestName.trim() || !message.trim()) return;
+    if (guestPhone.trim() && !privacyAgreed) {
+      setPrivacyError(true);
+      return;
+    }
+    setPrivacyError(false);
 
     const newEntry: GuestbookEntry = {
       id: `gb-${Date.now()}`,
@@ -236,6 +266,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     onAddGuestbook(newEntry);
     setGuestName('');
     setGuestPhone('');
+    setPrivacyAgreed(false);
     setMessage('');
     setSubmittedBanner(true);
     setTimeout(() => setSubmittedBanner(false), 5000);
@@ -644,8 +675,28 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </div>
         </div>
 
-        {/* Large 1-Tap Map / Navigation Buttons */}
-        <div className="space-y-2.5">
+        {/* Interactive Map Preview & Large 1-Tap Navigation Buttons */}
+        <div className="space-y-3">
+          {hasValidCoords && (
+            <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden border-2 border-[#dfd2be] bg-[#e9f0e8]">
+              <iframe
+                title={`${config.wedding.venueName} 약도`}
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${
+                  config.wedding.lng - 0.0045
+                }%2C${config.wedding.lat - 0.0028}%2C${
+                  config.wedding.lng + 0.0045
+                }%2C${config.wedding.lat + 0.0028}&layer=mapnik&marker=${
+                  config.wedding.lat
+                }%2C${config.wedding.lng}`}
+                loading="lazy"
+                className="w-full h-full border-0"
+              />
+              <div className="pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 text-[#2d221e] border border-[#b35c66] px-3.5 py-1 rounded-full text-xs sm:text-sm font-bold shadow-sm whitespace-nowrap">
+                📍 {config.wedding.venueName} ({config.wedding.hallName})
+              </div>
+            </div>
+          )}
+
           <div className={`${textScale.sub} font-bold text-[#4a3a33] text-center`}>
             아래 버튼을 누르시면 길찾기 앱으로 바로 안내됩니다
           </div>
@@ -778,10 +829,20 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
 
         {/* Large Account Cards */}
+        {activeAccounts.some((a) => isSampleAccountNumber(a.accountNumber)) && (
+          <div className="bg-[#fff8ed] border border-[#e6c994] rounded-2xl p-4 text-sm text-[#7a5824] flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-[#c88a2e] shrink-0 mt-0.5" />
+            <span>
+              현재 표시된 계좌번호는 <strong>청첩장 제작용 예시 번호</strong>입니다. 실제 계좌번호는 예식 전 순차적으로 등록될 예정입니다.
+            </span>
+          </div>
+        )}
+
         <div className="space-y-3.5">
           {activeAccounts.map((acc, idx) => {
             const key = `${activeAccountSide}-${idx}`;
             const isCopied = copiedKey === key;
+            const isSample = isSampleAccountNumber(acc.accountNumber);
 
             return (
               <div
@@ -789,15 +850,22 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 className="bg-[#faf5ec] border-2 border-[#dfd2be] rounded-2xl p-5 space-y-3.5"
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-bold ${
-                      activeAccountSide === 'groom'
-                        ? 'bg-[#e6ebe8] text-[#2f453c]'
-                        : 'bg-[#f9ebea] text-[#9e4751]'
-                    }`}
-                  >
-                    {acc.role}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-bold ${
+                        activeAccountSide === 'groom'
+                          ? 'bg-[#e6ebe8] text-[#2f453c]'
+                          : 'bg-[#f9ebea] text-[#9e4751]'
+                      }`}
+                    >
+                      {acc.role}
+                    </span>
+                    {isSample && (
+                      <span className="px-2 py-0.5 rounded bg-[#fff3dc] border border-[#e6c994] text-xs font-bold text-[#8a6220]">
+                        예시 번호
+                      </span>
+                    )}
+                  </div>
                   <span className={`${textScale.nameLarge} font-bold text-[#2d221e]`}>
                     예금주 : {acc.name}
                   </span>
@@ -922,12 +990,46 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               <input
                 type="tel"
                 value={guestPhone}
-                onChange={(e) => setGuestPhone(e.target.value)}
+                onChange={(e) => {
+                  setGuestPhone(e.target.value);
+                  if (!e.target.value.trim()) setPrivacyError(false);
+                }}
                 placeholder="예: 010-1234-5678 (비공개)"
                 className={`w-full bg-[#fffdf9] border-2 border-[#c9b69c] focus:border-[#b35c66] outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e]`}
               />
             </div>
           </div>
+
+          {guestPhone.trim().length > 0 && (
+            <div
+              className={`p-4 rounded-xl border-2 space-y-1.5 ${
+                privacyError
+                  ? 'bg-[#fff2f3] border-[#b35c66] text-[#8f3540]'
+                  : 'bg-[#fffdf9] border-[#c9b69c] text-[#2d221e]'
+              }`}
+            >
+              <label className="flex items-start gap-2.5 cursor-pointer font-bold text-sm sm:text-base">
+                <input
+                  type="checkbox"
+                  checked={privacyAgreed}
+                  onChange={(e) => {
+                    setPrivacyAgreed(e.target.checked);
+                    if (e.target.checked) setPrivacyError(false);
+                  }}
+                  className="mt-1 w-4 h-4 accent-[#b35c66]"
+                />
+                <span className="flex-1">
+                  <ShieldCheck className="w-4 h-4 inline-block mr-1 text-[#355e40] align-text-bottom" />
+                  [필수] 예식 참석 확인을 위한 연락처 수집·이용에 동의합니다 (예식 종료 후 30일 이내 파기)
+                </span>
+              </label>
+              {privacyError && (
+                <div className="text-sm font-bold text-[#b35c66] pl-6">
+                  ⚠️ 연락처를 함께 전달하시려면 위 동의란에 체크해 주세요.
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
@@ -1096,10 +1198,29 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       </section>
 
       {/* 9. Share Parents Invitation Link Box */}
-      <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-4 font-sans text-center">
+      <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-3.5 font-sans text-center">
         <div className={`${textScale.body} font-bold text-[#2d221e]`}>
           지인분들께 청첩장 전달하기
         </div>
+
+        <button
+          type="button"
+          onClick={handleShareKakaoParents}
+          className={`w-full ${textScale.btn} rounded-2xl bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border border-[#dfca00] font-bold flex items-center justify-center gap-2 shadow-xs`}
+        >
+          {copiedShare === 'kakao' ? (
+            <>
+              <Check className="w-5 h-5 text-[#2d5a36]" />
+              <span>카카오톡에 붙여넣을 초대 문구가 복사되었습니다</span>
+            </>
+          ) : (
+            <>
+              <MessageSquare className="w-5 h-5" />
+              <span>카카오톡으로 청첩장 보내기</span>
+            </>
+          )}
+        </button>
+
         <button
           type="button"
           onClick={() => handleShareParentsPage(undefined, 'main')}

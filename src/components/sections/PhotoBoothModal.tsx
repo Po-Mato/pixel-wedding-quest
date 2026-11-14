@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import confetti from 'canvas-confetti';
 import { Camera, Download, Sparkles, X, Check } from 'lucide-react';
+import { fireCelebrationConfetti } from '../../utils/motion';
 import {
   AVATAR_CLASSES,
   AvatarClassId,
@@ -382,16 +382,12 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
       onUnlockTitle('📸 오늘의 베스트 포토그래퍼');
     }
 
-    try {
-      confetti({
-        particleCount: 45,
-        spread: 65,
-        origin: { y: 0.6 },
-        colors: ['#e899a0', '#d4af7a', '#fffdf9'],
-      });
-    } catch {
-      // ignore
-    }
+    fireCelebrationConfetti({
+      particleCount: 45,
+      spread: 65,
+      origin: { y: 0.6 },
+      colors: ['#e899a0', '#d4af7a', '#fffdf9'],
+    });
   };
 
   const handleDownloadPolaroid = () => {

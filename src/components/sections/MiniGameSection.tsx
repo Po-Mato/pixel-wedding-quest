@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import confetti from 'canvas-confetti';
 import { Award, Play, RotateCcw, Sparkles, HelpCircle } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { fillCoupleText } from '../../utils/coupleText';
+import { fireCelebrationConfetti } from '../../utils/motion';
 
 interface MiniGameSectionProps {
   config: WeddingConfig;
@@ -67,16 +67,11 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
           }
           onUnlockTitle(badge);
 
-          try {
-            confetti({
-              particleCount: 40,
-              spread: 60,
-              origin: { y: 0.65 },
-              colors: ['#e899a0', '#d4af7a', '#84a98c'],
-            });
-          } catch {
-            // ignore
-          }
+          fireCelebrationConfetti({
+            particleCount: 40,
+            spread: 60,
+            origin: { y: 0.65 },
+          });
           return 0;
         }
         return prev - 1;

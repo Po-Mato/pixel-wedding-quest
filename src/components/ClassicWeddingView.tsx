@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Sparkles, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
-import { WeddingConfig, GuestbookEntry, QUEST_BUILDINGS } from '../data/weddingConfig';
+import {
+  WeddingConfig,
+  GuestbookEntry,
+  QUEST_BUILDINGS,
+  QuestBuildingId,
+} from '../data/weddingConfig';
 import { PIXEL_ASSETS } from './PixelSprites';
 import { StorySection } from './sections/StorySection';
 import { CeremonySection } from './sections/CeremonySection';
@@ -8,13 +13,21 @@ import { GallerySection } from './sections/GallerySection';
 import { LocationSection } from './sections/LocationSection';
 import { GiftSection } from './sections/GiftSection';
 import { RsvpGuestbookSection } from './sections/RsvpGuestbookSection';
-import { MiniGameSection } from './sections/MiniGameSection';
+import { WeddingPhaseBanner } from './WeddingPhaseBanner';
+import { WeddingPhase } from '../utils/weddingPhase';
 import { soundEngine } from '../utils/soundEngine';
+
+const MiniGameSection = React.lazy(() =>
+  import('./sections/MiniGameSection').then((m) => ({ default: m.MiniGameSection }))
+);
 
 interface ClassicWeddingViewProps {
   config: WeddingConfig;
   guestbook: GuestbookEntry[];
   earnedTitle: string | null;
+  phase?: WeddingPhase;
+  isPreviewPhase?: boolean;
+  onResetPhasePreview?: () => void;
   onUnlockTitle: (title: string) => void;
   onAddGuestbook: (entry: GuestbookEntry) => void;
   onDeleteGuestbook?: (id: string) => void;
@@ -25,6 +38,9 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   config,
   guestbook,
   earnedTitle,
+  phase = 'upcoming',
+  isPreviewPhase = false,
+  onResetPhasePreview,
   onUnlockTitle,
   onAddGuestbook,
   onDeleteGuestbook,
@@ -33,8 +49,24 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   const [showBonusEvent, setShowBonusEvent] = useState(false);
   const [heroStyle, setHeroStyle] = useState<'pixel' | 'photo'>('pixel');
 
+  const scrollToClassicSection = (sectionId: QuestBuildingId) => {
+    document
+      .getElementById(`classic-${sectionId}`)
+      ?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="space-y-5">
+      {phase !== 'upcoming' && (
+        <WeddingPhaseBanner
+          config={config}
+          phase={phase}
+          isPreviewOverride={isPreviewPhase}
+          onResetPreview={onResetPhasePreview}
+          onJumpToSection={scrollToClassicSection}
+        />
+      )}
+
       {/* Classic Editorial Hero Cover Card */}
       <div className="pixel-card bg-[#fffdf9] overflow-hidden text-center">
         <div className="pt-8 pb-4 px-6">
@@ -226,11 +258,13 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
 
         {showBonusEvent && (
           <div className="animate-fadeIn">
-            <MiniGameSection
-              config={config}
-              earnedTitle={earnedTitle}
-              onUnlockTitle={onUnlockTitle}
-            />
+            <Suspense fallback={null}>
+              <MiniGameSection
+                config={config}
+                earnedTitle={earnedTitle}
+                onUnlockTitle={onUnlockTitle}
+              />
+            </Suspense>
           </div>
         )}
       </section>

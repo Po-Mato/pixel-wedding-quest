@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import confetti from 'canvas-confetti';
+import React, { useEffect, useRef, useState, useCallback, Suspense } from 'react';
 import { Camera, Compass, BookOpen, Sparkles, MessageCircle, Users, User, X } from 'lucide-react';
 import {
   GARDEN_MAPS,
@@ -30,6 +29,7 @@ import {
 import { PIXEL_ASSETS, GUEST_SPRITES } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
 import { fillCoupleText } from '../utils/coupleText';
+import { fireCelebrationConfetti, prefersReducedMotion } from '../utils/motion';
 import {
   incrementReactionCounter,
   getConfiguredApiBase,
@@ -41,13 +41,16 @@ import {
   findWalkablePath,
   getNextStepTile,
 } from '../utils/worldNavigation';
-import { PhotoBoothModal } from './sections/PhotoBoothModal';
 import { InGameVirtualJoystick } from './InGameVirtualJoystick';
 import {
   WorldMapSheetModal,
   AvatarPickerModal,
   SecretArchiveModal,
 } from './WorldModals';
+
+const PhotoBoothModal = React.lazy(() =>
+  import('./sections/PhotoBoothModal').then((m) => ({ default: m.PhotoBoothModal }))
+);
 
 interface VillageCanvasProps {
   config: WeddingConfig;
@@ -485,16 +488,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               count >= 5 ? '👑 로얄 가든 아키비스트' : '🔍 웨딩 비밀 탐험가'
             );
           }
-          try {
-            confetti({
-              particleCount: 40,
-              spread: 65,
-              origin: { y: 0.6 },
-              colors: ['#e899a0', '#d4af7a', '#fffdf9'],
-            });
-          } catch {
-            // ignore
-          }
+          fireCelebrationConfetti({
+            particleCount: 40,
+            spread: 65,
+            origin: { y: 0.6 },
+            colors: ['#e899a0', '#d4af7a', '#fffdf9'],
+          });
         }
         return next;
       });
@@ -597,16 +596,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           if (onUnlockTitle && landmark.specialAction === 'cake_toast') {
             onUnlockTitle('🥂 별빛 피로연의 주인공');
           }
-          try {
-            confetti({
-              particleCount: 45,
-              spread: 68,
-              origin: { y: 0.58 },
-              colors: ['#e899a0', '#d4af7a', '#fffdf9'],
-            });
-          } catch {
-            // ignore
-          }
+          fireCelebrationConfetti({
+            particleCount: 45,
+            spread: 68,
+            origin: { y: 0.58 },
+            colors: ['#e899a0', '#d4af7a', '#fffdf9'],
+          });
         } else {
           soundEngine.playCoin();
         }
@@ -883,15 +878,18 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     const TILE_PX_W = ((92 - 8) / (TILE_GRID_SIZE - 1) / 100) * W;
     const TILE_PX_H = ((93 - 14) / (TILE_GRID_SIZE - 1) / 100) * H;
 
-    const particles: Particle[] = Array.from({ length: 34 }, (_, i) => ({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      vx: -0.28 - Math.random() * 0.35,
-      vy: 0.4 + Math.random() * 0.55,
-      size: Math.random() > 0.45 ? 5 : 4,
-      color: Math.random() > 0.35 ? '#ffd6e0' : '#fffdf9',
-      phase: i * 0.7,
-    }));
+    const reducedMotion = prefersReducedMotion();
+    const particles: Particle[] = reducedMotion
+      ? []
+      : Array.from({ length: 34 }, (_, i) => ({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          vx: -0.28 - Math.random() * 0.35,
+          vy: 0.4 + Math.random() * 0.55,
+          size: Math.random() > 0.45 ? 5 : 4,
+          color: Math.random() > 0.35 ? '#ffd6e0' : '#fffdf9',
+          phase: i * 0.7,
+        }));
 
     let animId: number;
     let tick = 0;
@@ -2706,11 +2704,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       )}
 
       {showPhotoBooth && (
-        <PhotoBoothModal
-          config={config}
-          onClose={() => setShowPhotoBooth(false)}
-          onUnlockTitle={onUnlockTitle}
-        />
+        <Suspense fallback={null}>
+          <PhotoBoothModal
+            config={config}
+            onClose={() => setShowPhotoBooth(false)}
+            onUnlockTitle={onUnlockTitle}
+          />
+        </Suspense>
       )}
     </div>
   );

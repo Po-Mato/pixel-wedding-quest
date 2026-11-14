@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   Volume2,
   VolumeX,
@@ -12,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Award,
+  MessageCircle,
 } from 'lucide-react';
 import {
   DEFAULT_WEDDING_CONFIG,
@@ -22,25 +22,51 @@ import {
 } from './data/weddingConfig';
 import { soundEngine } from './utils/soundEngine';
 import { copyTextToClipboard } from './utils/clipboard';
+import { fireCelebrationConfetti } from './utils/motion';
+import { shareViaKakaoTalk } from './utils/kakaoShare';
+import { detectWeddingPhase, WeddingPhase } from './utils/weddingPhase';
 import { PIXEL_ASSETS } from './components/PixelSprites';
 import { TitleScreen } from './components/TitleScreen';
-import { VillageCanvas } from './components/VillageCanvas';
-import { ClassicWeddingView } from './components/ClassicWeddingView';
-import { ParentsWeddingView, ParentsSideFilter } from './components/ParentsWeddingView';
+import { WeddingPhaseBanner } from './components/WeddingPhaseBanner';
+import type { ParentsSideFilter } from './components/ParentsWeddingView';
 import { StorySection } from './components/sections/StorySection';
 import { CeremonySection } from './components/sections/CeremonySection';
 import { GallerySection } from './components/sections/GallerySection';
 import { LocationSection } from './components/sections/LocationSection';
 import { GiftSection } from './components/sections/GiftSection';
 import { RsvpGuestbookSection } from './components/sections/RsvpGuestbookSection';
-import { MiniGameSection } from './components/sections/MiniGameSection';
-import { CustomizerModal } from './components/CustomizerModal';
-import { CertificateModal } from './components/CertificateModal';
 import {
   fetchSyncedGuestbook,
   publishGuestbookEntry,
   fetchCloudWeddingConfig,
 } from './utils/weddingCloudSync';
+
+const VillageCanvas = React.lazy(() =>
+  import('./components/VillageCanvas').then((m) => ({ default: m.VillageCanvas }))
+);
+const ClassicWeddingView = React.lazy(() =>
+  import('./components/ClassicWeddingView').then((m) => ({
+    default: m.ClassicWeddingView,
+  }))
+);
+const ParentsWeddingView = React.lazy(() =>
+  import('./components/ParentsWeddingView').then((m) => ({
+    default: m.ParentsWeddingView,
+  }))
+);
+const MiniGameSection = React.lazy(() =>
+  import('./components/sections/MiniGameSection').then((m) => ({
+    default: m.MiniGameSection,
+  }))
+);
+const CustomizerModal = React.lazy(() =>
+  import('./components/CustomizerModal').then((m) => ({ default: m.CustomizerModal }))
+);
+const CertificateModal = React.lazy(() =>
+  import('./components/CertificateModal').then((m) => ({
+    default: m.CertificateModal,
+  }))
+);
 
 type AppScreenMode = 'title' | 'world' | 'classic' | 'parents';
 
@@ -132,6 +158,18 @@ export function App() {
   });
   const [showCertificate, setShowCertificate] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedKakao, setCopiedKakao] = useState(false);
+  const [phaseOverride, setPhaseOverride] = useState<WeddingPhase | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const p = params.get('phase');
+      if (p === 'dday' || p === 'post' || p === 'upcoming') return p;
+    } catch {
+      // ignore
+    }
+    return null;
+  });
+  const activePhase: WeddingPhase = phaseOverride ?? detectWeddingPhase(config);
   const secretTapRef = React.useRef<{ count: number; lastTap: number }>({
     count: 0,
     lastTap: 0,
@@ -189,19 +227,25 @@ export function App() {
         `${config.groom.fullName} ♥ ${config.bride.fullName} 결혼합니다 | ${dateDot}`
       );
     }
+    const descText = `${config.wedding.dateDisplay} ${config.wedding.timeDisplay} · ${config.wedding.venueName} ${config.wedding.hallName} | 소중한 분들을 초대합니다`;
     const ogDesc = document.querySelector('meta[property="og:description"]');
     if (ogDesc) {
-      ogDesc.setAttribute(
-        'content',
-        `${config.wedding.dateDisplay} ${config.wedding.timeDisplay} · ${config.wedding.venueName} ${config.wedding.hallName} | 소중한 분들을 초대합니다`
-      );
+      ogDesc.setAttribute('content', descText);
+    }
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', descText);
+    }
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) {
+      ogUrl.setAttribute('content', window.location.href.split('#')[0]);
     }
     const ogImg = document.querySelector('meta[property="og:image"]');
     if (ogImg) {
       try {
         ogImg.setAttribute(
           'content',
-          new URL(PIXEL_ASSETS.weddingCover, window.location.href).href
+          new URL(PIXEL_ASSETS.weddingOgThumb, window.location.href).href
         );
       } catch {
         // ignore
@@ -229,24 +273,55 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const buildNavigationUrl = (nextMode: AppScreenMode) => {
+    const url = new URL(window.location.href);
+    if (nextMode === 'title') {
+      url.searchParams.delete('mode');
+    } else {
+      url.searchParams.set('mode', nextMode);
+    }
+    return url.toString();
+  };
+
   const pushNavigationState = (
     nextMode: AppScreenMode,
     nextQuest: QuestBuildingId | null = null
   ) => {
     try {
-      const url = new URL(window.location.href);
-      if (nextMode === 'title') {
-        url.searchParams.delete('mode');
-      } else {
-        url.searchParams.set('mode', nextMode);
-      }
       window.history.pushState(
         { screenMode: nextMode, activeQuest: nextQuest },
         '',
-        url.toString()
+        buildNavigationUrl(nextMode)
       );
     } catch {
       // ignore
+    }
+  };
+
+  const replaceNavigationState = (
+    nextMode: AppScreenMode,
+    nextQuest: QuestBuildingId | null = null
+  ) => {
+    try {
+      window.history.replaceState(
+        { screenMode: nextMode, activeQuest: nextQuest },
+        '',
+        buildNavigationUrl(nextMode)
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const closeActiveQuest = () => {
+    const currentState = window.history.state as {
+      activeQuest?: QuestBuildingId | null;
+    } | null;
+    if (currentState?.activeQuest) {
+      window.history.back();
+    } else {
+      setActiveQuest(null);
+      replaceNavigationState(screenMode, null);
     }
   };
 
@@ -314,25 +389,25 @@ export function App() {
 
   const stampCount = Object.values(visitedQuests).filter(Boolean).length;
 
-  const handleOpenQuest = (id: QuestBuildingId) => {
+  const handleOpenQuest = (id: QuestBuildingId, replaceHistory = false) => {
+    const wasAlreadyOpen = Boolean(activeQuest);
     setActiveQuest(id);
-    pushNavigationState(screenMode, id);
+    if (replaceHistory || wasAlreadyOpen) {
+      replaceNavigationState(screenMode, id);
+    } else {
+      pushNavigationState(screenMode, id);
+    }
     setVisitedQuests((prev) => {
       const next = { ...prev, [id]: true };
       const prevCount = Object.values(prev).filter(Boolean).length;
       const nextCount = Object.values(next).filter(Boolean).length;
       if (prevCount < 7 && nextCount === 7) {
         soundEngine.playFanfare();
-        try {
-          confetti({
-            particleCount: 55,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#e899a0', '#d4af7a', '#84a98c'],
-          });
-        } catch {
-          // ignore
-        }
+        fireCelebrationConfetti({
+          particleCount: 55,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
       }
       return next;
     });
@@ -380,6 +455,15 @@ export function App() {
     }
   };
 
+  const handleShareKakao = async () => {
+    soundEngine.playCoin();
+    const res = await shareViaKakaoTalk(config);
+    if (res === 'copied_card') {
+      setCopiedKakao(true);
+      setTimeout(() => setCopiedKakao(false), 3000);
+    }
+  };
+
   const currentBuildingMeta = activeQuest
     ? QUEST_BUILDINGS.find((b) => b.id === activeQuest)
     : null;
@@ -389,7 +473,7 @@ export function App() {
     const idx = QUEST_BUILDINGS.findIndex((b) => b.id === activeQuest);
     const nextIdx = (idx + dir + QUEST_BUILDINGS.length) % QUEST_BUILDINGS.length;
     soundEngine.playSelect();
-    handleOpenQuest(QUEST_BUILDINGS[nextIdx].id);
+    handleOpenQuest(QUEST_BUILDINGS[nextIdx].id, true);
   };
 
   const handleStartParentsMode = (side: ParentsSideFilter = parentsSide) => {
@@ -534,95 +618,180 @@ export function App() {
         )}
 
         {/* MAIN VIEWPORT */}
-        <main className="w-full">
-          {screenMode === 'title' && (
-            <TitleScreen
+        <main className="w-full space-y-2.5">
+          {screenMode === 'world' && activePhase !== 'upcoming' && (
+            <WeddingPhaseBanner
               config={config}
-              onStartWorldMode={handleStartWorldMode}
-              onStartClassicMode={handleStartClassicMode}
-              onStartParentsMode={() => handleStartParentsMode('all')}
+              phase={activePhase}
+              isPreviewOverride={Boolean(phaseOverride)}
+              onResetPreview={() => setPhaseOverride(null)}
+              onJumpToSection={(id) => handleOpenQuest(id)}
             />
           )}
 
-          {screenMode === 'world' && (
-            <VillageCanvas
-              config={config}
-              visitedQuests={visitedQuests}
-              guestbook={guestbook}
-              onOpenQuest={handleOpenQuest}
-              onUnlockTitle={setEarnedTitle}
-            />
-          )}
+          <Suspense
+            fallback={
+              <div className="pixel-card p-8 bg-[#fffdf9] text-center text-xs font-sans text-[#8c7a70]">
+                청첩장 화면을 불러오는 중입니다...
+              </div>
+            }
+          >
+            {screenMode === 'title' && (
+              <TitleScreen
+                config={config}
+                onStartWorldMode={handleStartWorldMode}
+                onStartClassicMode={handleStartClassicMode}
+                onStartParentsMode={() => handleStartParentsMode('all')}
+              />
+            )}
 
-          {screenMode === 'classic' && (
-            <ClassicWeddingView
-              config={config}
-              guestbook={guestbook}
-              earnedTitle={earnedTitle}
-              onUnlockTitle={setEarnedTitle}
-              onAddGuestbook={handleAddGuestbook}
-              onDeleteGuestbook={handleDeleteGuestbook}
-              onSwitchToGardenMode={() => setScreenMode('world')}
-            />
-          )}
+            {screenMode === 'world' && (
+              <VillageCanvas
+                config={config}
+                visitedQuests={visitedQuests}
+                guestbook={guestbook}
+                onOpenQuest={handleOpenQuest}
+                onUnlockTitle={setEarnedTitle}
+              />
+            )}
 
-          {screenMode === 'parents' && (
-            <ParentsWeddingView
-              config={config}
-              guestbook={guestbook}
-              initialSide={parentsSide}
-              onAddGuestbook={handleAddGuestbook}
-              onDeleteGuestbook={handleDeleteGuestbook}
-            />
-          )}
+            {screenMode === 'classic' && (
+              <ClassicWeddingView
+                config={config}
+                guestbook={guestbook}
+                earnedTitle={earnedTitle}
+                phase={activePhase}
+                isPreviewPhase={Boolean(phaseOverride)}
+                onResetPhasePreview={() => setPhaseOverride(null)}
+                onUnlockTitle={setEarnedTitle}
+                onAddGuestbook={handleAddGuestbook}
+                onDeleteGuestbook={handleDeleteGuestbook}
+                onSwitchToGardenMode={() => setScreenMode('world')}
+              />
+            )}
+
+            {screenMode === 'parents' && (
+              <ParentsWeddingView
+                config={config}
+                guestbook={guestbook}
+                initialSide={parentsSide}
+                onAddGuestbook={handleAddGuestbook}
+                onDeleteGuestbook={handleDeleteGuestbook}
+              />
+            )}
+          </Suspense>
         </main>
 
-        {/* Footer Share & Couple Mark (5-tap secret trigger for Admin Console) */}
-        <footer className="pixel-card p-3.5 bg-[#fffdf9] flex items-center justify-between gap-2 text-xs font-sans">
-          <div
-            onClick={handleSecretFooterTap}
-            className="text-xs text-[#6e5d53] select-none cursor-default"
-          >
-            <strong className="text-[#3b2f2f]">{config.groom.fullName}</strong>{' '}
-            <span className="text-[#d97b84]">♥</span>{' '}
-            <strong className="text-[#3b2f2f]">{config.bride.fullName}</strong> ·{' '}
-            {config.wedding.year}. {String(config.wedding.month).padStart(2, '0')}.{' '}
-            {String(config.wedding.day).padStart(2, '0')}
+        {/* Footer Share, Phase Preview Switcher & Couple Mark (5-tap secret trigger for Admin Console) */}
+        <footer className="pixel-card p-3.5 bg-[#fffdf9] space-y-2.5 text-xs font-sans">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div
+              onClick={handleSecretFooterTap}
+              className="text-xs text-[#6e5d53] select-none cursor-default"
+            >
+              <strong className="text-[#3b2f2f]">{config.groom.fullName}</strong>{' '}
+              <span className="text-[#d97b84]">♥</span>{' '}
+              <strong className="text-[#3b2f2f]">{config.bride.fullName}</strong> ·{' '}
+              {config.wedding.year}. {String(config.wedding.month).padStart(2, '0')}.{' '}
+              {String(config.wedding.day).padStart(2, '0')}
+            </div>
+
+            {screenMode === 'parents' ? (
+              <button
+                onClick={() => {
+                  setScreenMode('title');
+                  pushNavigationState('title', null);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-3 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold shrink-0"
+              >
+                신랑·신부 지인용 보기
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={handleShareKakao}
+                  className="px-3 py-1.5 rounded-full bg-[#fee500] hover:bg-[#f5dc00] border border-[#dfca00] text-[#191919] text-xs font-bold flex items-center gap-1 transition-colors shrink-0"
+                >
+                  {copiedKakao ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-[#2d5a36]" /> 카톡 문구 복사됨
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle className="w-3.5 h-3.5" /> 카톡 공유
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleShareLink}
+                  className="px-3 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold flex items-center gap-1 transition-colors shrink-0"
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-[#6b9071]" /> 링크 복사됨
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-3.5 h-3.5 text-[#c59b6d]" /> 링크 공유
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
-          {screenMode === 'parents' ? (
-            <button
-              onClick={() => {
-                setScreenMode('title');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="px-3 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold shrink-0"
-            >
-              신랑·신부 지인용 보기
-            </button>
-          ) : (
-            <button
-              onClick={handleShareLink}
-              className="px-3.5 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
-            >
-              {copiedLink ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-[#6b9071]" /> 링크 복사됨
-                </>
-              ) : (
-                <>
-                  <Share2 className="w-3.5 h-3.5 text-[#c59b6d]" /> 청첩장 공유하기
-                </>
-              )}
-            </button>
+          {screenMode !== 'parents' && (
+            <div className="pt-2 border-t border-[#efe6d8] flex items-center justify-between gap-2 text-[11px] text-[#8c7a70]">
+              <span>시점별 화면 미리보기</span>
+              <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e2d4c0]">
+                {[
+                  { id: 'upcoming' as const, label: '예식 전(기본)' },
+                  { id: 'dday' as const, label: '💍 예식 당일' },
+                  { id: 'post' as const, label: '💐 예식 후 감사장' },
+                ].map((item) => {
+                  const isCurrent = activePhase === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        soundEngine.playBlip();
+                        setPhaseOverride(item.id === 'upcoming' ? null : item.id);
+                        if (screenMode === 'title') {
+                          handleStartClassicMode();
+                        }
+                      }}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                        isCurrent
+                          ? 'bg-[#3b2f2f] text-white'
+                          : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </footer>
       </div>
 
       {/* Pavilion Modal (when exploring Pixel Garden Mode) */}
       {screenMode === 'world' && activeQuest && currentBuildingMeta && (
-        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
-          <div className="pixel-card w-full max-w-[480px] max-h-[90vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn">
+        <div
+          onClick={() => {
+            soundEngine.playBlip(440);
+            closeActiveQuest();
+          }}
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="pixel-card w-full max-w-[480px] max-h-[90vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn"
+          >
             {/* Modal Top Header */}
             <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between gap-2 shrink-0">
               <div className="min-w-0">
@@ -637,7 +806,7 @@ export function App() {
               <button
                 onClick={() => {
                   soundEngine.playBlip(440);
-                  setActiveQuest(null);
+                  closeActiveQuest();
                 }}
                 className="px-3 py-1 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-sans font-bold flex items-center gap-1 shrink-0"
               >
@@ -655,11 +824,13 @@ export function App() {
               {activeQuest === 'location' && <LocationSection config={config} />}
               {activeQuest === 'gift' && <GiftSection config={config} />}
               {activeQuest === 'minigame' && (
-                <MiniGameSection
-                  config={config}
-                  earnedTitle={earnedTitle}
-                  onUnlockTitle={setEarnedTitle}
-                />
+                <Suspense fallback={null}>
+                  <MiniGameSection
+                    config={config}
+                    earnedTitle={earnedTitle}
+                    onUnlockTitle={setEarnedTitle}
+                  />
+                </Suspense>
               )}
               {activeQuest === 'rsvp' && (
                 <RsvpGuestbookSection
@@ -684,7 +855,7 @@ export function App() {
               <button
                 onClick={() => {
                   soundEngine.playBlip(520);
-                  setActiveQuest(null);
+                  closeActiveQuest();
                 }}
                 className="px-4 py-1.5 rounded-full bg-[#d97b84] text-white text-xs font-bold shadow-xs"
               >
@@ -703,20 +874,24 @@ export function App() {
       )}
 
       {showCustomizer && (
-        <CustomizerModal
-          config={config}
-          onUpdateConfig={setConfig}
-          onClose={() => setShowCustomizer(false)}
-        />
+        <Suspense fallback={null}>
+          <CustomizerModal
+            config={config}
+            onUpdateConfig={setConfig}
+            onClose={() => setShowCustomizer(false)}
+          />
+        </Suspense>
       )}
 
       {showCertificate && (
-        <CertificateModal
-          config={config}
-          earnedTitle={earnedTitle}
-          stampCount={stampCount}
-          onClose={() => setShowCertificate(false)}
-        />
+        <Suspense fallback={null}>
+          <CertificateModal
+            config={config}
+            earnedTitle={earnedTitle}
+            stampCount={stampCount}
+            onClose={() => setShowCertificate(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

@@ -10,6 +10,7 @@ interface LocationSectionProps {
 
 export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
   const [copied, setCopied] = useState(false);
+  const [mapMode, setMapMode] = useState<'real' | 'pixel'>('real');
 
   const handleCopyAddress = async () => {
     soundEngine.playCoin();
@@ -109,54 +110,115 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
         </div>
       </div>
 
-      {/* Illustrated Pastel Pixel Map */}
-      <div className="bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8]">
-        <div className="relative w-full aspect-[16/9] bg-[#e9f0e8] rounded-lg border border-[#d4b48c] overflow-hidden">
-          <svg
-            viewBox="0 0 160 90"
-            shapeRendering="crispEdges"
-            className="w-full h-full pixelated"
-          >
-            {/* Soft Sage Park Background */}
-            <rect x="0" y="0" width="160" height="90" fill="#dce7dc" />
-            <rect x="12" y="10" width="42" height="28" fill="#cde0cd" />
-            <rect x="104" y="54" width="44" height="24" fill="#cde0cd" />
+      {/* Interactive Real Map & Illustrated Pixel Map */}
+      <div className="bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8] space-y-2.5">
+        <div className="flex items-center justify-between gap-2 font-sans">
+          <span className="text-xs font-bold text-[#3b2f2f] flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5 text-[#d97b84]" />
+            <span>웨딩홀 위치 약도</span>
+          </span>
+          {hasValidCoords && (
+            <div className="inline-flex rounded-full bg-[#fffdf9] p-0.5 border border-[#e2d4c0]">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playBlip();
+                  setMapMode('real');
+                }}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+                  mapMode === 'real'
+                    ? 'bg-[#3b2f2f] text-white'
+                    : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                }`}
+              >
+                🗺️ 실제 지도
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playBlip();
+                  setMapMode('pixel');
+                }}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+                  mapMode === 'pixel'
+                    ? 'bg-[#d97b84] text-white'
+                    : 'text-[#7d6e65] hover:text-[#3b2f2f]'
+                }`}
+              >
+                🎨 픽셀 약도
+              </button>
+            </div>
+          )}
+        </div>
 
-            {/* Warm Stone Roads */}
-            <rect x="0" y="50" width="160" height="14" fill="#e6dfd5" />
-            <rect x="72" y="18" width="16" height="72" fill="#e6dfd5" />
+        <div className="relative w-full aspect-[16/10] bg-[#e9f0e8] rounded-lg border border-[#d4b48c] overflow-hidden">
+          {mapMode === 'real' && hasValidCoords ? (
+            <>
+              <iframe
+                title={`${config.wedding.venueName} 지도 미리보기`}
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${
+                  config.wedding.lng - 0.0045
+                }%2C${config.wedding.lat - 0.0028}%2C${
+                  config.wedding.lng + 0.0045
+                }%2C${config.wedding.lat + 0.0028}&layer=mapnik&marker=${
+                  config.wedding.lat
+                }%2C${config.wedding.lng}`}
+                loading="lazy"
+                className="w-full h-full border-0"
+              />
+              <div className="pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 text-[#3b2f2f] border border-[#d97b84] px-3 py-0.5 rounded-full text-[11px] font-bold shadow-sm whitespace-nowrap">
+                📍 {config.wedding.venueName} ({config.wedding.hallName})
+              </div>
+            </>
+          ) : (
+            <>
+              <svg
+                viewBox="0 0 160 90"
+                shapeRendering="crispEdges"
+                className="w-full h-full pixelated"
+              >
+                {/* Soft Sage Park Background */}
+                <rect x="0" y="0" width="160" height="90" fill="#dce7dc" />
+                <rect x="12" y="10" width="42" height="28" fill="#cde0cd" />
+                <rect x="104" y="54" width="44" height="24" fill="#cde0cd" />
 
-            {/* White Crosswalk Lines */}
-            <rect x="75" y="45" width="10" height="2" fill="#ffffff" />
-            <rect x="75" y="48" width="10" height="2" fill="#ffffff" />
+                {/* Warm Stone Roads */}
+                <rect x="0" y="50" width="160" height="14" fill="#e6dfd5" />
+                <rect x="72" y="18" width="16" height="72" fill="#e6dfd5" />
 
-            {/* Subway Line 2 (Soft Sage Green) */}
-            <rect x="0" y="76" width="160" height="5" fill="#6b9071" />
-            <rect x="64" y="71" width="32" height="12" fill="#fffdf9" />
-            <rect x="66" y="73" width="28" height="8" fill="#6b9071" />
+                {/* White Crosswalk Lines */}
+                <rect x="75" y="45" width="10" height="2" fill="#ffffff" />
+                <rect x="75" y="48" width="10" height="2" fill="#ffffff" />
 
-            {/* Walking Path Dots */}
-            <rect x="84" y="42" width="2" height="2" fill="#d97b84" />
-            <rect x="84" y="36" width="2" height="2" fill="#d97b84" />
-            <rect x="84" y="30" width="2" height="2" fill="#d97b84" />
+                {/* Subway Line 2 (Soft Sage Green) */}
+                <rect x="0" y="76" width="160" height="5" fill="#6b9071" />
+                <rect x="64" y="71" width="32" height="12" fill="#fffdf9" />
+                <rect x="66" y="73" width="28" height="8" fill="#6b9071" />
 
-            {/* Glasshouse Chapel Building */}
-            <rect x="62" y="10" width="36" height="18" fill="#fffdf9" />
-            <rect x="64" y="5" width="32" height="5" fill="#d97b84" />
-            <rect x="76" y="17" width="8" height="11" fill="#e6d5b8" />
-          </svg>
+                {/* Walking Path Dots */}
+                <rect x="84" y="42" width="2" height="2" fill="#d97b84" />
+                <rect x="84" y="36" width="2" height="2" fill="#d97b84" />
+                <rect x="84" y="30" width="2" height="2" fill="#d97b84" />
 
-          <div className="absolute top-2.5 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 text-[#3b2f2f] border border-[#d97b84] px-3 py-0.5 rounded-full text-[11px] font-bold shadow-sm">
-            🕊️ {config.wedding.venueName}
-          </div>
+                {/* Glasshouse Chapel Building */}
+                <rect x="62" y="10" width="36" height="18" fill="#fffdf9" />
+                <rect x="64" y="5" width="32" height="5" fill="#d97b84" />
+                <rect x="76" y="17" width="8" height="11" fill="#e6d5b8" />
+              </svg>
 
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 border border-[#6b9071] text-[#4d6b53] px-2.5 py-0.5 rounded-full text-[10px] font-sans font-semibold max-w-[92%] truncate">
-            🚇 {config.wedding.subwayGuide[0] || config.wedding.addressRoad}
-          </div>
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 text-[#3b2f2f] border border-[#d97b84] px-3 py-0.5 rounded-full text-[11px] font-bold shadow-sm">
+                🕊️ {config.wedding.venueName}
+              </div>
+
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 border border-[#6b9071] text-[#4d6b53] px-2.5 py-0.5 rounded-full text-[10px] font-sans font-semibold max-w-[92%] truncate">
+                🚇 {config.wedding.subwayGuide[0] || config.wedding.addressRoad}
+              </div>
+            </>
+          )}
         </div>
 
         {/* 1-Tap Navigation App Buttons */}
-        <div className="grid grid-cols-3 gap-2 mt-3 font-sans">
+        <div className="grid grid-cols-3 gap-2 font-sans">
           {navLinks.map((nav) => (
             <a
               key={nav.name}

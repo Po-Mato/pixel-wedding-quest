@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
-import { Copy, Check, Heart, Sparkles, ExternalLink } from 'lucide-react';
+import { Copy, Check, Heart, Sparkles, ExternalLink, AlertCircle } from 'lucide-react';
 import { WeddingConfig, BankAccount } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
+import { fireCelebrationConfetti } from '../../utils/motion';
+import { isSampleAccountNumber } from '../../utils/weddingPhase';
 
 interface GiftSectionProps {
   config: WeddingConfig;
@@ -14,21 +15,24 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopyAccount = async (acc: BankAccount, key: string) => {
+    if (
+      isSampleAccountNumber(acc.accountNumber) &&
+      !window.confirm(
+        '현재 표시된 계좌번호는 청첩장 제작용 예시 번호입니다.\n실제 송금 전 예금주와 계좌번호를 꼭 확인해 주세요. 번호를 복사하시겠습니까?'
+      )
+    ) {
+      return;
+    }
     soundEngine.playCoin();
     const textToCopy = `${acc.bank} ${acc.accountNumber}`;
     await copyTextToClipboard(textToCopy);
     setCopiedKey(key);
 
-    try {
-      confetti({
-        particleCount: 28,
-        spread: 55,
-        origin: { y: 0.75 },
-        colors: ['#e899a0', '#d4af7a', '#84a98c'],
-      });
-    } catch {
-      // ignore
-    }
+    fireCelebrationConfetti({
+      particleCount: 28,
+      spread: 55,
+      origin: { y: 0.75 },
+    });
 
     setTimeout(() => {
       setCopiedKey((prev) => (prev === key ? null : prev));
@@ -37,6 +41,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
 
   const accounts =
     activeSide === 'groom' ? config.accounts.groomSide : config.accounts.brideSide;
+  const hasAnySample = accounts.some((a) => isSampleAccountNumber(a.accountNumber));
 
   return (
     <div className="pixel-card p-5 sm:p-6 bg-[#fffdf9] space-y-5">
@@ -87,10 +92,20 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
       </div>
 
       {/* Account List */}
+      {hasAnySample && (
+        <div className="bg-[#fff8ed] border border-[#e6c994] rounded-xl p-3 text-[11px] font-sans text-[#7a5824] flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-[#c88a2e] shrink-0 mt-0.5" />
+          <span>
+            현재 일부 계좌번호가 <strong>예시 번호</strong>로 표시되어 있습니다. 실제 계좌번호는 예식 전 순차적으로 업데이트될 예정입니다.
+          </span>
+        </div>
+      )}
+
       <div className="space-y-2.5 font-sans">
         {accounts.map((acc, idx) => {
           const key = `${activeSide}-${idx}`;
           const isCopied = copiedKey === key;
+          const isSample = isSampleAccountNumber(acc.accountNumber);
 
           return (
             <div
@@ -98,7 +113,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
               className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             >
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                       activeSide === 'groom'
@@ -111,6 +126,11 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ config }) => {
                   <span className="text-sm font-bold text-[#3b2f2f]">
                     예금주 : {acc.name}
                   </span>
+                  {isSample && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#fff3dc] border border-[#e6c994] text-[#8a6220] font-semibold">
+                      예시 번호
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-1.5 text-xs sm:text-sm text-[#5c4d47] font-medium tracking-wide">

@@ -12,12 +12,20 @@ function weddingMetaPlugin(): Plugin {
   const couple = `${c.groom.fullName} ♥ ${c.bride.fullName}`
   const escape = (v: string) =>
     v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const basePath = (process.env.VITE_BASE_PATH || './').replace(/\/?$/, '/')
+  const siteOrigin = (process.env.VITE_SITE_ORIGIN || 'https://po-mato.github.io').replace(
+    /\/+$/,
+    ''
+  )
+  const sitePath = (process.env.VITE_BASE_PATH || '/pixel-wedding-quest/')
+    .replace(/^\/?/, '/')
+    .replace(/\/?$/, '/')
+  const siteUrl = `${siteOrigin}${sitePath}`
   const values: Record<string, string> = {
     WEDDING_PAGE_TITLE: `${couple} 모바일 청첩장 | ${date}`,
     WEDDING_OG_TITLE: `${couple} 결혼합니다 | ${date}`,
     WEDDING_OG_DESCRIPTION: `${c.wedding.dateDisplay} ${c.wedding.timeDisplay} · ${c.wedding.venueName} ${c.wedding.hallName} | 소중한 분들을 초대합니다`,
-    WEDDING_OG_IMAGE: `${basePath}assets/pixel/wedding-cover-pixel.jpg`,
+    WEDDING_SITE_URL: siteUrl,
+    WEDDING_OG_IMAGE: `${siteUrl}assets/pixel/wedding-og-thumb.jpg`,
   }
   return {
     name: 'wedding-meta',
@@ -34,6 +42,16 @@ function weddingMetaPlugin(): Plugin {
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || './',
   plugins: [react(), weddingMetaPlugin()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          icons: ['lucide-react'],
+        },
+      },
+    },
+  },
   server: {
     port: 5177,
     host: true,

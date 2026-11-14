@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
-import { Send, Sparkles, MessageCircleHeart, Trash2, Cloud } from 'lucide-react';
+import { Send, Sparkles, MessageCircleHeart, Trash2, Cloud, ShieldCheck } from 'lucide-react';
 import {
   AVATAR_CLASSES,
   AvatarClassId,
@@ -10,6 +9,7 @@ import {
 import { GuestAvatarSprite } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { fillCoupleText } from '../../utils/coupleText';
+import { fireCelebrationConfetti } from '../../utils/motion';
 import {
   canEditOwnGuestbookEntry,
   deleteOwnGuestbookEntry,
@@ -32,6 +32,8 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [privacyError, setPrivacyError] = useState(false);
   const [avatar, setAvatar] = useState<AvatarClassId>('knight');
   const [side, setSide] = useState<'groom' | 'bride' | 'both'>('groom');
   const [attendance, setAttendance] = useState<'attend' | 'maybe' | 'unable'>('attend');
@@ -46,18 +48,18 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !message.trim()) return;
+    if (phone.trim() && !privacyAgreed) {
+      setPrivacyError(true);
+      return;
+    }
+    setPrivacyError(false);
 
     soundEngine.playFanfare();
-    try {
-      confetti({
-        particleCount: 40,
-        spread: 60,
-        origin: { y: 0.7 },
-        colors: ['#e899a0', '#d4af7a', '#84a98c'],
-      });
-    } catch {
-      // ignore
-    }
+    fireCelebrationConfetti({
+      particleCount: 40,
+      spread: 60,
+      origin: { y: 0.7 },
+    });
 
     const newEntry: GuestbookEntry = {
       id: `gb-${Date.now()}`,
@@ -76,6 +78,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
     onAddGuestbook(newEntry);
     setName('');
     setPhone('');
+    setPrivacyAgreed(false);
     setMessage('');
     setSubmittedToast(true);
     setTimeout(() => setSubmittedToast(false), 4000);
@@ -250,12 +253,50 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                 type="tel"
                 maxLength={20}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (!e.target.value.trim()) setPrivacyError(false);
+                }}
                 placeholder="예: 010-1234-5678 (비공개)"
                 className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f]"
               />
             </div>
           </div>
+
+          {phone.trim().length > 0 && (
+            <div
+              className={`p-3 rounded-lg border text-[11px] space-y-1.5 transition-colors ${
+                privacyError
+                  ? 'bg-[#fff2f3] border-[#d97b84] text-[#9e3f49]'
+                  : 'bg-[#fffdf9] border-[#e2d4c0] text-[#5c4d47]'
+              }`}
+            >
+              <label className="flex items-start gap-2 cursor-pointer font-semibold">
+                <input
+                  type="checkbox"
+                  checked={privacyAgreed}
+                  onChange={(e) => {
+                    setPrivacyAgreed(e.target.checked);
+                    if (e.target.checked) setPrivacyError(false);
+                  }}
+                  className="mt-0.5 accent-[#d97b84] rounded"
+                />
+                <span className="flex-1">
+                  <ShieldCheck className="w-3.5 h-3.5 inline-block mr-1 text-[#6b9071] align-text-bottom" />
+                  [필수] 예식 참석 확인 및 안내를 위한 연락처 수집·이용에 동의합니다.
+                </span>
+              </label>
+              <div className="text-[10px] text-[#8c7a70] pl-5 leading-relaxed">
+                • 수집 항목: 성함, 연락처 (공개 방명록에는 절대 노출되지 않습니다)
+                <br />• 보유 및 이용 기간: <strong>예식 종료 후 30일 이내 즉시 파기</strong>
+              </div>
+              {privacyError && (
+                <div className="text-[11px] font-bold text-[#b85d67] pl-5">
+                  ⚠️ 연락처를 함께 전달하시려면 수집·이용 동의에 체크해 주세요.
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">

@@ -26,6 +26,7 @@ import {
 import { soundEngine } from '../utils/soundEngine';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { syncAccountHolderNames } from '../utils/configSync';
+import { getSampleDataChecklist } from '../utils/weddingPhase';
 import {
   adminLogin,
   fetchAdminOverview,
@@ -502,6 +503,48 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Sample Data Pre-Launch Checklist Banner */}
+        {(() => {
+          const check = getSampleDataChecklist(draft);
+          if (!check.hasSampleAccounts && !check.hasSamplePhones && !check.hasSampleGallery) {
+            return null;
+          }
+          return (
+            <div className="px-4 py-2.5 bg-[#fff8ed] border-b border-[#e6c994] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#7a5824]">
+              <div className="font-semibold">
+                ⚠️ <strong>발송 전 확인:</strong> 아직 예시 데이터가 남아 있습니다 —{' '}
+                {check.hasSampleAccounts && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('accounts')}
+                    className="underline font-bold mr-2 hover:text-[#b85d67]"
+                  >
+                    계좌번호({check.sampleAccountCount}건)
+                  </button>
+                )}
+                {check.hasSamplePhones && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('couple')}
+                    className="underline font-bold mr-2 hover:text-[#b85d67]"
+                  >
+                    연락처(예시 번호)
+                  </button>
+                )}
+                {check.hasSampleGallery && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('gallery')}
+                    className="underline font-bold hover:text-[#b85d67]"
+                  >
+                    웨딩사진(샘플 {check.sampleGalleryCount}장)
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 6 Admin Category Tabs */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 p-2 bg-[#faf5ec] border-b border-[#e6d5b8] text-[11px] font-bold">
@@ -1680,6 +1723,27 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                 {pwChangeNotice && (
                   <p className="text-[11px] font-bold text-[#6b9071]">{pwChangeNotice}</p>
                 )}
+              </div>
+
+              <div className="bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8] space-y-2">
+                <div className="font-bold text-[#3b2f2f]">
+                  💬 카카오톡 카드 공유용 JavaScript 키 (선택사항)
+                </div>
+                <p className="text-[11px] text-[#5c4d47] leading-relaxed">
+                  카카오 디벨로퍼스(developers.kakao.com) 앱의 <strong>JavaScript 키</strong>를 입력하면 카카오톡 공유 버튼 클릭 시 사진·길찾기 버튼이 포함된 전용 피드 카드로 전송됩니다. 비워두면 모바일 기본 공유창 및 초대 문구 복사로 동작합니다.
+                </p>
+                <input
+                  type="text"
+                  value={draft.kakaoJsKey || ''}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      kakaoJsKey: e.target.value.trim(),
+                    })
+                  }
+                  placeholder="예: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6 (비워두어도 정상 공유됨)"
+                  className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded-lg px-3 py-1.5 font-mono text-[11px]"
+                />
               </div>
 
               <div className="bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8] space-y-2.5">

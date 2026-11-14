@@ -117,6 +117,7 @@ export interface QuizQuestion {
 export interface WeddingConfig {
   gameTitle: string;
   versionTag: string;
+  kakaoJsKey?: string;
   groom: {
     name: string;
     fullName: string;

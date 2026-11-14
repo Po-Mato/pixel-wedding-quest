@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Eye, Grid, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { WeddingConfig, GalleryItem } from '../../data/weddingConfig';
 import { PixelHeart, PixelSceneBanner } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { incrementReactionCounter } from '../../utils/weddingCloudSync';
-import { PhotoBoothModal } from './PhotoBoothModal';
+import { isSampleGalleryUrl } from '../../utils/weddingPhase';
+
+const PhotoBoothModal = React.lazy(() =>
+  import('./PhotoBoothModal').then((m) => ({ default: m.PhotoBoothModal }))
+);
 
 const STORAGE_GALLERY_LIKES_KEY = 'pixel_wedding_quest_gallery_likes_v1';
 
@@ -132,14 +136,22 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
               </div>
             </div>
           ) : (
-            <img
-              src={activeItem.imageUrl}
-              alt={activeItem.title}
-              onError={() =>
-                setImgErrorMap((prev) => ({ ...prev, [activeItem.id]: true }))
-              }
-              className="w-full h-full object-cover transition-all duration-300"
-            />
+            <div className="w-full h-full relative">
+              <img
+                src={activeItem.imageUrl}
+                alt={activeItem.title}
+                loading="lazy"
+                onError={() =>
+                  setImgErrorMap((prev) => ({ ...prev, [activeItem.id]: true }))
+                }
+                className="w-full h-full object-cover transition-all duration-300"
+              />
+              {isSampleGalleryUrl(activeItem.imageUrl) && (
+                <div className="absolute top-2.5 right-2.5 bg-[#fffdf9]/90 border border-[#d4b48c] px-2.5 py-0.5 rounded-full text-[10px] text-[#7a5824] font-sans font-semibold">
+                  샘플 스냅 · 실제 사진 등록 예정
+                </div>
+              )}
+            </div>
           )}
 
           {/* Left / Right Navigation */}
@@ -245,11 +257,13 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
       </div>
 
       {showPhotoBooth && (
-        <PhotoBoothModal
-          config={config}
-          onClose={() => setShowPhotoBooth(false)}
-          onUnlockTitle={onUnlockTitle}
-        />
+        <Suspense fallback={null}>
+          <PhotoBoothModal
+            config={config}
+            onClose={() => setShowPhotoBooth(false)}
+            onUnlockTitle={onUnlockTitle}
+          />
+        </Suspense>
       )}
     </div>
   );
