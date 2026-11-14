@@ -6,7 +6,14 @@ import {
   QUEST_BUILDINGS,
   QuestBuildingId,
 } from '../data/weddingConfig';
-import { PIXEL_ASSETS } from './PixelSprites';
+import {
+  PIXEL_ASSETS,
+  GroomSprite,
+  BrideSprite,
+  PetCatSprite,
+  PixelRing,
+  PixelHeart,
+} from './PixelSprites';
 import { StorySection } from './sections/StorySection';
 import { CeremonySection } from './sections/CeremonySection';
 import { GallerySection } from './sections/GallerySection';
@@ -123,27 +130,40 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
 
         {/* Full-bleed Arch Photo / Pixel Illustration inside Classic Cover */}
         <div className="px-6">
-          <div className="relative mx-auto max-w-[340px] aspect-[3/3.7] rounded-t-full rounded-b-xl overflow-hidden border border-[#e2d4c0] shadow-sm">
-            <img
-              src={
-                heroStyle === 'pixel'
-                  ? PIXEL_ASSETS.weddingCover
-                  : config.gallery[0]?.imageUrl
-              }
-              alt="Wedding Main"
-              className={`w-full h-full object-cover ${
-                heroStyle === 'pixel' ? 'pixelated' : ''
-              }`}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-            <div className="absolute bottom-4 inset-x-4 text-white text-xs tracking-widest font-engSerif">
-              WE INVITE YOU TO OUR SPRING GARDEN
+          <div className="relative mx-auto max-w-[340px]">
+            <div className="relative aspect-[3/3.7] rounded-t-full rounded-b-xl overflow-hidden border border-[#e2d4c0] shadow-sm">
+              <img
+                src={
+                  heroStyle === 'pixel'
+                    ? PIXEL_ASSETS.weddingCover
+                    : config.gallery[0]?.imageUrl
+                }
+                alt="Wedding Main"
+                className={`w-full h-full object-cover ${
+                  heroStyle === 'pixel' ? 'pixelated' : ''
+                }`}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+              <div className="absolute bottom-8 inset-x-4 text-white text-xs tracking-widest font-engSerif">
+                WE INVITE YOU TO OUR SPRING GARDEN
+              </div>
+            </div>
+
+            {/* Couple Portrait Badge overlapping bottom of arch */}
+            <div className="relative -mt-6 mx-auto w-fit bg-[#fffdf9] border border-[#e2d4c0] rounded-full px-5 py-2 shadow-sm flex items-center gap-3 z-10">
+              <GroomSprite size={32} />
+              <div className="flex flex-col items-center">
+                <PixelRing size={16} />
+                <PixelHeart size={10} className="mt-0.5 animate-pulse" />
+              </div>
+              <BrideSprite size={32} />
+              <PetCatSprite size={22} className="-ml-1 mt-1" />
             </div>
           </div>
         </div>
 
         {/* Date & Venue Footer in Hero */}
-        <div className="py-6 px-6 space-y-1">
+        <div className="pt-4 pb-6 px-6 space-y-1">
           <div className="text-sm sm:text-base font-bold text-[#3b2f2f]">
             {config.wedding.dateDisplay} {config.wedding.timeDisplay}
           </div>

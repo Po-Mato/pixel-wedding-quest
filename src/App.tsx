@@ -27,6 +27,7 @@ import { shareViaKakaoTalk } from './utils/kakaoShare';
 import { detectWeddingPhase, WeddingPhase } from './utils/weddingPhase';
 import { PIXEL_ASSETS } from './components/PixelSprites';
 import { TitleScreen } from './components/TitleScreen';
+import { ClassicWeddingView } from './components/ClassicWeddingView';
 import { WeddingPhaseBanner } from './components/WeddingPhaseBanner';
 import type { ParentsSideFilter } from './components/ParentsWeddingView';
 import { StorySection } from './components/sections/StorySection';
@@ -43,11 +44,6 @@ import {
 
 const VillageCanvas = React.lazy(() =>
   import('./components/VillageCanvas').then((m) => ({ default: m.VillageCanvas }))
-);
-const ClassicWeddingView = React.lazy(() =>
-  import('./components/ClassicWeddingView').then((m) => ({
-    default: m.ClassicWeddingView,
-  }))
 );
 const ParentsWeddingView = React.lazy(() =>
   import('./components/ParentsWeddingView').then((m) => ({
@@ -79,12 +75,13 @@ function detectInitialScreenMode(): AppScreenMode {
     if (mode === 'parents' || window.location.hash === '#parents') {
       return 'parents';
     }
-    if (mode === 'classic') return 'classic';
+    if (mode === 'title' || mode === 'cover') return 'title';
     if (mode === 'world' || mode === 'garden') return 'world';
+    if (mode === 'classic') return 'classic';
   } catch {
     // ignore
   }
-  return 'title';
+  return 'classic';
 }
 
 function detectInitialParentsSide(): ParentsSideFilter {
@@ -275,7 +272,7 @@ export function App() {
 
   const buildNavigationUrl = (nextMode: AppScreenMode) => {
     const url = new URL(window.location.href);
-    if (nextMode === 'title') {
+    if (nextMode === 'classic') {
       url.searchParams.delete('mode');
     } else {
       url.searchParams.set('mode', nextMode);
@@ -519,7 +516,11 @@ export function App() {
                   pushNavigationState('title', null);
                 }}
                 title="표지 화면으로"
-                className="p-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border border-[#e2d4c0]"
+                className={`p-1.5 rounded-full border transition-all ${
+                  screenMode === 'title'
+                    ? 'bg-[#3b2f2f] text-[#fffdf9] border-[#3b2f2f] shadow-xs'
+                    : 'bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#e2d4c0]'
+                }`}
               >
                 <Home className="w-3.5 h-3.5" />
               </button>
@@ -666,7 +667,11 @@ export function App() {
                 onUnlockTitle={setEarnedTitle}
                 onAddGuestbook={handleAddGuestbook}
                 onDeleteGuestbook={handleDeleteGuestbook}
-                onSwitchToGardenMode={() => setScreenMode('world')}
+                onSwitchToGardenMode={() => {
+                  setScreenMode('world');
+                  pushNavigationState('world', null);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
               />
             )}
 
@@ -698,11 +703,7 @@ export function App() {
 
             {screenMode === 'parents' ? (
               <button
-                onClick={() => {
-                  setScreenMode('title');
-                  pushNavigationState('title', null);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onClick={handleStartClassicMode}
                 className="px-3 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold shrink-0"
               >
                 신랑·신부 지인용 보기
