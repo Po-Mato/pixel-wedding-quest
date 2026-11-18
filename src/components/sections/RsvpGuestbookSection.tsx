@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Sparkles, MessageCircleHeart, Trash2, Cloud, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import {
+  Send,
+  Sparkles,
+  MessageCircleHeart,
+  Trash2,
+  Cloud,
+  CloudOff,
+  ShieldCheck,
+  CheckCircle2,
+} from 'lucide-react';
 import {
   AVATAR_CLASSES,
   AvatarClassId,
@@ -11,7 +20,9 @@ import { soundEngine } from '../../utils/soundEngine';
 import { fillCoupleText } from '../../utils/coupleText';
 import { fireCelebrationConfetti } from '../../utils/motion';
 import { joinCoupleNames } from '../../utils/coupleOrder';
+import { formatKoreanPhoneInput } from '../../utils/phone';
 import {
+  CloudSyncStatus,
   canEditOwnGuestbookEntry,
   deleteOwnGuestbookEntry,
 } from '../../utils/weddingCloudSync';
@@ -19,9 +30,10 @@ import {
 interface RsvpGuestbookSectionProps {
   config: WeddingConfig;
   guestbook: GuestbookEntry[];
+  syncStatus?: CloudSyncStatus | null;
   earnedTitle: string | null;
   initialSide?: 'groom' | 'bride';
-  onAddGuestbook: (entry: GuestbookEntry) => void;
+  onAddGuestbook: (entry: GuestbookEntry) => Promise<boolean> | boolean | void;
   onDeleteGuestbook?: (id: string) => void;
 }
 
@@ -35,6 +47,7 @@ const QUICK_BLESSING_CHIPS = [
 export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   config,
   guestbook,
+  syncStatus,
   earnedTitle,
   initialSide = 'groom',
   onAddGuestbook,
@@ -50,7 +63,8 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const [companions, setCompanions] = useState<number>(1);
   const [meal, setMeal] = useState<'yes' | 'no' | 'undecided'>('yes');
   const [message, setMessage] = useState('');
-  const [submittedToast, setSubmittedToast] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedToast, setSubmittedToast] = useState<'cloud' | 'local' | null>(null);
 
   useEffect(() => {
     setSide(initialSide);
@@ -61,14 +75,16 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const selectedClassInfo =
     AVATAR_CLASSES.find((c) => c.id === avatar) || AVATAR_CLASSES[0];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim() || !message.trim()) return;
     if (phone.trim() && !privacyAgreed) {
       setPrivacyError(true);
       return;
     }
     setPrivacyError(false);
+    setIsSubmitting(true);
 
     soundEngine.playFanfare();
     fireCelebrationConfetti({
@@ -91,13 +107,17 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
       phone: phone.trim(),
     };
 
-    onAddGuestbook(newEntry);
-    setName('');
-    setPhone('');
-    setPrivacyAgreed(false);
-    setMessage('');
-    setSubmittedToast(true);
-    setTimeout(() => setSubmittedToast(false), 4000);
+    try {
+      const result = await onAddGuestbook(newEntry);
+      setName('');
+      setPhone('');
+      setPrivacyAgreed(false);
+      setMessage('');
+      setSubmittedToast(result === false ? 'local' : 'cloud');
+      setTimeout(() => setSubmittedToast(null), 4000);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -264,7 +284,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                 value={attendance === 'unable' ? 'no' : meal}
                 disabled={attendance === 'unable'}
                 onChange={(e) => setMeal(e.target.value as 'yes' | 'no' | 'undecided')}
-                className="flex-1 bg-[#fffdf9] disabled:opacity-60 border border-[#e2d4c0] rounded text-xs text-[#3b2f2f] px-2 py-1.5"
+                className="flex-1 bg-[#fffdf9] disabled:opacity-60 border border-[#e2d4c0] rounded text-base sm:text-xs text-[#3b2f2f] px-2 py-2 sm:py-1.5"
               >
                 <option value="yes">식사 예정</option>
                 <option value="no">식사 안함</option>
@@ -274,7 +294,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                 value={companions}
                 disabled={attendance === 'unable'}
                 onChange={(e) => setCompanions(Number(e.target.value))}
-                className="w-20 bg-[#fffdf9] disabled:opacity-60 border border-[#e2d4c0] rounded text-xs text-[#3b2f2f] px-2 py-1.5"
+                className="w-24 sm:w-20 bg-[#fffdf9] disabled:opacity-60 border border-[#e2d4c0] rounded text-base sm:text-xs text-[#3b2f2f] px-2 py-2 sm:py-1.5"
               >
                 {[1, 2, 3, 4, 5].map((n) => (
                   <option key={n} value={n}>
@@ -300,7 +320,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="예: 이지훈 (대학동기) / 박수빈"
-                className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f]"
+                className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-base sm:text-xs text-[#3b2f2f]"
               />
             </div>
 
@@ -310,14 +330,16 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               </label>
               <input
                 type="tel"
-                maxLength={20}
+                inputMode="numeric"
+                maxLength={13}
                 value={phone}
                 onChange={(e) => {
-                  setPhone(e.target.value);
-                  if (!e.target.value.trim()) setPrivacyError(false);
+                  const formatted = formatKoreanPhoneInput(e.target.value);
+                  setPhone(formatted);
+                  if (!formatted.trim()) setPrivacyError(false);
                 }}
-                placeholder="예: 010-1234-5678 (비공개)"
-                className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f]"
+                placeholder="010-1234-5678 (비공개)"
+                className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-base sm:text-xs text-[#3b2f2f]"
               />
             </div>
           </div>
@@ -360,7 +382,10 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           <div>
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <label className="block text-[11px] font-semibold text-[#7d6e65]">
-                축하 메시지 *
+                축하 메시지 *{' '}
+                <span className="text-[10px] font-normal text-[#9c897e] tabular-nums">
+                  ({message.length} / 120)
+                </span>
               </label>
               <span className="text-[10px] text-[#9c897e]">
                 문구 칩을 누르면 바로 입력됩니다
@@ -395,38 +420,64 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={`${joinCoupleNames(config, initialSide, 'name')} 두 사람의 새로운 출발에 따뜻한 한마디를 남겨주세요.`}
-              className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f] resize-none"
+              className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-base sm:text-xs text-[#3b2f2f] resize-none"
             />
           </div>
         </div>
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-[#d97b84] hover:bg-[#c96a73] text-white py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
+          disabled={isSubmitting}
+          className="w-full rounded-lg bg-[#d97b84] hover:bg-[#c96a73] disabled:opacity-65 text-white py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
         >
           <Send className="w-4 h-4" />
-          <span>참석 의사 및 축하 메시지 등록하기</span>
+          <span>
+            {isSubmitting
+              ? '참석 의사 및 메시지를 등록하는 중...'
+              : '참석 의사 및 축하 메시지 등록하기'}
+          </span>
         </button>
 
-        {submittedToast && (
+        {submittedToast === 'cloud' && (
           <div className="bg-[#edf3ee] border border-[#a3bfa8] rounded-lg p-3 text-center text-xs font-medium text-[#3b5249] flex items-center justify-center gap-1.5">
             <Sparkles className="w-4 h-4 text-[#6b9071]" />
-            <span>따뜻한 축하 메시지가 소중히 등록되었습니다. 감사합니다!</span>
+            <span>따뜻한 축하 메시지가 서버에 소중히 등록되었습니다. 감사합니다!</span>
+          </div>
+        )}
+
+        {submittedToast === 'local' && (
+          <div className="bg-[#fff8ed] border border-[#e6c994] rounded-lg p-3 text-center text-xs font-medium text-[#7a5824] flex items-center justify-center gap-1.5">
+            <CloudOff className="w-4 h-4 text-[#c88a2e] shrink-0" />
+            <span>
+              네트워크 연결이 불안정해 현재 기기에만 임시 저장되었습니다. 잠시 후 다시 확인해 주세요.
+            </span>
           </div>
         )}
       </form>
 
       {/* Guestbook List */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-[#efe6d8] pb-2">
+        <div className="flex items-center justify-between gap-2 border-b border-[#efe6d8] pb-2">
           <div className="flex items-center gap-1.5 text-sm font-bold text-[#3b2f2f]">
             <MessageCircleHeart className="w-4 h-4 text-[#d97b84]" />
             <span>축하 방명록 ({guestbook.length})</span>
           </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#edf5ef] text-[#3b6e4c] border border-[#b7d9c0] font-sans font-semibold flex items-center gap-1">
-            <Cloud className="w-3 h-3" />
-            <span>실시간 DB 연동중</span>
-          </span>
+          {syncStatus?.mode === 'local' ? (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#fff8ed] text-[#8a6220] border border-[#e6c994] font-sans font-semibold flex items-center gap-1 shrink-0">
+              <CloudOff className="w-3 h-3" />
+              <span>기기 저장 모드</span>
+            </span>
+          ) : syncStatus?.mode === 'cloud' ? (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#edf5ef] text-[#3b6e4c] border border-[#b7d9c0] font-sans font-semibold flex items-center gap-1 shrink-0">
+              <Cloud className="w-3 h-3" />
+              <span>실시간 DB 연동 ({syncStatus.syncedAt})</span>
+            </span>
+          ) : (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#faf5ec] text-[#8c7a70] border border-[#e2d4c0] font-sans font-semibold flex items-center gap-1 shrink-0">
+              <Cloud className="w-3 h-3" />
+              <span>DB 연결 중...</span>
+            </span>
+          )}
         </div>
 
         <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">

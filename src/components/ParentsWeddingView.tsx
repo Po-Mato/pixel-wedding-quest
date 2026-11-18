@@ -29,7 +29,17 @@ import {
 import { copyTextToClipboard } from '../utils/clipboard';
 import { fillCoupleText } from '../utils/coupleText';
 import { fireCelebrationConfetti } from '../utils/motion';
-import { isSampleAccountNumber } from '../utils/weddingPhase';
+import {
+  isSampleAccountNumber,
+  isSamplePhoneNumber,
+  getWeddingDayDiff,
+} from '../utils/weddingPhase';
+import {
+  formatKoreanPhoneInput,
+  cleanPhoneForHref,
+  guardSamplePhoneAction,
+} from '../utils/phone';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { shareViaKakaoTalk } from '../utils/kakaoShare';
 import { joinCoupleNames, orderedSides, useCoupleOrder } from '../utils/coupleOrder';
 
@@ -40,7 +50,7 @@ interface ParentsWeddingViewProps {
   config: WeddingConfig;
   guestbook: GuestbookEntry[];
   initialSide?: ParentsSideFilter;
-  onAddGuestbook: (entry: GuestbookEntry) => void;
+  onAddGuestbook: (entry: GuestbookEntry) => Promise<boolean> | boolean | void;
   onDeleteGuestbook?: (id: string) => void;
 }
 
@@ -59,6 +69,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  useBodyScrollLock(lightboxIdx !== null && Boolean(config.gallery[lightboxIdx]));
 
   // Simple Senior-Friendly RSVP + Guestbook Form State
   const [guestName, setGuestName] = useState('');
@@ -70,6 +81,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [companions, setCompanions] = useState<number>(1);
   const [meal, setMeal] = useState<'yes' | 'no' | 'undecided'>('yes');
   const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedBanner, setSubmittedBanner] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -119,12 +131,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   for (let i = 0; i < firstDayOfWeek; i++) calendarCells.push(null);
   for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
 
-  const daysRemaining = Math.max(
-    0,
-    Math.ceil(
-      (new Date(config.wedding.dateISO).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    )
-  );
+  const weddingDayDiff = getWeddingDayDiff(config.wedding.dateISO) ?? 0;
 
   const encodedVenue = encodeURIComponent(config.wedding.venueName);
   const encodedAddr = encodeURIComponent(config.wedding.addressRoad);
@@ -243,14 +250,16 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     }
   };
 
-  const handleSubmitGuestbook = (e: React.FormEvent) => {
+  const handleSubmitGuestbook = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!guestName.trim() || !message.trim()) return;
     if (guestPhone.trim() && !privacyAgreed) {
       setPrivacyError(true);
       return;
     }
     setPrivacyError(false);
+    setIsSubmitting(true);
 
     const newEntry: GuestbookEntry = {
       id: `gb-${Date.now()}`,
@@ -266,13 +275,17 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       phone: guestPhone.trim(),
     };
 
-    onAddGuestbook(newEntry);
-    setGuestName('');
-    setGuestPhone('');
-    setPrivacyAgreed(false);
-    setMessage('');
-    setSubmittedBanner(true);
-    setTimeout(() => setSubmittedBanner(false), 5000);
+    try {
+      await onAddGuestbook(newEntry);
+      setGuestName('');
+      setGuestPhone('');
+      setPrivacyAgreed(false);
+      setMessage('');
+      setSubmittedBanner(true);
+      setTimeout(() => setSubmittedBanner(false), 5000);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDeleteEntry = async (entryId: string) => {
@@ -293,7 +306,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       : config.accounts.brideSide;
 
   return (
-    <div className="w-full max-w-[540px] mx-auto space-y-6 pb-10 font-serif text-[#2d221e]">
+    <div className="w-full max-w-[540px] mx-auto space-y-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] font-serif text-[#2d221e]">
       {/* 0. Sticky Top Accessibility Font-Size Bar & Quick Jump */}
       <div className="sticky top-2 z-30 bg-[#fffdf9]/95 backdrop-blur-md border border-[#d8c7b0] rounded-2xl px-3.5 py-2.5 shadow-[0_8px_24px_-10px_rgba(45,34,30,0.16)] font-sans space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -467,6 +480,22 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </p>
         </div>
 
+        {[
+          config.groom.phone,
+          config.groom.fatherPhone,
+          config.groom.motherPhone,
+          config.bride.phone,
+          config.bride.fatherPhone,
+          config.bride.motherPhone,
+        ].some((p) => isSamplePhoneNumber(p)) && (
+          <div className="bg-[#fff8ed] border border-[#e6c994] rounded-2xl p-4 text-sm text-[#7a5824] flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-[#c88a2e] shrink-0 mt-0.5" />
+            <span>
+              현재 일부 연락처가 <strong>예시 번호</strong>로 표시되어 있습니다. 전화·문자 연결 시 실발신 방지를 위해 확인 창을 안내해 드립니다.
+            </span>
+          </div>
+        )}
+
         <div className="space-y-5">
           {orderedParentGroups.map((side) => {
             const isGroom = side === 'groom';
@@ -508,41 +537,54 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 </div>
 
                 <div className="space-y-3">
-                  {contacts.map((c) => (
-                    <div
-                      key={c.role}
-                      className="bg-[#fffdf9] border border-[#e5d8c5] rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div>
-                        <div className="text-sm font-semibold text-[#69584f]">
-                          {c.role}
+                  {contacts.map((c) => {
+                    const isSample = isSamplePhoneNumber(c.phone);
+                    const dialHref = cleanPhoneForHref(c.phone);
+                    return (
+                      <div
+                        key={c.role}
+                        className="bg-[#fffdf9] border border-[#e5d8c5] rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-[#69584f]">
+                              {c.role}
+                            </span>
+                            {isSample && (
+                              <span className="text-[11px] px-2 py-0.5 rounded bg-[#fff3dc] border border-[#e6c994] text-[#8a6220] font-bold">
+                                예시 번호
+                              </span>
+                            )}
+                          </div>
+                          <div className={`${textScale.nameLarge} font-bold text-[#2d221e] mt-0.5`}>
+                            {c.name}
+                          </div>
+                          <div className="text-sm text-[#56463f] tabular-nums mt-0.5">
+                            {c.phone}
+                          </div>
                         </div>
-                        <div className={`${textScale.nameLarge} font-bold text-[#2d221e] mt-0.5`}>
-                          {c.name}
-                        </div>
-                        <div className="text-sm text-[#56463f] tabular-nums mt-0.5">
-                          {c.phone}
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-2 shrink-0">
-                        <a
-                          href={`tel:${c.phone.replace(/[^0-9+]/g, '')}`}
-                          className="px-4 py-3 rounded-xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
-                        >
-                          <Phone className="w-4 h-4 shrink-0" />
-                          <span>전화걸기</span>
-                        </a>
-                        <a
-                          href={`sms:${c.phone.replace(/[^0-9+]/g, '')}`}
-                          className="px-4 py-3 rounded-xl bg-[#faf5ec] hover:bg-[#efe5d4] border border-[#c9b69c] text-[#2d221e] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
-                        >
-                          <MessageSquare className="w-4 h-4 shrink-0 text-[#8c6747]" />
-                          <span>문자하기</span>
-                        </a>
+                        <div className="grid grid-cols-2 gap-2 shrink-0">
+                          <a
+                            href={`tel:${dialHref}`}
+                            onClick={(e) => guardSamplePhoneAction(e, c.phone, '전화 걸기')}
+                            className="px-4 py-3 rounded-xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
+                          >
+                            <Phone className="w-4 h-4 shrink-0" />
+                            <span>전화걸기</span>
+                          </a>
+                          <a
+                            href={`sms:${dialHref}`}
+                            onClick={(e) => guardSamplePhoneAction(e, c.phone, '문자 보내기')}
+                            className="px-4 py-3 rounded-xl bg-[#faf5ec] hover:bg-[#efe5d4] border border-[#c9b69c] text-[#2d221e] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
+                          >
+                            <MessageSquare className="w-4 h-4 shrink-0 text-[#8c6747]" />
+                            <span>문자하기</span>
+                          </a>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -613,7 +655,21 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
         <div className={`${textScale.body} bg-[#faf5ec] border border-[#dfd2be] rounded-2xl py-3.5 px-4 font-sans font-bold text-[#2d221e]`}>
           <Calendar className="w-5 h-5 inline-block mr-1.5 text-[#b35c66] -mt-0.5" />
-          예식일까지 <span className="text-[#b35c66] tabular-nums">{daysRemaining}일</span> 남았습니다.
+          {weddingDayDiff === 0 ? (
+            <span className="text-[#b35c66]">오늘이 바로 두 사람의 결혼식 날입니다 💍</span>
+          ) : weddingDayDiff < 0 ? (
+            <span>
+              함께 축복해 주셔서 감사합니다{' '}
+              <span className="text-[#b35c66] tabular-nums">
+                (결혼 +{Math.abs(weddingDayDiff)}일째)
+              </span>{' '}
+              💐
+            </span>
+          ) : (
+            <span>
+              예식일까지 <span className="text-[#b35c66] tabular-nums">{weddingDayDiff}일</span> 남았습니다.
+            </span>
+          )}
         </div>
       </section>
 
@@ -666,7 +722,8 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             </button>
 
             <a
-              href={`tel:${config.wedding.tel.replace(/[^0-9+]/g, '')}`}
+              href={`tel:${cleanPhoneForHref(config.wedding.tel)}`}
+              onClick={(e) => guardSamplePhoneAction(e, config.wedding.tel, '전화 걸기')}
               className={`${textScale.btn} rounded-2xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#c9b69c] text-[#2d221e] font-bold flex items-center justify-center gap-2`}
             >
               <Phone className="w-5 h-5 text-[#8c6747]" />
@@ -991,12 +1048,15 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               </label>
               <input
                 type="tel"
+                inputMode="numeric"
+                maxLength={13}
                 value={guestPhone}
                 onChange={(e) => {
-                  setGuestPhone(e.target.value);
-                  if (!e.target.value.trim()) setPrivacyError(false);
+                  const formatted = formatKoreanPhoneInput(e.target.value);
+                  setGuestPhone(formatted);
+                  if (!formatted.trim()) setPrivacyError(false);
                 }}
-                placeholder="예: 010-1234-5678 (비공개)"
+                placeholder="010-1234-5678 (비공개)"
                 className={`w-full bg-[#fffdf9] border-2 border-[#c9b69c] focus:border-[#b35c66] outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e]`}
               />
             </div>
@@ -1075,7 +1135,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 onChange={(e) =>
                   setAttendance(e.target.value as 'attend' | 'unable' | 'maybe')
                 }
-                className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-sm sm:text-base text-[#2d221e]"
+                className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-base text-[#2d221e]"
               >
                 <option value="attend">참석합니다</option>
                 <option value="maybe">미정입니다</option>
@@ -1093,7 +1153,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 <select
                   value={companions}
                   onChange={(e) => setCompanions(Number(e.target.value))}
-                  className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-sm sm:text-base text-[#2d221e]"
+                  className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-base text-[#2d221e]"
                 >
                   {[1, 2, 3, 4, 5, 6].map((n) => (
                     <option key={n} value={n}>
@@ -1112,7 +1172,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                   onChange={(e) =>
                     setMeal(e.target.value as 'yes' | 'no' | 'undecided')
                   }
-                  className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-sm sm:text-base text-[#2d221e]"
+                  className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-base text-[#2d221e]"
                 >
                   <option value="yes">식사 예정</option>
                   <option value="no">식사 안 함</option>
@@ -1123,12 +1183,18 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           )}
 
           <div>
-            <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
-              축하 말씀
-            </label>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <label className={`block ${textScale.sub} font-bold text-[#2d221e]`}>
+                축하 말씀
+              </label>
+              <span className="text-xs text-[#69584f] tabular-nums">
+                ({message.length} / 120)
+              </span>
+            </div>
             <textarea
               rows={3}
               required
+              maxLength={120}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="두 사람의 앞날을 축복하는 따뜻한 말씀을 남겨주세요."
@@ -1138,9 +1204,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
           <button
             type="submit"
-            className={`w-full ${textScale.btn} rounded-2xl bg-[#b35c66] hover:bg-[#9f4c56] text-white font-bold shadow-sm`}
+            disabled={isSubmitting}
+            className={`w-full ${textScale.btn} rounded-2xl bg-[#b35c66] hover:bg-[#9f4c56] disabled:opacity-65 text-white font-bold shadow-sm`}
           >
-            참석 의사 및 축하 글 등록하기
+            {isSubmitting ? '전달하는 중...' : '참석 의사 및 축하 글 등록하기'}
           </button>
 
           {submittedBanner && (
@@ -1270,7 +1337,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {/* Fullscreen Photo Lightbox for Elders */}
       {lightboxIdx !== null && config.gallery[lightboxIdx] && (
         <div
-          className="fixed inset-0 z-50 bg-black/85 flex flex-col items-center justify-center p-4 font-sans"
+          className="fixed inset-0 z-50 bg-black/85 overscroll-contain flex flex-col items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans"
           onClick={() => setLightboxIdx(null)}
         >
           <div

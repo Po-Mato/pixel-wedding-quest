@@ -12,6 +12,7 @@ import {
 import { PIXEL_ASSETS, GUEST_SPRITES } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { useCoupleOrder } from '../../utils/coupleOrder';
+import { useBodyScrollLock } from '../../utils/useBodyScrollLock';
 import { incrementReactionCounter } from '../../utils/weddingCloudSync';
 
 interface PhotoBoothModalProps {
@@ -84,6 +85,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { names } = useCoupleOrder();
+  useBodyScrollLock(true);
 
   const [selectedMap, setSelectedMap] = useState<GardenMapId>('garden');
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarClassId>('mage');
@@ -413,7 +415,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs overscroll-contain flex items-center justify-center p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:p-4">
       <div className="pixel-card w-full max-w-[520px] max-h-[92vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn">
         {/* Header */}
         <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between gap-2 shrink-0">
@@ -615,7 +617,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   placeholder="소중한 하객"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#faf5ec] border border-[#d4b48c] text-xs text-[#3b2f2f]"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#faf5ec] border border-[#d4b48c] text-base sm:text-xs text-[#3b2f2f]"
                 />
               </div>
 
@@ -629,7 +631,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
                   value={blessingText}
                   onChange={(e) => setBlessingText(e.target.value)}
                   placeholder="결혼을 진심으로 축하합니다 ♥"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#faf5ec] border border-[#d4b48c] text-xs text-[#3b2f2f]"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#faf5ec] border border-[#d4b48c] text-base sm:text-xs text-[#3b2f2f]"
                 />
               </div>
             </div>

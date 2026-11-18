@@ -22,6 +22,8 @@ import { GiftSection } from './sections/GiftSection';
 import { RsvpGuestbookSection } from './sections/RsvpGuestbookSection';
 import { WeddingPhaseBanner } from './WeddingPhaseBanner';
 import { WeddingPhase } from '../utils/weddingPhase';
+import { CloudSyncStatus } from '../utils/weddingCloudSync';
+import { prefersReducedMotion } from '../utils/motion';
 import { soundEngine } from '../utils/soundEngine';
 import { useCoupleOrder } from '../utils/coupleOrder';
 
@@ -32,13 +34,14 @@ const MiniGameSection = React.lazy(() =>
 interface ClassicWeddingViewProps {
   config: WeddingConfig;
   guestbook: GuestbookEntry[];
+  syncStatus?: CloudSyncStatus | null;
   earnedTitle: string | null;
   initialSide?: 'groom' | 'bride';
   phase?: WeddingPhase;
   isPreviewPhase?: boolean;
   onResetPhasePreview?: () => void;
   onUnlockTitle: (title: string) => void;
-  onAddGuestbook: (entry: GuestbookEntry) => void;
+  onAddGuestbook: (entry: GuestbookEntry) => Promise<boolean> | boolean | void;
   onDeleteGuestbook?: (id: string) => void;
   onSwitchToGardenMode: () => void;
 }
@@ -55,6 +58,7 @@ const NAV_SECTION_IDS: QuestBuildingId[] = [
 export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   config,
   guestbook,
+  syncStatus,
   earnedTitle,
   initialSide = 'groom',
   phase = 'upcoming',
@@ -103,9 +107,9 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
 
   const scrollToClassicSection = (sectionId: QuestBuildingId) => {
     setActiveSectionId(sectionId);
-    document
-      .getElementById(`classic-${sectionId}`)
-      ?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById(`classic-${sectionId}`)?.scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
   };
 
   return (
@@ -269,35 +273,36 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
       </nav>
 
       {/* 1. Invitation & Couple Story */}
-      <section id="classic-story">
+      <section id="classic-story" className="scroll-mt-16">
         <StorySection config={config} initialSide={initialSide} />
       </section>
 
       {/* 2. Ceremony Calendar & D-Day */}
-      <section id="classic-ceremony">
+      <section id="classic-ceremony" className="scroll-mt-16">
         <CeremonySection config={config} />
       </section>
 
       {/* 3. Photo Gallery */}
-      <section id="classic-gallery">
+      <section id="classic-gallery" className="scroll-mt-16">
         <GallerySection config={config} onUnlockTitle={onUnlockTitle} />
       </section>
 
       {/* 4. Location & Directions */}
-      <section id="classic-location">
+      <section id="classic-location" className="scroll-mt-16">
         <LocationSection config={config} />
       </section>
 
       {/* 5. Blessing Gift Accounts */}
-      <section id="classic-gift">
+      <section id="classic-gift" className="scroll-mt-16">
         <GiftSection config={config} initialSide={initialSide} />
       </section>
 
       {/* 6. RSVP & Guestbook */}
-      <section id="classic-rsvp">
+      <section id="classic-rsvp" className="scroll-mt-16">
         <RsvpGuestbookSection
           config={config}
           guestbook={guestbook}
+          syncStatus={syncStatus}
           earnedTitle={earnedTitle}
           initialSide={initialSide}
           onAddGuestbook={onAddGuestbook}
@@ -306,7 +311,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
       </section>
 
       {/* 7. Optional Collapsible Mini-Game & Couple Quiz Card */}
-      <section id="classic-minigame" className="space-y-3">
+      <section id="classic-minigame" className="scroll-mt-16 space-y-3">
         <button
           onClick={() => {
             soundEngine.playSelect();
@@ -357,10 +362,14 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           type="button"
           onClick={() => {
             soundEngine.playBlip(680);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({
+              top: 0,
+              behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+            });
           }}
           aria-label="맨 위로 이동"
-          className="fixed bottom-5 right-4 z-40 px-3 py-2 rounded-full bg-[#3b2f2f]/90 hover:bg-[#3b2f2f] text-[#fffdf9] border border-[#d4b48c] shadow-lg text-xs font-sans font-bold flex items-center gap-1 backdrop-blur-xs transition-all"
+          style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
+          className="fixed right-4 z-40 px-3 py-2 rounded-full bg-[#3b2f2f]/90 hover:bg-[#3b2f2f] text-[#fffdf9] border border-[#d4b48c] shadow-lg text-xs font-sans font-bold flex items-center gap-1 backdrop-blur-xs transition-all"
         >
           <ArrowUp className="w-3.5 h-3.5" />
           <span>맨 위로</span>

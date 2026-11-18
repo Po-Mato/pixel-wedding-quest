@@ -4,6 +4,7 @@ import { WeddingConfig } from '../../data/weddingConfig';
 import { PixelHeart, PixelRing } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { useCoupleOrder } from '../../utils/coupleOrder';
+import { getWeddingDayDiff } from '../../utils/weddingPhase';
 
 interface CeremonySectionProps {
   config: WeddingConfig;
@@ -18,17 +19,27 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
     hours: 0,
     minutes: 0,
     seconds: 0,
+    dayDiff: 0 as number,
     isPast: false,
   });
 
   useEffect(() => {
     const updateTimer = () => {
       const target = new Date(config.wedding.dateISO).getTime();
-      const now = Date.now();
+      const nowDate = new Date();
+      const now = nowDate.getTime();
       const diff = target - now;
+      const dayDiff = getWeddingDayDiff(config.wedding.dateISO, nowDate) ?? 0;
 
       if (diff <= 0) {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: true });
+        setTimeLeft({
+          days: 0,
+          hours: 0,
+          minutes: 0,
+          seconds: 0,
+          dayDiff,
+          isPast: true,
+        });
         return;
       }
 
@@ -37,7 +48,7 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
       const minutes = Math.floor((diff / (1000 * 60)) % 60);
       const seconds = Math.floor((diff / 1000) % 60);
 
-      setTimeLeft({ days, hours, minutes, seconds, isPast: false });
+      setTimeLeft({ days, hours, minutes, seconds, dayDiff, isPast: false });
     };
 
     updateTimer();
@@ -233,33 +244,63 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
         </div>
 
         {/* Clean 4-Box Countdown */}
-        <div className="grid grid-cols-4 gap-2.5 max-w-xs mx-auto my-5 font-sans">
-          {[
-            { label: 'DAYS', val: timeLeft.days },
-            { label: 'HOURS', val: timeLeft.hours },
-            { label: 'MIN', val: timeLeft.minutes },
-            { label: 'SEC', val: timeLeft.seconds },
-          ].map((box, i) => (
-            <div
-              key={i}
-              className="bg-[#faf5ec] border border-[#e2d4c0] rounded-lg py-2.5 px-1 flex flex-col items-center justify-center"
-            >
-              <span className="text-lg sm:text-xl font-bold text-[#3b2f2f] font-serif">
-                {String(box.val).padStart(2, '0')}
-              </span>
-              <span className="text-[9px] tracking-wider text-[#9c897e] mt-0.5">
-                {box.label}
-              </span>
+        {timeLeft.dayDiff < 0 ? (
+          <div className="max-w-xs mx-auto my-5 bg-[#fcf0f1] border border-[#e2a3a9] rounded-xl py-3 px-4 font-sans">
+            <div className="text-[10px] tracking-widest text-[#b85d67] font-bold uppercase">
+              MARRIED TOGETHER
             </div>
-          ))}
-        </div>
+            <div className="text-xl font-bold text-[#3b2f2f] font-serif mt-0.5">
+              결혼 +{Math.abs(timeLeft.dayDiff)}일째
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-2.5 max-w-xs mx-auto my-5 font-sans">
+            {[
+              { label: 'DAYS', val: timeLeft.days },
+              { label: 'HOURS', val: timeLeft.hours },
+              { label: 'MIN', val: timeLeft.minutes },
+              { label: 'SEC', val: timeLeft.seconds },
+            ].map((box, i) => (
+              <div
+                key={i}
+                className="bg-[#faf5ec] border border-[#e2d4c0] rounded-lg py-2.5 px-1 flex flex-col items-center justify-center"
+              >
+                <span className="text-lg sm:text-xl font-bold text-[#3b2f2f] font-serif">
+                  {String(box.val).padStart(2, '0')}
+                </span>
+                <span className="text-[9px] tracking-wider text-[#9c897e] mt-0.5">
+                  {box.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div className="text-xs sm:text-sm text-[#5c4d47] inline-flex items-center gap-1.5">
+        <div className="text-xs sm:text-sm text-[#5c4d47] inline-flex items-center justify-center gap-1.5 flex-wrap">
           <PixelHeart size={14} color="#d97b84" />
-          <span>
-            {coupleShortNames}의 결혼식이{' '}
-            <strong className="text-[#d97b84] font-bold">{timeLeft.days}일</strong> 남았습니다.
-          </span>
+          {timeLeft.dayDiff === 0 ? (
+            <span className="font-bold text-[#b85d67]">
+              오늘이 바로 {coupleShortNames}의 결혼식입니다 💍
+            </span>
+          ) : timeLeft.dayDiff < 0 ? (
+            <span>
+              함께 축복해 주셔서 감사합니다{' '}
+              <strong className="text-[#d97b84] font-bold">
+                (결혼 +{Math.abs(timeLeft.dayDiff)}일째)
+              </strong>{' '}
+              💐
+            </span>
+          ) : (
+            <span>
+              {coupleShortNames}의 결혼식이{' '}
+              <strong className="text-[#d97b84] font-bold">
+                {timeLeft.days === 0 && !timeLeft.isPast
+                  ? `${timeLeft.hours}시간 ${timeLeft.minutes}분`
+                  : `${timeLeft.days}일`}
+              </strong>{' '}
+              남았습니다.
+            </span>
+          )}
         </div>
 
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2 font-sans">

@@ -27,6 +27,7 @@ import { soundEngine } from '../utils/soundEngine';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { syncAccountHolderNames } from '../utils/configSync';
 import { getSampleDataChecklist } from '../utils/weddingPhase';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import {
   adminLogin,
   fetchAdminOverview,
@@ -51,6 +52,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   onUpdateConfig,
   onClose,
 }) => {
+  useBodyScrollLock(true);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [adminToken, setAdminToken] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState<string>('');

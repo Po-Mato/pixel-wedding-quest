@@ -3,14 +3,68 @@ import { MapPin, Copy, Check, Train, Bus, Car, Navigation, Phone } from 'lucide-
 import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
+import { cleanPhoneForHref, guardSamplePhoneAction } from '../../utils/phone';
 
 interface LocationSectionProps {
   config: WeddingConfig;
 }
 
+function buildVenueSummaryBadges(wedding: WeddingConfig['wedding']) {
+  const rawSubway = (wedding.subwayGuide[0] || '').split('(')[0].trim();
+  const subwayParts = rawSubway.split('에서');
+  const subwaySummary = subwayParts[0]?.trim() || '하단 상세 참고';
+
+  const rawShuttle = (wedding.shuttleGuide || '').trim();
+  const hasShuttle = /셔틀/.test(rawShuttle);
+  let secondTitle = '도보 이용';
+  let secondSummary = '역세권 도보 거리';
+
+  if (hasShuttle) {
+    secondTitle = '셔틀버스';
+    const intervalMatch = rawShuttle.match(/(\d+분\s*간격[^,.]*)/);
+    secondSummary = intervalMatch
+      ? intervalMatch[1].trim()
+      : rawShuttle.slice(0, 20).trim();
+  } else {
+    const walkMatch = (rawShuttle || rawSubway).match(
+      /(직진\s*도보\s*(?:약\s*)?\d+분|도보\s*(?:약\s*)?\d+분)/
+    );
+    if (walkMatch) {
+      secondSummary = walkMatch[1].trim();
+    } else if (rawShuttle) {
+      secondSummary = rawShuttle.split(/[.!]/)[0].slice(0, 22).trim();
+    } else if (wedding.busGuide[0]) {
+      secondTitle = '버스 이용';
+      const stopMatch = wedding.busGuide[0].match(/\(([^)]+)\)/);
+      secondSummary = stopMatch ? stopMatch[1].trim() : '인근 버스 정류장';
+    }
+  }
+
+  const rawParking = (wedding.parkingGuide[0] || '').trim();
+  const freeMatch = rawParking.match(/(\d+시간\s*무료|무료\s*주차)/);
+  const capMatch = rawParking.match(/(\d{2,4}대)/);
+  let parkingSummary = '주차 안내 참고';
+  if (freeMatch && capMatch) {
+    parkingSummary = `${freeMatch[1]} · ${capMatch[1]}`;
+  } else if (freeMatch) {
+    parkingSummary = freeMatch[1];
+  } else if (rawParking) {
+    parkingSummary = rawParking.split('·')[0].trim();
+  }
+
+  return {
+    subwaySummary,
+    hasShuttle,
+    secondTitle,
+    secondSummary,
+    parkingSummary,
+  };
+}
+
 export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
   const [copied, setCopied] = useState(false);
   const [mapMode, setMapMode] = useState<'real' | 'pixel'>('real');
+  const venueSummary = buildVenueSummaryBadges(config.wedding);
 
   const handleCopyAddress = async () => {
     soundEngine.playCoin();
@@ -111,8 +165,11 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
 
           {config.wedding.tel && (
             <a
-              href={`tel:${config.wedding.tel}`}
-              onClick={() => soundEngine.playBlip()}
+              href={`tel:${cleanPhoneForHref(config.wedding.tel)}`}
+              onClick={(e) => {
+                soundEngine.playBlip();
+                guardSamplePhoneAction(e, config.wedding.tel, '전화 걸기');
+              }}
               className="px-3.5 py-1.5 rounded-full bg-[#fffdf9] hover:bg-[#faf5ec] border border-[#d4b48c] text-xs font-sans font-medium text-[#5c4d47] flex items-center gap-1.5 transition-colors"
             >
               <Phone className="w-3.5 h-3.5 text-[#d97b84]" />
@@ -129,17 +186,17 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
               <span>지하철 안내</span>
             </div>
             <div className="text-[11px] font-bold text-[#3b2f2f] mt-1 leading-snug break-keep">
-              {config.wedding.subwayGuide[0]?.split('(')[0]?.trim() || '역삼역 3번 출구'}
+              {venueSummary.subwaySummary}
             </div>
           </div>
 
           <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-2.5">
             <div className="text-[10px] font-bold text-[#b85d67] flex items-center gap-1">
               <Bus className="w-3 h-3 shrink-0" />
-              <span>셔틀버스</span>
+              <span>{venueSummary.secondTitle}</span>
             </div>
             <div className="text-[11px] font-bold text-[#3b2f2f] mt-1 leading-snug break-keep">
-              10분 간격 수시 운행
+              {venueSummary.secondSummary}
             </div>
           </div>
 
@@ -149,7 +206,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
               <span>주차 안내</span>
             </div>
             <div className="text-[11px] font-bold text-[#3b2f2f] mt-1 leading-snug break-keep">
-              하객 2시간 무료주차
+              {venueSummary.parkingSummary}
             </div>
           </div>
         </div>
@@ -290,7 +347,8 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
       <div className="space-y-3 text-xs font-sans">
         <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-lg p-4">
           <div className="font-bold text-[#4d6b53] flex items-center gap-1.5 mb-2">
-            <Train className="w-4 h-4" /> 지하철 및 셔틀버스 안내
+            <Train className="w-4 h-4" />{' '}
+            {venueSummary.hasShuttle ? '지하철 및 셔틀버스 안내' : '지하철 및 도보 안내'}
           </div>
           <ul className="space-y-1.5 text-[#5c4d47]">
             {config.wedding.subwayGuide.map((line, i) => (

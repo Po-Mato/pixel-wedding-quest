@@ -5,6 +5,7 @@ import { PixelHeart, PixelSceneBanner } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { incrementReactionCounter } from '../../utils/weddingCloudSync';
 import { isSampleGalleryUrl } from '../../utils/weddingPhase';
+import { useBodyScrollLock } from '../../utils/useBodyScrollLock';
 
 const PhotoBoothModal = React.lazy(() =>
   import('./PhotoBoothModal').then((m) => ({ default: m.PhotoBoothModal }))
@@ -26,6 +27,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
   const [showPhotoBooth, setShowPhotoBooth] = useState<boolean>(false);
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  useBodyScrollLock(lightboxOpen);
   const [likesMap, setLikesMap] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {};
     config.gallery.forEach((g) => {
@@ -348,7 +350,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
           onClick={() => setLightboxOpen(false)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs flex flex-col items-center justify-center p-3 sm:p-6 animate-fadeIn select-none"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs overscroll-contain flex flex-col items-center justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-6 animate-fadeIn select-none"
         >
           <div
             onClick={(e) => e.stopPropagation()}

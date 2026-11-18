@@ -22,7 +22,8 @@ import {
 } from './data/weddingConfig';
 import { soundEngine } from './utils/soundEngine';
 import { copyTextToClipboard } from './utils/clipboard';
-import { fireCelebrationConfetti } from './utils/motion';
+import { fireCelebrationConfetti, prefersReducedMotion } from './utils/motion';
+import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { shareViaKakaoTalk } from './utils/kakaoShare';
 import { detectWeddingPhase, WeddingPhase } from './utils/weddingPhase';
 import {
@@ -45,6 +46,7 @@ import { LocationSection } from './components/sections/LocationSection';
 import { GiftSection } from './components/sections/GiftSection';
 import { RsvpGuestbookSection } from './components/sections/RsvpGuestbookSection';
 import {
+  CloudSyncStatus,
   fetchSyncedGuestbook,
   publishGuestbookEntry,
   fetchCloudWeddingConfig,
@@ -167,6 +169,9 @@ export function App() {
   const [showCertificate, setShowCertificate] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedKakao, setCopiedKakao] = useState(false);
+  const [guestbookSyncStatus, setGuestbookSyncStatus] = useState<CloudSyncStatus | null>(
+    null
+  );
   const [phaseOverride, setPhaseOverride] = useState<WeddingPhase | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -350,11 +355,14 @@ export function App() {
       }
     });
 
-    fetchSyncedGuestbook(DEFAULT_WEDDING_CONFIG.initialGuestbook).then(({ entries }) => {
-      if (entries.length > 0) {
-        setGuestbook(entries);
+    fetchSyncedGuestbook(DEFAULT_WEDDING_CONFIG.initialGuestbook).then(
+      ({ entries, status }) => {
+        setGuestbookSyncStatus(status);
+        if (entries.length > 0) {
+          setGuestbook(entries);
+        }
       }
-    });
+    );
 
     if (typeof BroadcastChannel === 'undefined') return;
     let bc: BroadcastChannel | null = null;
@@ -380,16 +388,35 @@ export function App() {
     };
   }, []);
 
-  const handleAddGuestbook = (entry: GuestbookEntry) => {
+  const handleAddGuestbook = async (entry: GuestbookEntry): Promise<boolean> => {
     const tempId = entry.id;
     setGuestbook((prev) => [entry, ...prev]);
-    publishGuestbookEntry(entry)
-      .then(({ savedEntry }) => {
+    try {
+      const { ok, savedEntry } = await publishGuestbookEntry(entry);
+      const nowStr = new Date().toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      if (ok) {
         setGuestbook((prev) =>
           prev.map((item) => (item.id === tempId ? savedEntry : item))
         );
-      })
-      .catch(() => {});
+        setGuestbookSyncStatus((prev) => ({
+          mode: 'cloud',
+          syncedAt: nowStr,
+          apiBase: prev?.apiBase,
+        }));
+      } else {
+        setGuestbookSyncStatus((prev) => ({
+          mode: 'local',
+          syncedAt: nowStr,
+          apiBase: prev?.apiBase,
+        }));
+      }
+      return ok;
+    } catch {
+      return false;
+    }
   };
 
   const handleDeleteGuestbook = (id: string) => {
@@ -443,7 +470,10 @@ export function App() {
   const handleStartClassicMode = () => {
     setScreenMode('classic');
     pushNavigationState('classic', null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
   };
 
 
@@ -524,6 +554,7 @@ export function App() {
   const currentBuildingMeta = activeQuest
     ? QUEST_BUILDINGS.find((b) => b.id === activeQuest)
     : null;
+  useBodyScrollLock(screenMode === 'world' && Boolean(activeQuest && currentBuildingMeta));
 
   const navigateAdjacentQuest = (dir: -1 | 1) => {
     if (!activeQuest) return;
@@ -547,8 +578,8 @@ export function App() {
     <div
       className={`min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center justify-start ${
         screenMode === 'world'
-          ? 'py-1.5 sm:py-3 px-1.5 sm:px-3'
-          : 'py-3 sm:py-6 px-2.5 sm:px-4'
+          ? 'pt-1.5 sm:pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-3 px-1.5 sm:px-3'
+          : 'pt-3 sm:pt-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-6 px-2.5 sm:px-4'
       }`}
     >
       <div
@@ -564,11 +595,11 @@ export function App() {
         {screenMode !== 'parents' && (
           <header
             className={`pixel-card bg-[#fffdf9] flex items-center justify-between gap-1 font-sans ${
-              screenMode === 'world' ? 'px-2.5 py-1.5' : 'px-3 py-2.5'
+              screenMode === 'world' ? 'px-2 py-1.5 sm:px-2.5' : 'px-2.5 py-2 sm:px-3 sm:py-2.5'
             }`}
           >
             {/* Left: Cover & Mode Toggle Pills */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => {
                   soundEngine.playBlip();
@@ -577,7 +608,7 @@ export function App() {
                   pushNavigationState('title', null);
                 }}
                 title="표지 화면으로"
-                className={`p-1.5 rounded-full border transition-all ${
+                className={`p-1.5 rounded-full border transition-all shrink-0 ${
                   screenMode === 'title'
                     ? 'bg-[#3b2f2f] text-[#fffdf9] border-[#3b2f2f] shadow-xs'
                     : 'bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#e2d4c0]'
@@ -593,13 +624,13 @@ export function App() {
                     setActiveQuest(null);
                     handleStartClassicMode();
                   }}
-                  className={`px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
+                  className={`px-1.5 sm:px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-0.5 sm:gap-1 whitespace-nowrap shrink-0 transition-all ${
                     screenMode === 'classic'
                       ? 'bg-[#3b2f2f] text-[#fffdf9] shadow-xs'
                       : 'text-[#7d6e65] hover:text-[#3b2f2f]'
                   }`}
                 >
-                  <BookOpen className="w-3 h-3" />
+                  <BookOpen className="w-3 h-3 shrink-0" />
                   <span>일반</span>
                 </button>
 
@@ -610,13 +641,13 @@ export function App() {
                     setScreenMode('world');
                     pushNavigationState('world', null);
                   }}
-                  className={`px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
+                  className={`px-1.5 sm:px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-0.5 sm:gap-1 whitespace-nowrap shrink-0 transition-all ${
                     screenMode === 'world'
                       ? 'bg-[#d97b84] text-white shadow-xs'
                       : 'text-[#7d6e65] hover:text-[#3b2f2f]'
                   }`}
                 >
-                  <Sparkles className="w-3 h-3" />
+                  <Sparkles className="w-3 h-3 shrink-0" />
                   <span>픽셀 가든</span>
                 </button>
 
@@ -627,7 +658,7 @@ export function App() {
                     handleStartParentsMode();
                   }}
                   title="부모님·어르신 지인 전달용 큰글씨 청첩장"
-                  className="px-2 py-1 rounded-full text-[11px] font-bold text-[#7d6e65] hover:text-[#3b2f2f] transition-all"
+                  className="px-1.5 sm:px-2 py-1 rounded-full text-[11px] font-bold text-[#7d6e65] hover:text-[#3b2f2f] whitespace-nowrap shrink-0 transition-all"
                 >
                   <span>부모님용</span>
                 </button>
@@ -635,7 +666,7 @@ export function App() {
             </div>
 
             {/* Right: Compact Stamp Badge (in World Mode) + Music-Box BGM */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               {screenMode === 'world' && (
                 <button
                   onClick={() => {
@@ -643,20 +674,21 @@ export function App() {
                     setShowCertificate(true);
                   }}
                   title="가든 산책 스탬프 & 초대권 확인"
-                  className={`px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 shrink-0 transition-colors ${
+                  className={`px-1.5 sm:px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-0.5 sm:gap-1 whitespace-nowrap shrink-0 transition-colors ${
                     stampCount >= 3
                       ? 'bg-[#fcf0f1] text-[#b85d67] border-[#d97b84]'
                       : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0]'
                   }`}
                 >
-                  <Award className="w-3 h-3 text-[#d97b84]" />
-                  <span>스탬프 {stampCount}/7</span>
+                  <Award className="w-3 h-3 text-[#d97b84] shrink-0" />
+                  <span className="hidden min-[420px]:inline">스탬프</span>
+                  <span>{stampCount}/7</span>
                 </button>
               )}
 
               <button
                 onClick={handleToggleBgm}
-                className={`px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 transition-colors ${
+                className={`px-1.5 sm:px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors ${
                   bgmPlaying
                     ? 'bg-[#fcf0f1] text-[#b85d67] border-[#e2a3a9]'
                     : 'bg-[#faf5ec] text-[#7d6e65] border-[#e2d4c0]'
@@ -721,6 +753,7 @@ export function App() {
               <ClassicWeddingView
                 config={config}
                 guestbook={guestbook}
+                syncStatus={guestbookSyncStatus}
                 earnedTitle={earnedTitle}
                 initialSide={defaultGuestSide}
                 phase={activePhase}
@@ -732,7 +765,10 @@ export function App() {
                 onSwitchToGardenMode={() => {
                   setScreenMode('world');
                   pushNavigationState('world', null);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  window.scrollTo({
+                    top: 0,
+                    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                  });
                 }}
               />
             )}
@@ -885,7 +921,7 @@ export function App() {
             soundEngine.playBlip(440);
             closeActiveQuest();
           }}
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs overscroll-contain flex items-center justify-center p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -939,6 +975,7 @@ export function App() {
                 <RsvpGuestbookSection
                   config={config}
                   guestbook={guestbook}
+                  syncStatus={guestbookSyncStatus}
                   earnedTitle={earnedTitle}
                   initialSide={defaultGuestSide}
                   onAddGuestbook={handleAddGuestbook}

@@ -16,7 +16,35 @@ const KNOWN_SAMPLE_PHONES = new Set([
   '010-9876-5432',
   '010-8765-4321',
   '010-7654-3210',
+  '010-1111-2222',
+  '010-3333-4444',
+  '010-5555-6666',
+  '010-7777-8888',
+  '010-0000-0000',
+  '010-9999-0000',
 ]);
+
+const SEQUENTIAL_FOUR_DIGITS = new Set([
+  '0123',
+  '1234',
+  '2345',
+  '3456',
+  '4567',
+  '5678',
+  '6789',
+  '7890',
+  '9876',
+  '8765',
+  '7654',
+  '6543',
+  '5432',
+  '4321',
+  '3210',
+]);
+
+function isPlaceholderFourDigits(block: string): boolean {
+  return /^(\d)\1{3}$/.test(block) || SEQUENTIAL_FOUR_DIGITS.has(block);
+}
 
 export function isSampleAccountNumber(accountNumber: string): boolean {
   const trimmed = (accountNumber || '').trim();
@@ -29,7 +57,19 @@ export function isSampleAccountNumber(accountNumber: string): boolean {
 export function isSamplePhoneNumber(phone: string): boolean {
   const trimmed = (phone || '').trim();
   if (!trimmed) return true;
-  return KNOWN_SAMPLE_PHONES.has(trimmed);
+  if (KNOWN_SAMPLE_PHONES.has(trimmed)) return true;
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length < 7) return true;
+  if (digits.length >= 10 && digits.startsWith('01')) {
+    const body = digits.slice(3);
+    if (body.length === 8) {
+      const mid = body.slice(0, 4);
+      const last = body.slice(4, 8);
+      if (mid === '0000' || last === '0000') return true;
+      if (isPlaceholderFourDigits(mid) && isPlaceholderFourDigits(last)) return true;
+    }
+  }
+  return false;
 }
 
 export function isSampleGalleryUrl(url: string): boolean {
@@ -79,6 +119,22 @@ export function getSampleDataChecklist(config: WeddingConfig): SampleDataCheckli
 }
 
 export type WeddingPhase = 'upcoming' | 'dday' | 'post';
+
+/**
+ * Returns calendar-day difference between today and wedding day:
+ * > 0: days remaining, 0: wedding day, < 0: days elapsed since wedding day.
+ */
+export function getWeddingDayDiff(dateISO: string, now = new Date()): number | null {
+  const parsed = new Date(dateISO);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weddingStart = new Date(
+    parsed.getFullYear(),
+    parsed.getMonth(),
+    parsed.getDate()
+  ).getTime();
+  return Math.round((weddingStart - todayStart) / (1000 * 60 * 60 * 24));
+}
 
 export function detectWeddingPhase(config: WeddingConfig, now = new Date()): WeddingPhase {
   const parsed = new Date(config.wedding.dateISO);
