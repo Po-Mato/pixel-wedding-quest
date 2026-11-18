@@ -23,6 +23,7 @@ import { RsvpGuestbookSection } from './sections/RsvpGuestbookSection';
 import { WeddingPhaseBanner } from './WeddingPhaseBanner';
 import { WeddingPhase } from '../utils/weddingPhase';
 import { soundEngine } from '../utils/soundEngine';
+import { useCoupleOrder } from '../utils/coupleOrder';
 
 const MiniGameSection = React.lazy(() =>
   import('./sections/MiniGameSection').then((m) => ({ default: m.MiniGameSection }))
@@ -68,6 +69,8 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   const [heroStyle, setHeroStyle] = useState<'pixel' | 'photo'>('pixel');
   const [activeSectionId, setActiveSectionId] = useState<QuestBuildingId | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const { primary, pair } = useCoupleOrder();
+  const [firstName, secondName] = pair(config.groom.fullName, config.bride.fullName);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -124,9 +127,9 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
             THE MARRIAGE OF
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-[0.2em] text-[#3b2f2f] mt-2">
-            {config.groom.fullName}{' '}
+            {firstName}{' '}
             <span className="text-[#d97b84] text-lg align-middle mx-1">·</span>{' '}
-            {config.bride.fullName}
+            {secondName}
           </h1>
           <p className="text-xs text-[#8c7a70] mt-2 font-engSerif italic tracking-wider">
             {config.wedding.year}. {String(config.wedding.month).padStart(2, '0')}.{' '}
@@ -194,13 +197,19 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
 
             {/* Couple Portrait Badge overlapping bottom of arch */}
             <div className="relative -mt-6 mx-auto w-fit bg-[#fffdf9] border border-[#e2d4c0] rounded-full px-5 py-2 shadow-sm flex items-center gap-3 z-10">
-              <GroomSprite size={32} />
-              <div className="flex flex-col items-center">
+              <div style={{ order: primary === 'bride' ? 3 : 1 }}>
+                <GroomSprite size={32} />
+              </div>
+              <div style={{ order: 2 }} className="flex flex-col items-center">
                 <PixelRing size={16} />
                 <PixelHeart size={10} className="mt-0.5 animate-pulse" />
               </div>
-              <BrideSprite size={32} />
-              <PetCatSprite size={22} className="-ml-1 mt-1" />
+              <div style={{ order: primary === 'bride' ? 1 : 3 }}>
+                <BrideSprite size={32} />
+              </div>
+              <div style={{ order: 4 }} className="-ml-1 mt-1">
+                <PetCatSprite size={22} />
+              </div>
             </div>
           </div>
         </div>

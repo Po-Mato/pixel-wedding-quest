@@ -2,6 +2,7 @@ import React from 'react';
 import { Award, X, Sparkles } from 'lucide-react';
 import { WeddingConfig } from '../data/weddingConfig';
 import { GroomSprite, BrideSprite, PixelRing } from './PixelSprites';
+import { useCoupleOrder } from '../utils/coupleOrder';
 
 interface CertificateModalProps {
   config: WeddingConfig;
@@ -16,6 +17,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
   stampCount,
   onClose,
 }) => {
+  const { pair } = useCoupleOrder();
+  const [firstName, secondName] = pair(config.groom.fullName, config.bride.fullName);
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="pixel-card w-full max-w-md p-6 bg-[#fffdf9] text-center relative animate-fadeIn">
@@ -55,8 +58,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
 
         <div className="space-y-2.5 text-xs text-[#5c4d47] leading-relaxed">
           <p className="break-keep">
-            <strong className="text-[#3b2f2f]">{config.groom.fullName}</strong> ♥{' '}
-            <strong className="text-[#3b2f2f]">{config.bride.fullName}</strong>의 웨딩 정원을
+            <strong className="text-[#3b2f2f]">{firstName}</strong> ♥{' '}
+            <strong className="text-[#3b2f2f]">{secondName}</strong>의 웨딩 정원을
             따뜻한 시선으로 둘러보아 주셔서 진심으로 감사드립니다.
           </p>
           {earnedTitle && (

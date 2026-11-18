@@ -10,6 +10,7 @@ import {
   PIXEL_ASSETS,
 } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
+import { useCoupleOrder } from '../utils/coupleOrder';
 
 interface TitleScreenProps {
   config: WeddingConfig;
@@ -25,6 +26,10 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   onStartParentsMode,
 }) => {
   const [coverType, setCoverType] = useState<'pixel' | 'photo'>('pixel');
+  const { primary, pair } = useCoupleOrder();
+  const [firstName, secondName] = pair(config.groom.fullName, config.bride.fullName);
+  const groomOrder = primary === 'bride' ? 3 : 1;
+  const brideOrder = primary === 'bride' ? 1 : 3;
 
   return (
     <div className="pixel-card p-6 sm:p-8 bg-[#fffdf9] text-center relative overflow-hidden">
@@ -99,17 +104,25 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       <div className="relative z-10 -mt-7 flex justify-center">
         <div>
           <div className="bg-[#fffdf9] border border-[#e6d5b8] rounded-full py-1.5 px-3 flex items-center justify-center gap-2.5 shadow-sm">
-            <div className="w-14 h-14 rounded-full bg-[#faf5ec] border border-[#d4b48c] overflow-hidden flex items-center justify-center shrink-0">
+            <div
+              style={{ order: groomOrder }}
+              className="w-14 h-14 rounded-full bg-[#faf5ec] border border-[#d4b48c] overflow-hidden flex items-center justify-center shrink-0"
+            >
               <GroomSprite size={54} variant="portrait" bounce />
             </div>
-            <div className="flex flex-col items-center">
+            <div style={{ order: 2 }} className="flex flex-col items-center">
               <PixelRing size={20} />
               <PixelHeart size={13} color="#d97b84" className="mt-0.5" />
             </div>
-            <div className="w-14 h-14 rounded-full bg-[#fcf5f5] border border-[#e2a3a9] overflow-hidden flex items-center justify-center shrink-0">
+            <div
+              style={{ order: brideOrder }}
+              className="w-14 h-14 rounded-full bg-[#fcf5f5] border border-[#e2a3a9] overflow-hidden flex items-center justify-center shrink-0"
+            >
               <BrideSprite size={54} variant="portrait" bounce />
             </div>
-            <PetCatSprite size={42} className="hidden xs:block -ml-1" />
+            <div style={{ order: 4 }} className="hidden xs:block -ml-1">
+              <PetCatSprite size={42} />
+            </div>
           </div>
         </div>
       </div>
@@ -117,9 +130,9 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       {/* Couple Names & Poetic Subtitle */}
       <div className="mt-6 space-y-2">
         <div className="text-xl sm:text-2xl font-bold tracking-[0.18em] text-[#3b2f2f]">
-          {config.groom.fullName}{' '}
+          {firstName}{' '}
           <span className="text-[#d97b84] text-base align-middle mx-1">♥</span>{' '}
-          {config.bride.fullName}
+          {secondName}
         </div>
         <p className="text-xs sm:text-sm text-[#6e5d53] leading-relaxed break-keep">
           “{config.invitationMessage.headline}”

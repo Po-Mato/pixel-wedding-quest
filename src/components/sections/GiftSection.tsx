@@ -103,6 +103,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
             soundEngine.playBlip(580);
             setActiveSide('groom');
           }}
+          style={{ order: initialSide === 'bride' ? 2 : 1 }}
           className={`py-2.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors ${
             activeSide === 'groom'
               ? 'bg-[#3b2f2f] text-white border-[#3b2f2f]'
@@ -117,6 +118,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
             soundEngine.playBlip(680);
             setActiveSide('bride');
           }}
+          style={{ order: initialSide === 'bride' ? 1 : 2 }}
           className={`py-2.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors ${
             activeSide === 'bride'
               ? 'bg-[#d97b84] text-white border-[#d97b84]'

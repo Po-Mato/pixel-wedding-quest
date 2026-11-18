@@ -25,6 +25,14 @@ import { copyTextToClipboard } from './utils/clipboard';
 import { fireCelebrationConfetti } from './utils/motion';
 import { shareViaKakaoTalk } from './utils/kakaoShare';
 import { detectWeddingPhase, WeddingPhase } from './utils/weddingPhase';
+import {
+  CoupleOrderProvider,
+  CoupleSide,
+  getRandomPrimarySide,
+  joinCoupleNames,
+  resolvePrimarySide,
+  rollRandomPrimarySide,
+} from './utils/coupleOrder';
 import { PIXEL_ASSETS } from './components/PixelSprites';
 import { TitleScreen } from './components/TitleScreen';
 import { ClassicWeddingView } from './components/ClassicWeddingView';
@@ -129,6 +137,9 @@ export function App() {
 
   const [screenMode, setScreenMode] = useState<AppScreenMode>(detectInitialScreenMode);
   const [parentsSide, setParentsSide] = useState<ParentsSideFilter>(detectInitialParentsSide);
+  const [randomSide, setRandomSide] = useState<CoupleSide>(getRandomPrimarySide);
+  // 신랑측 링크 → 신랑 우선, 신부측 링크 → 신부 우선, 일반 링크 → 무작위(전 섹션 동일 순서)
+  const defaultGuestSide = resolvePrimarySide(parentsSide, randomSide);
   const [activeQuest, setActiveQuest] = useState<QuestBuildingId | null>(null);
   const [visitedQuests, setVisitedQuests] = useState<Record<QuestBuildingId, boolean>>({
     story: false,
@@ -215,13 +226,14 @@ export function App() {
     const m = String(config.wedding.month).padStart(2, '0');
     const d = String(config.wedding.day).padStart(2, '0');
     const dateDot = `${y}. ${m}. ${d}`;
-    document.title = `${config.groom.fullName} ♥ ${config.bride.fullName} 모바일 청첩장 | ${dateDot}`;
+    const coupleNames = joinCoupleNames(config, defaultGuestSide, 'fullName', ' ♥ ');
+    document.title = `${coupleNames} 모바일 청첩장 | ${dateDot}`;
 
     const ogTitle = document.querySelector('meta[property="og:title"]');
     if (ogTitle) {
       ogTitle.setAttribute(
         'content',
-        `${config.groom.fullName} ♥ ${config.bride.fullName} 결혼합니다 | ${dateDot}`
+        `${coupleNames} 결혼합니다 | ${dateDot}`
       );
     }
     const descText = `${config.wedding.dateDisplay} ${config.wedding.timeDisplay} · ${config.wedding.venueName} ${config.wedding.hallName} | 소중한 분들을 초대합니다`;
@@ -248,7 +260,7 @@ export function App() {
         // ignore
       }
     }
-  }, [config]);
+  }, [config, defaultGuestSide]);
 
   // Synchronize screenMode & activeQuest with browser History API so mobile 'Back' button
   // closes modals or returns to the cover instead of exiting the KakaoTalk in-app browser
@@ -434,8 +446,6 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const defaultGuestSide: 'groom' | 'bride' =
-    parentsSide === 'bride' ? 'bride' : 'groom';
 
   const buildShareTargetUrl = (sideParam: ParentsSideFilter = parentsSide) => {
     try {
@@ -455,6 +465,9 @@ export function App() {
 
   const handleSelectShareSide = (nextSide: ParentsSideFilter) => {
     soundEngine.playBlip();
+    if (nextSide === 'all') {
+      setRandomSide(rollRandomPrimarySide());
+    }
     setParentsSide(nextSide);
     try {
       const nextUrl = buildShareTargetUrl(nextSide);
@@ -480,7 +493,7 @@ export function App() {
     if (navigator.share) {
       navigator
         .share({
-          title: `${sidePrefix}${config.groom.fullName} ♥ ${config.bride.fullName} 결혼합니다`,
+          title: `${sidePrefix}${joinCoupleNames(config, defaultGuestSide)} 결혼합니다`,
           text: `${config.wedding.dateDisplay} ${config.wedding.timeDisplay} · ${config.wedding.venueName}`,
           url,
         })
@@ -501,7 +514,7 @@ export function App() {
         : parentsSide === 'bride'
         ? '[신부측 모바일 청첩장]'
         : '[모바일 청첩장]';
-    const res = await shareViaKakaoTalk(config, url, prefix);
+    const res = await shareViaKakaoTalk(config, url, prefix, defaultGuestSide);
     if (res === 'copied_card') {
       setCopiedKakao(true);
       setTimeout(() => setCopiedKakao(false), 3000);
@@ -530,6 +543,7 @@ export function App() {
   };
 
   return (
+    <CoupleOrderProvider primary={defaultGuestSide}>
     <div
       className={`min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center justify-start ${
         screenMode === 'world'
@@ -742,9 +756,14 @@ export function App() {
               onClick={handleSecretFooterTap}
               className="text-xs text-[#6e5d53] select-none cursor-default"
             >
-              <strong className="text-[#3b2f2f]">{config.groom.fullName}</strong>{' '}
+              <strong className="text-[#3b2f2f]">
+                {defaultGuestSide === 'bride' ? config.bride.fullName : config.groom.fullName}
+              </strong>{' '}
               <span className="text-[#d97b84]">♥</span>{' '}
-              <strong className="text-[#3b2f2f]">{config.bride.fullName}</strong> ·{' '}
+              <strong className="text-[#3b2f2f]">
+                {defaultGuestSide === 'bride' ? config.groom.fullName : config.bride.fullName}
+              </strong>{' '}
+              ·{' '}
               {config.wedding.year}. {String(config.wedding.month).padStart(2, '0')}.{' '}
               {String(config.wedding.day).padStart(2, '0')}
             </div>
@@ -797,7 +816,7 @@ export function App() {
                 <span>공유 링크 맞춤 설정 (계좌·방명록 기본 탭)</span>
                 <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e2d4c0]">
                   {[
-                    { id: 'all' as const, label: '기본' },
+                    { id: 'all' as const, label: '일반(랜덤)' },
                     { id: 'groom' as const, label: '신랑측 지인용' },
                     { id: 'bride' as const, label: '신부측 지인용' },
                   ].map((s) => {
@@ -979,6 +998,7 @@ export function App() {
         </Suspense>
       )}
     </div>
+    </CoupleOrderProvider>
   );
 }
 export default App;

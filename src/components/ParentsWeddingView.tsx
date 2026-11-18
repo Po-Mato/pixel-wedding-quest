@@ -31,6 +31,7 @@ import { fillCoupleText } from '../utils/coupleText';
 import { fireCelebrationConfetti } from '../utils/motion';
 import { isSampleAccountNumber } from '../utils/weddingPhase';
 import { shareViaKakaoTalk } from '../utils/kakaoShare';
+import { joinCoupleNames, orderedSides, useCoupleOrder } from '../utils/coupleOrder';
 
 export type ParentsSideFilter = 'all' | 'groom' | 'bride';
 type FontScaleMode = 'normal' | 'large' | 'xlarge';
@@ -51,9 +52,9 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   onDeleteGuestbook,
 }) => {
   const [fontScale, setFontScale] = useState<FontScaleMode>('large');
-  const [activeAccountSide, setActiveAccountSide] = useState<'groom' | 'bride'>(
-    initialSide === 'bride' ? 'bride' : 'groom'
-  );
+  // 신랑측 링크 → 신랑 우선 / 신부측 링크 → 신부 우선 / 일반 링크 → 기기별 무작위(고정)
+  const { primary } = useCoupleOrder();
+  const [activeAccountSide, setActiveAccountSide] = useState<'groom' | 'bride'>(primary);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
@@ -64,9 +65,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [guestPhone, setGuestPhone] = useState('');
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [privacyError, setPrivacyError] = useState(false);
-  const [guestSide, setGuestSide] = useState<'groom' | 'bride'>(
-    initialSide === 'bride' ? 'bride' : 'groom'
-  );
+  const [guestSide, setGuestSide] = useState<'groom' | 'bride'>(primary);
   const [attendance, setAttendance] = useState<'attend' | 'unable' | 'maybe'>('attend');
   const [companions, setCompanions] = useState<number>(1);
   const [meal, setMeal] = useState<'yes' | 'no' | 'undecided'>('yes');
@@ -75,14 +74,12 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialSide === 'bride') {
-      setActiveAccountSide('bride');
-      setGuestSide('bride');
-    } else if (initialSide === 'groom') {
-      setActiveAccountSide('groom');
-      setGuestSide('groom');
-    }
-  }, [initialSide]);
+    setActiveAccountSide(primary);
+    setGuestSide(primary);
+  }, [primary]);
+
+  const groomOrder = primary === 'bride' ? 3 : 1;
+  const brideOrder = primary === 'bride' ? 1 : 3;
 
   // Dynamic font-size classes tailored for senior readability
   const textScale = {
@@ -214,7 +211,12 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     if (navigator.share && label === 'main') {
       navigator
         .share({
-          title: `${sideTitle}${config.groom.fullName} · ${config.bride.fullName} 결혼식에 초대합니다`,
+          title: `${sideTitle}${joinCoupleNames(
+            config,
+            sideParam === 'groom' || sideParam === 'bride' ? sideParam : primary,
+            'fullName',
+            ' · '
+          )} 결혼식에 초대합니다`,
           text: `${config.wedding.dateDisplay} ${config.wedding.timeDisplay}\n${config.wedding.venueName} ${config.wedding.hallName}`,
           url: shareUrl,
         })
@@ -234,7 +236,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         : initialSide === 'bride'
         ? '[신부측 혼주 초청]'
         : '[혼주 초청장]';
-    const res = await shareViaKakaoTalk(config, shareUrl, prefix);
+    const res = await shareViaKakaoTalk(config, shareUrl, prefix, primary);
     if (res === 'copied_card') {
       setCopiedShare('kakao');
       setTimeout(() => setCopiedShare(null), 3500);
@@ -283,10 +285,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     }
   };
 
-  const orderedParentGroups =
-    initialSide === 'bride'
-      ? (['bride', 'groom'] as const)
-      : (['groom', 'bride'] as const);
+  const orderedParentGroups = orderedSides(primary);
 
   const activeAccounts =
     activeAccountSide === 'groom'
@@ -353,21 +352,21 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl overflow-hidden shadow-[0_12px_32px_-14px_rgba(45,34,30,0.12)] text-center">
         <div className="pt-8 pb-5 px-6 bg-gradient-to-b from-[#faf4ea] to-[#fffdf9] border-b border-[#efe6d8]">
           <h1 className={`${textScale.heroTitle} font-bold text-[#2d221e] tracking-wide`}>
-            {config.groom.fullName}
+            {primary === 'bride' ? config.bride.fullName : config.groom.fullName}
             <span className="text-[#b35c66] mx-2.5 font-normal">·</span>
-            {config.bride.fullName}
+            {primary === 'bride' ? config.groom.fullName : config.bride.fullName}
           </h1>
 
           {/* Prominent Parents Names Banner right on the cover for elders */}
           <div className="mt-5 inline-flex flex-col gap-1.5 bg-[#faf5ec] border border-[#e2d4c0] rounded-2xl px-5 py-3.5 text-left">
-            <div className={`${textScale.sub} text-[#3b2f2f]`}>
+            <div style={{ order: groomOrder }} className={`${textScale.sub} text-[#3b2f2f]`}>
               <span className="font-sans font-bold text-[#5c4d47] mr-2">신랑측 혼주</span>
               <strong>{config.groom.fatherName}</strong> ·{' '}
               <strong>{config.groom.motherName}</strong>
               <span className="text-[#69584f]">의 {config.groom.relation} </span>
               <strong className="text-[#2d221e]">{config.groom.name}</strong>
             </div>
-            <div className={`${textScale.sub} text-[#3b2f2f]`}>
+            <div style={{ order: brideOrder }} className={`${textScale.sub} text-[#3b2f2f]`}>
               <span className="font-sans font-bold text-[#b35c66] mr-2">신부측 혼주</span>
               <strong>{config.bride.fatherName}</strong> ·{' '}
               <strong>{config.bride.motherName}</strong>
@@ -382,7 +381,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           <div className="relative mx-auto max-w-[420px] aspect-[4/4.6] rounded-2xl overflow-hidden border border-[#dfd2be] shadow-sm bg-[#faf5ec]">
             <img
               src={config.gallery[0]?.imageUrl}
-              alt={`${config.groom.fullName} · ${config.bride.fullName} 웨딩 사진`}
+              alt={`${joinCoupleNames(config, primary, 'fullName', ' · ')} 웨딩 사진`}
               className="w-full h-full object-cover"
             />
           </div>
@@ -431,8 +430,8 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
 
         {/* Clear Family Lineage Box */}
-        <div className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-5 space-y-3.5 text-center">
-          <div className={`${textScale.nameLarge} text-[#2d221e]`}>
+        <div className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-5 flex flex-col gap-3.5 text-center">
+          <div style={{ order: groomOrder }} className={`${textScale.nameLarge} text-[#2d221e]`}>
             <strong>{config.groom.fatherName}</strong> ·{' '}
             <strong>{config.groom.motherName}</strong>
             <span className={`${textScale.sub} text-[#69584f] mx-2`}>
@@ -441,9 +440,9 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             <strong className="text-[#2d221e]">{config.groom.fullName}</strong>
           </div>
 
-          <div className="border-t border-[#e8dccb]" />
+          <div style={{ order: 2 }} className="border-t border-[#e8dccb]" />
 
-          <div className={`${textScale.nameLarge} text-[#2d221e]`}>
+          <div style={{ order: brideOrder }} className={`${textScale.nameLarge} text-[#2d221e]`}>
             <strong>{config.bride.fatherName}</strong> ·{' '}
             <strong>{config.bride.motherName}</strong>
             <span className={`${textScale.sub} text-[#69584f] mx-2`}>
@@ -808,6 +807,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveAccountSide('groom')}
+            style={{ order: groomOrder }}
             className={`${textScale.btn} rounded-2xl font-bold border transition-colors ${
               activeAccountSide === 'groom'
                 ? 'bg-[#2d221e] text-white border-[#2d221e]'
@@ -819,6 +819,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveAccountSide('bride')}
+            style={{ order: brideOrder }}
             className={`${textScale.btn} rounded-2xl font-bold border transition-colors ${
               activeAccountSide === 'bride'
                 ? 'bg-[#b35c66] text-white border-[#b35c66]'
@@ -1041,6 +1042,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setGuestSide('groom')}
+                  style={{ order: groomOrder }}
                   className={`py-3 rounded-xl font-bold border text-sm sm:text-base ${
                     guestSide === 'groom'
                       ? 'bg-[#2d221e] text-white border-[#2d221e]'
@@ -1052,6 +1054,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setGuestSide('bride')}
+                  style={{ order: brideOrder }}
                   className={`py-3 rounded-xl font-bold border text-sm sm:text-base ${
                     guestSide === 'bride'
                       ? 'bg-[#b35c66] text-white border-[#b35c66]'
@@ -1244,6 +1247,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           <button
             type="button"
             onClick={() => handleShareParentsPage('groom', 'groom')}
+            style={{ order: groomOrder }}
             className="py-2.5 px-3 rounded-xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#d8c7b0] text-xs sm:text-sm font-bold text-[#3b2f2f]"
           >
             {copiedShare === 'groom'
@@ -1253,6 +1257,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           <button
             type="button"
             onClick={() => handleShareParentsPage('bride', 'bride')}
+            style={{ order: brideOrder }}
             className="py-2.5 px-3 rounded-xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#d8c7b0] text-xs sm:text-sm font-bold text-[#b35c66]"
           >
             {copiedShare === 'bride'

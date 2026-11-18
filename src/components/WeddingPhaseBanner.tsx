@@ -13,6 +13,7 @@ import {
 import { WeddingConfig, QuestBuildingId } from '../data/weddingConfig';
 import { WeddingPhase } from '../utils/weddingPhase';
 import { soundEngine } from '../utils/soundEngine';
+import { useCoupleOrder } from '../utils/coupleOrder';
 
 interface WeddingPhaseBannerProps {
   config: WeddingConfig;
@@ -29,6 +30,7 @@ export const WeddingPhaseBanner: React.FC<WeddingPhaseBannerProps> = ({
   onResetPreview,
   isPreviewOverride,
 }) => {
+  const { names } = useCoupleOrder();
   if (phase === 'upcoming') return null;
 
   const encodedAddr = encodeURIComponent(config.wedding.addressRoad);
@@ -53,7 +55,7 @@ export const WeddingPhaseBanner: React.FC<WeddingPhaseBannerProps> = ({
               <span>WEDDING DAY · 오늘 결혼합니다</span>
             </div>
             <h2 className="text-sm sm:text-base font-bold text-[#3b2f2f] mt-1.5 font-serif">
-              💍 {config.groom.fullName} ♥ {config.bride.fullName} 본식 당일 빠른 안내
+              💍 {names(config, 'fullName')} 본식 당일 빠른 안내
             </h2>
           </div>
 
@@ -170,7 +172,7 @@ export const WeddingPhaseBanner: React.FC<WeddingPhaseBannerProps> = ({
 
       <p className="text-xs text-[#5c4d47] leading-relaxed font-serif break-keep bg-[#faf5ec] p-3.5 rounded-xl border border-[#e6d5b8]">
         바쁘신 가운데 귀한 걸음으로 자리를 빛내주신 분들, 그리고 멀리서도 따뜻한 마음으로 축복해 주신 모든 분들께 깊이 감사드립니다. 보내주신 사랑을 잊지 않고{' '}
-        <strong>{config.groom.fullName} · {config.bride.fullName}</strong> 두 사람 서로 아끼며 행복하게 잘 살겠습니다.
+        <strong>{names(config, 'fullName', ' · ')}</strong> 두 사람 서로 아끼며 행복하게 잘 살겠습니다.
       </p>
 
       <div className="grid grid-cols-2 gap-2">

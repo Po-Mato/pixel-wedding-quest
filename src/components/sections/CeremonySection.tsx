@@ -3,12 +3,16 @@ import { Calendar, Clock, Download } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { PixelHeart, PixelRing } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
+import { useCoupleOrder } from '../../utils/coupleOrder';
 
 interface CeremonySectionProps {
   config: WeddingConfig;
 }
 
 export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
+  const { names } = useCoupleOrder();
+  const coupleFullNames = names(config, 'fullName');
+  const coupleShortNames = names(config, 'name');
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
     hours: 0,
@@ -71,7 +75,7 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
   const handleOpenGoogleCalendar = () => {
     soundEngine.playSelect();
     const { startUtc, endUtc } = getEventDates();
-    const title = `[결혼식] ${config.groom.fullName} ♥ ${config.bride.fullName}`;
+    const title = `[결혼식] ${coupleFullNames}`;
     const location = `${config.wedding.venueName} ${config.wedding.hallName} (${config.wedding.addressRoad})`;
     const details = `${config.invitationMessage.headline}\n\n일시: ${config.wedding.dateDisplay} ${config.wedding.timeDisplay}\n장소: ${location}\n문의: ${config.wedding.tel}`;
     const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
@@ -95,7 +99,7 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
         config.wedding.day
       ).padStart(2, '0')}@pixelweddingquest`,
       `DTSTAMP:${stampUtc}`,
-      `SUMMARY:[결혼식] ${config.groom.fullName} ♥ ${config.bride.fullName}`,
+      `SUMMARY:[결혼식] ${coupleFullNames}`,
       `DTSTART:${startUtc}`,
       `DTEND:${endUtc}`,
       `LOCATION:${config.wedding.venueName} ${config.wedding.hallName} (${config.wedding.addressRoad})`,
@@ -103,7 +107,7 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
       'BEGIN:VALARM',
       'TRIGGER:-P1D',
       'ACTION:DISPLAY',
-      `DESCRIPTION:내일은 ${config.groom.name} ♥ ${config.bride.name}의 결혼식입니다.`,
+      `DESCRIPTION:내일은 ${coupleShortNames}의 결혼식입니다.`,
       'END:VALARM',
       'END:VEVENT',
       'END:VCALENDAR',
@@ -253,7 +257,7 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
         <div className="text-xs sm:text-sm text-[#5c4d47] inline-flex items-center gap-1.5">
           <PixelHeart size={14} color="#d97b84" />
           <span>
-            {config.groom.name} ♥ {config.bride.name}의 결혼식이{' '}
+            {coupleShortNames}의 결혼식이{' '}
             <strong className="text-[#d97b84] font-bold">{timeLeft.days}일</strong> 남았습니다.
           </span>
         </div>

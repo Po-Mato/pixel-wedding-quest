@@ -10,6 +10,7 @@ import { GuestAvatarSprite } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { fillCoupleText } from '../../utils/coupleText';
 import { fireCelebrationConfetti } from '../../utils/motion';
+import { joinCoupleNames } from '../../utils/coupleOrder';
 import {
   canEditOwnGuestbookEntry,
   deleteOwnGuestbookEntry,
@@ -194,11 +195,18 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               하객 구분
             </label>
             <div className="grid grid-cols-3 gap-1">
-              {[
-                { id: 'groom', label: '신랑측' },
-                { id: 'bride', label: '신부측' },
-                { id: 'both', label: '공통지인' },
-              ].map((s) => (
+              {(initialSide === 'bride'
+                ? [
+                    { id: 'bride', label: '신부측' },
+                    { id: 'groom', label: '신랑측' },
+                    { id: 'both', label: '공통지인' },
+                  ]
+                : [
+                    { id: 'groom', label: '신랑측' },
+                    { id: 'bride', label: '신부측' },
+                    { id: 'both', label: '공통지인' },
+                  ]
+              ).map((s) => (
                 <button
                   type="button"
                   key={s.id}
@@ -386,7 +394,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               maxLength={120}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={`${config.groom.name} ♥ ${config.bride.name} 두 사람의 새로운 출발에 따뜻한 한마디를 남겨주세요.`}
+              placeholder={`${joinCoupleNames(config, initialSide, 'name')} 두 사람의 새로운 출발에 따뜻한 한마디를 남겨주세요.`}
               className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-xs text-[#3b2f2f] resize-none"
             />
           </div>

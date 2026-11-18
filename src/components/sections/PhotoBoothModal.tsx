@@ -11,6 +11,7 @@ import {
 } from '../../data/weddingConfig';
 import { PIXEL_ASSETS, GUEST_SPRITES } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
+import { useCoupleOrder } from '../../utils/coupleOrder';
 import { incrementReactionCounter } from '../../utils/weddingCloudSync';
 
 interface PhotoBoothModalProps {
@@ -82,6 +83,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   onUnlockTitle,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { names } = useCoupleOrder();
 
   const [selectedMap, setSelectedMap] = useState<GardenMapId>('garden');
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarClassId>('mage');
@@ -89,7 +91,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   const [selectedFrame, setSelectedFrame] = useState<FrameStyleId>('ivory');
   const [guestName, setGuestName] = useState<string>('소중한 하객');
   const [blessingText, setBlessingText] = useState<string>(
-    `${config.groom.name} ♥ ${config.bride.name} 두 사람의 찬란한 봄날을 축복합니다!`
+    `${names(config, 'name')} 두 사람의 찬란한 봄날을 축복합니다!`
   );
   const [flashActive, setFlashActive] = useState<boolean>(false);
   const [snappedCount, setSnappedCount] = useState<number>(0);
@@ -335,7 +337,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     ctx.fillStyle = frame.textPrimary;
     ctx.font = 'bold 28px "Gowun Batang", serif';
     ctx.fillText(
-      `${config.groom.fullName}  ♥  ${config.bride.fullName}`,
+      names(config, 'fullName', '  ♥  '),
       W / 2,
       capCenterY + 42
     );

@@ -1,6 +1,7 @@
 import { WeddingConfig } from '../data/weddingConfig';
 import { PIXEL_ASSETS } from '../components/PixelSprites';
 import { copyTextToClipboard } from './clipboard';
+import { CoupleSide, joinCoupleNames } from './coupleOrder';
 
 interface KakaoSDK {
   init: (key: string) => void;
@@ -43,16 +44,18 @@ export type KakaoShareResult = 'kakao_sdk' | 'web_share' | 'copied_card';
 export async function shareViaKakaoTalk(
   config: WeddingConfig,
   customShareUrl?: string,
-  customTitlePrefix?: string
+  customTitlePrefix?: string,
+  primarySide: CoupleSide = 'groom'
 ): Promise<KakaoShareResult> {
   const shareUrl = customShareUrl || window.location.href;
   const dateDot = `${config.wedding.year}. ${String(config.wedding.month).padStart(
     2,
     '0'
   )}. ${String(config.wedding.day).padStart(2, '0')}`;
+  const coupleNames = joinCoupleNames(config, primarySide, 'fullName', ' ♥ ');
   const title = customTitlePrefix
-    ? `${customTitlePrefix} | ${config.groom.fullName} ♥ ${config.bride.fullName}`
-    : `${config.groom.fullName} ♥ ${config.bride.fullName} 결혼합니다 (${dateDot})`;
+    ? `${customTitlePrefix} | ${coupleNames}`
+    : `${coupleNames} 결혼합니다 (${dateDot})`;
   const description = `${config.wedding.dateDisplay} ${config.wedding.timeDisplay}\n${config.wedding.venueName} ${config.wedding.hallName}`;
 
   const envKey = (

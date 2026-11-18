@@ -44,24 +44,20 @@ export const StorySection: React.FC<StorySectionProps> = ({
 
         {/* Parents & Couple Names in Authentic Korean Wedding Format */}
         <div className="mt-8 pt-6 border-t border-[#efe6d8] flex flex-col items-center gap-2.5 text-sm text-[#3b2f2f]">
-          <div className="flex items-center gap-2">
-            <span className="font-bold tracking-wide">
-              {config.groom.fatherName} · {config.groom.motherName}
-            </span>
-            <span className="text-xs text-[#8c7a70]">의 {config.groom.relation}</span>
-            <span className="font-bold text-base text-[#3b2f2f] ml-1">
-              {config.groom.name}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-bold tracking-wide">
-              {config.bride.fatherName} · {config.bride.motherName}
-            </span>
-            <span className="text-xs text-[#8c7a70]">의 {config.bride.relation}</span>
-            <span className="font-bold text-base text-[#3b2f2f] ml-1">
-              {config.bride.name}
-            </span>
-          </div>
+          {orderedContactGroups.map((group) => {
+            const person = group === 'groom' ? config.groom : config.bride;
+            return (
+              <div key={group} className="flex items-center gap-2">
+                <span className="font-bold tracking-wide">
+                  {person.fatherName} · {person.motherName}
+                </span>
+                <span className="text-xs text-[#8c7a70]">의 {person.relation}</span>
+                <span className="font-bold text-base text-[#3b2f2f] ml-1">
+                  {person.name}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Contact Accordion Trigger */}
@@ -152,7 +148,9 @@ export const StorySection: React.FC<StorySectionProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Groom Card */}
-          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 flex flex-col items-center text-center">
+          <div
+            style={{ order: initialSide === 'bride' ? 2 : 1 }}
+            className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 flex flex-col items-center text-center">
             <div className="w-32 h-36 rounded-t-full rounded-b-2xl bg-gradient-to-b from-[#fffdf9] to-[#f4ece0] border border-[#d4b48c] flex items-end justify-center pt-2 mb-3 shadow-xs overflow-hidden">
               <GroomSprite size={126} variant="portrait" bounce />
             </div>
@@ -171,7 +169,9 @@ export const StorySection: React.FC<StorySectionProps> = ({
           </div>
 
           {/* Bride Card */}
-          <div className="bg-[#fcf5f5] border border-[#ebd2d4] rounded-xl p-4 flex flex-col items-center text-center">
+          <div
+            style={{ order: initialSide === 'bride' ? 1 : 2 }}
+            className="bg-[#fcf5f5] border border-[#ebd2d4] rounded-xl p-4 flex flex-col items-center text-center">
             <div className="w-32 h-36 rounded-t-full rounded-b-2xl bg-gradient-to-b from-[#fffdf9] to-[#fae8eb] border border-[#e2a3a9] flex items-end justify-center pt-2 mb-3 shadow-xs overflow-hidden">
               <BrideSprite size={126} variant="portrait" bounce />
             </div>
