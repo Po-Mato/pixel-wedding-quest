@@ -4,7 +4,6 @@ import { WeddingConfig, GalleryItem } from '../../data/weddingConfig';
 import { PixelHeart, PixelSceneBanner } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { incrementReactionCounter } from '../../utils/weddingCloudSync';
-import { isSampleGalleryUrl } from '../../utils/weddingPhase';
 import { useBodyScrollLock } from '../../utils/useBodyScrollLock';
 
 const PhotoBoothModal = React.lazy(() =>
@@ -207,11 +206,6 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                 }
                 className="w-full h-full object-cover transition-all duration-300"
               />
-              {isSampleGalleryUrl(activeItem.imageUrl) && (
-                <div className="absolute top-2.5 right-2.5 bg-[#fffdf9]/90 border border-[#d4b48c] px-2.5 py-0.5 rounded-full text-[10px] text-[#7a5824] font-sans font-semibold">
-                  샘플 스냅 · 실제 사진 등록 예정
-                </div>
-              )}
             </div>
           )}
 

@@ -9,12 +9,12 @@
     "mbti": "다정한 경청가 · 든든한 동반자",
     "specialSkill": "{bride|을/를} 웃게 만드는 따뜻한 요리와 산책",
     "quote": "“사계절 내내 {bride}의 가장 편안한 그늘이 되어주겠습니다.”",
-    "fatherName": "김태호",
-    "motherName": "박정숙",
-    "relation": "장남",
-    "phone": "010-1234-5678",
-    "fatherPhone": "010-1111-2222",
-    "motherPhone": "010-3333-4444",
+    "fatherName": "이근배",
+    "motherName": "김혜정",
+    "relation": "아들",
+    "phone": "",
+    "fatherPhone": "",
+    "motherPhone": "",
     "suitColor": "#34495e",
     "hairColor": "#2c1e18",
     "stats": [
@@ -48,12 +48,12 @@
     "mbti": "맑은 웃음 · 세심한 배려",
     "specialSkill": "일상의 작은 순간도 행복으로 채우는 마음",
     "quote": "“{groom|과/와} 함께라면 어떤 계절도 늘 따뜻한 봄날일 거예요.”",
-    "fatherName": "이상훈",
-    "motherName": "최미경",
-    "relation": "장녀",
-    "phone": "010-8765-4321",
-    "fatherPhone": "010-5555-6666",
-    "motherPhone": "010-7777-8888",
+    "fatherName": "이정석",
+    "motherName": "김순연",
+    "relation": "딸",
+    "phone": "",
+    "fatherPhone": "",
+    "motherPhone": "",
     "dressColor": "#ffffff",
     "hairColor": "#3b2314",
     "stats": [
@@ -221,40 +221,40 @@
       {
         "role": "신랑",
         "name": "이승재",
-        "bank": "카카오뱅크",
-        "accountNumber": "3333-01-2345678"
+        "bank": "우리은행",
+        "accountNumber": ""
       },
       {
         "role": "신랑 아버지",
-        "name": "김태호",
+        "name": "이근배",
         "bank": "KB국민은행",
-        "accountNumber": "123401-04-567890"
+        "accountNumber": ""
       },
       {
         "role": "신랑 어머니",
-        "name": "박정숙",
-        "bank": "신한은행",
-        "accountNumber": "110-234-567890"
+        "name": "김혜정",
+        "bank": "우리은행",
+        "accountNumber": ""
       }
     ],
     "brideSide": [
       {
         "role": "신부",
         "name": "이건희",
-        "bank": "토스뱅크",
-        "accountNumber": "1000-1234-5678"
+        "bank": "우리은행",
+        "accountNumber": ""
       },
       {
         "role": "신부 아버지",
-        "name": "이상훈",
+        "name": "이정석",
         "bank": "우리은행",
-        "accountNumber": "1002-345-678901"
+        "accountNumber": ""
       },
       {
         "role": "신부 어머니",
-        "name": "최미경",
+        "name": "김순연",
         "bank": "NH농협",
-        "accountNumber": "302-1234-5678-91"
+        "accountNumber": ""
       }
     ]
   },

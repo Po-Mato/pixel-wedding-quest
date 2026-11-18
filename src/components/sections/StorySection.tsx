@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Phone, MessageSquare, Heart, Sparkles, AlertCircle } from 'lucide-react';
+import { Phone, MessageSquare, Heart, Sparkles } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { GroomSprite, BrideSprite, PetCatSprite, PixelHeart } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { fillCoupleText } from '../../utils/coupleText';
-import { isSamplePhoneNumber } from '../../utils/weddingPhase';
-import { cleanPhoneForHref, guardSamplePhoneAction } from '../../utils/phone';
+import { cleanPhoneForHref } from '../../utils/phone';
 
 interface StorySectionProps {
   config: WeddingConfig;
@@ -77,75 +76,48 @@ export const StorySection: React.FC<StorySectionProps> = ({
         </div>
 
         {showContacts && (
-          <div className="mt-4 pt-4 border-t border-[#efe6d8] space-y-3 text-left font-sans animate-fadeIn">
-            {[
-              config.groom.phone,
-              config.groom.fatherPhone,
-              config.groom.motherPhone,
-              config.bride.phone,
-              config.bride.fatherPhone,
-              config.bride.motherPhone,
-            ].some((p) => isSamplePhoneNumber(p)) && (
-              <div className="bg-[#fff8ed] border border-[#e6c994] rounded-lg p-2.5 text-[11px] text-[#7a5824] flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-[#c88a2e] shrink-0 mt-0.5" />
-                <span>
-                  일부 연락처가 <strong>예시 번호</strong>로 표시되어 있습니다. 발신 전 확인 팝업으로 실발신을 방지해 드립니다.
-                </span>
-              </div>
-            )}
+          <div className="mt-4 pt-4 border-t border-[#efe6d8] grid grid-cols-1 sm:grid-cols-2 gap-3 text-left font-sans animate-fadeIn">
+            {orderedContactGroups.map((group) => {
+              const isGroom = group === 'groom';
+              const contacts = isGroom
+                ? [
+                    { label: `신랑 ${config.groom.fullName}`, phone: config.groom.phone },
+                    { label: `아버지 ${config.groom.fatherName}`, phone: config.groom.fatherPhone },
+                    { label: `어머니 ${config.groom.motherName}`, phone: config.groom.motherPhone },
+                  ]
+                : [
+                    { label: `신부 ${config.bride.fullName}`, phone: config.bride.phone },
+                    { label: `아버지 ${config.bride.fatherName}`, phone: config.bride.fatherPhone },
+                    { label: `어머니 ${config.bride.motherName}`, phone: config.bride.motherPhone },
+                  ];
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {orderedContactGroups.map((group) => {
-                const isGroom = group === 'groom';
-                const contacts = isGroom
-                  ? [
-                      { label: `신랑 ${config.groom.fullName}`, phone: config.groom.phone },
-                      { label: `아버지 ${config.groom.fatherName}`, phone: config.groom.fatherPhone },
-                      { label: `어머니 ${config.groom.motherName}`, phone: config.groom.motherPhone },
-                    ]
-                  : [
-                      { label: `신부 ${config.bride.fullName}`, phone: config.bride.phone },
-                      { label: `아버지 ${config.bride.fatherName}`, phone: config.bride.fatherPhone },
-                      { label: `어머니 ${config.bride.motherName}`, phone: config.bride.motherPhone },
-                    ];
-
-                return (
+              return (
+                <div
+                  key={group}
+                  className="bg-[#faf5ec] p-3.5 rounded-lg border border-[#e6d5b8] space-y-2"
+                >
                   <div
-                    key={group}
-                    className="bg-[#faf5ec] p-3.5 rounded-lg border border-[#e6d5b8] space-y-2"
+                    className={`text-xs font-bold mb-1 ${
+                      isGroom ? 'text-[#5c4d47]' : 'text-[#b85d67]'
+                    }`}
                   >
-                    <div
-                      className={`text-xs font-bold mb-1 ${
-                        isGroom ? 'text-[#5c4d47]' : 'text-[#b85d67]'
-                      }`}
-                    >
-                      {isGroom ? '신랑측 연락처' : '신부측 연락처'}
-                    </div>
-                    {contacts.map((c, i) => {
-                      const isSample = isSamplePhoneNumber(c.phone);
-                      const cleanHref = cleanPhoneForHref(c.phone);
-                      return (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between gap-2 text-xs bg-[#fffdf9] px-3 py-2 rounded border border-[#efe6d8]"
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-[#3b2f2f] font-medium truncate">
-                              {c.label}
-                            </span>
-                            {isSample && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#fff3dc] border border-[#e6c994] text-[#8a6220] font-semibold shrink-0">
-                                예시
-                              </span>
-                            )}
-                          </div>
+                    {isGroom ? '신랑측 연락처' : '신부측 연락처'}
+                  </div>
+                  {contacts.map((c, i) => {
+                    const cleanHref = cleanPhoneForHref(c.phone);
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between gap-2 text-xs bg-[#fffdf9] px-3 py-2 rounded border border-[#efe6d8]"
+                      >
+                        <span className="text-[#3b2f2f] font-medium truncate">
+                          {c.label}
+                        </span>
+                        {cleanHref ? (
                           <div className="flex items-center gap-1.5 shrink-0">
                             <a
                               href={`tel:${cleanHref}`}
-                              onClick={(e) => {
-                                soundEngine.playBlip();
-                                guardSamplePhoneAction(e, c.phone, '전화 걸기');
-                              }}
+                              onClick={() => soundEngine.playBlip()}
                               className="px-2 py-1 rounded-full bg-[#edf3ee] text-[#4d6b53] hover:opacity-85 flex items-center gap-1 text-[11px] font-bold"
                               title="전화 걸기"
                             >
@@ -154,10 +126,7 @@ export const StorySection: React.FC<StorySectionProps> = ({
                             </a>
                             <a
                               href={`sms:${cleanHref}`}
-                              onClick={(e) => {
-                                soundEngine.playBlip();
-                                guardSamplePhoneAction(e, c.phone, '문자 보내기');
-                              }}
+                              onClick={() => soundEngine.playBlip()}
                               className="px-2 py-1 rounded-full bg-[#f9ebea] text-[#b85d67] hover:opacity-85 flex items-center gap-1 text-[11px] font-bold"
                               title="문자 보내기"
                             >
@@ -165,13 +134,17 @@ export const StorySection: React.FC<StorySectionProps> = ({
                               <span>문자</span>
                             </a>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
+                        ) : (
+                          <span className="text-[10px] text-[#9c897e] shrink-0">
+                            연락처 확인 중
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

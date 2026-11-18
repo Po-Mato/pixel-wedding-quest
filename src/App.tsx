@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import {
   Volume2,
   VolumeX,
@@ -77,6 +77,31 @@ const CertificateModal = React.lazy(() =>
 type AppScreenMode = 'title' | 'world' | 'classic' | 'parents';
 
 const STORAGE_GUESTBOOK_KEY = 'pixel_wedding_quest_guestbook_v2';
+const STORAGE_CLOUD_CONFIG_KEY = 'pixel_wedding_quest_cloud_config_v3';
+
+function loadCachedCloudConfig(): WeddingConfig | null {
+  try {
+    localStorage.removeItem('pixel_wedding_quest_config_v2');
+    localStorage.removeItem('pixel_wedding_quest_config_v1');
+    const raw = localStorage.getItem(STORAGE_CLOUD_CONFIG_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as WeddingConfig;
+    if (parsed?.groom?.fullName && parsed?.bride?.fullName && parsed?.wedding?.venueName) {
+      return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveCachedCloudConfig(cfg: WeddingConfig): void {
+  try {
+    localStorage.setItem(STORAGE_CLOUD_CONFIG_KEY, JSON.stringify(cfg));
+  } catch {
+    // ignore
+  }
+}
 
 function detectInitialScreenMode(): AppScreenMode {
   try {
@@ -106,17 +131,15 @@ function detectInitialParentsSide(): ParentsSideFilter {
 }
 
 export function App() {
-  // 모든 청첩장 설정은 src/data/wedding.json 단일 파일에서 불러오며,
-  // 이전 버전의 브라우저 localStorage 캐시가 덮어쓰지 않도록 정리합니다.
-  const [config, setConfig] = useState<WeddingConfig>(() => {
-    try {
-      localStorage.removeItem('pixel_wedding_quest_config_v2');
-      localStorage.removeItem('pixel_wedding_quest_config_v1');
-    } catch {
-      // ignore
-    }
-    return DEFAULT_WEDDING_CONFIG;
-  });
+  // Cloudflare D1 DB 설정을 로컬 캐시(Stale-While-Revalidate)로 즉시 복원하고,
+  // 최초 방문 시에는 DB 응답을 받아 깜빡임 없이 최신 정보를 표시합니다.
+  const initialCachedConfig = useMemo(() => loadCachedCloudConfig(), []);
+  const [config, setConfig] = useState<WeddingConfig>(
+    () => initialCachedConfig || DEFAULT_WEDDING_CONFIG
+  );
+  const [isConfigReady, setIsConfigReady] = useState<boolean>(() =>
+    Boolean(initialCachedConfig)
+  );
 
   const [guestbook, setGuestbook] = useState<GuestbookEntry[]>(() => {
     try {
@@ -349,14 +372,29 @@ export function App() {
 
   // Initial Cloud D1 Sync for Config + Guestbook + BroadcastChannel
   useEffect(() => {
-    fetchCloudWeddingConfig().then((remoteConfig) => {
-      if (remoteConfig && remoteConfig.groom?.fullName && remoteConfig.bride?.fullName) {
-        setConfig(remoteConfig);
-      }
-    });
+    let cancelled = false;
+    const fallbackTimer = window.setTimeout(() => {
+      if (!cancelled) setIsConfigReady(true);
+    }, 1500);
+
+    fetchCloudWeddingConfig()
+      .then((remoteConfig) => {
+        if (cancelled) return;
+        if (remoteConfig && remoteConfig.groom?.fullName && remoteConfig.bride?.fullName) {
+          setConfig(remoteConfig);
+          saveCachedCloudConfig(remoteConfig);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          window.clearTimeout(fallbackTimer);
+          setIsConfigReady(true);
+        }
+      });
 
     fetchSyncedGuestbook(DEFAULT_WEDDING_CONFIG.initialGuestbook).then(
       ({ entries, status }) => {
+        if (cancelled) return;
         setGuestbookSyncStatus(status);
         if (entries.length > 0) {
           setGuestbook(entries);
@@ -364,22 +402,25 @@ export function App() {
       }
     );
 
-    if (typeof BroadcastChannel === 'undefined') return;
     let bc: BroadcastChannel | null = null;
-    try {
-      bc = new BroadcastChannel('pixel_wedding_quest_live_channel');
-      bc.onmessage = (ev) => {
-        if (ev.data?.type === 'NEW_GUESTBOOK_ENTRY' && ev.data?.entry) {
-          const incoming = ev.data.entry as GuestbookEntry;
-          setGuestbook((prev) =>
-            prev.some((p) => p.id === incoming.id) ? prev : [incoming, ...prev]
-          );
-        }
-      };
-    } catch {
-      // ignore
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('pixel_wedding_quest_live_channel');
+        bc.onmessage = (ev) => {
+          if (ev.data?.type === 'NEW_GUESTBOOK_ENTRY' && ev.data?.entry) {
+            const incoming = ev.data.entry as GuestbookEntry;
+            setGuestbook((prev) =>
+              prev.some((p) => p.id === incoming.id) ? prev : [incoming, ...prev]
+            );
+          }
+        };
+      } catch {
+        // ignore
+      }
     }
     return () => {
+      cancelled = true;
+      window.clearTimeout(fallbackTimer);
       try {
         bc?.close();
       } catch {
@@ -723,13 +764,26 @@ export function App() {
             />
           )}
 
-          <Suspense
-            fallback={
-              <div className="pixel-card p-8 bg-[#fffdf9] text-center text-xs font-sans text-[#8c7a70]">
-                청첩장 화면을 불러오는 중입니다...
+          {!isConfigReady ? (
+            <div className="pixel-card p-10 bg-[#fffdf9] text-center space-y-2.5 animate-fadeIn">
+              <div className="text-[11px] tracking-[0.28em] text-[#c59b6d] font-engSerif uppercase">
+                WEDDING INVITATION
               </div>
-            }
-          >
+              <div className="text-base font-bold text-[#3b2f2f]">
+                {joinCoupleNames(config, defaultGuestSide, 'fullName', ' ♥ ')}
+              </div>
+              <p className="text-xs font-sans text-[#8c7a70]">
+                최신 청첩장 정보를 불러오는 중입니다...
+              </p>
+            </div>
+          ) : (
+            <Suspense
+              fallback={
+                <div className="pixel-card p-8 bg-[#fffdf9] text-center text-xs font-sans text-[#8c7a70]">
+                  청첩장 화면을 불러오는 중입니다...
+                </div>
+              }
+            >
             {screenMode === 'title' && (
               <TitleScreen
                 config={config}
@@ -782,7 +836,8 @@ export function App() {
                 onDeleteGuestbook={handleDeleteGuestbook}
               />
             )}
-          </Suspense>
+            </Suspense>
+          )}
         </main>
 
         {/* Footer Share, Phase Preview Switcher & Couple Mark (5-tap secret trigger for Admin Console) */}
@@ -1018,7 +1073,10 @@ export function App() {
         <Suspense fallback={null}>
           <CustomizerModal
             config={config}
-            onUpdateConfig={setConfig}
+            onUpdateConfig={(nextConfig) => {
+              setConfig(nextConfig);
+              saveCachedCloudConfig(nextConfig);
+            }}
             onClose={() => setShowCustomizer(false)}
           />
         </Suspense>

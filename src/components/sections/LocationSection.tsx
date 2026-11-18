@@ -3,7 +3,7 @@ import { MapPin, Copy, Check, Train, Bus, Car, Navigation, Phone } from 'lucide-
 import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
-import { cleanPhoneForHref, guardSamplePhoneAction } from '../../utils/phone';
+import { cleanPhoneForHref } from '../../utils/phone';
 
 interface LocationSectionProps {
   config: WeddingConfig;
@@ -166,10 +166,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
           {config.wedding.tel && (
             <a
               href={`tel:${cleanPhoneForHref(config.wedding.tel)}`}
-              onClick={(e) => {
-                soundEngine.playBlip();
-                guardSamplePhoneAction(e, config.wedding.tel, '전화 걸기');
-              }}
+              onClick={() => soundEngine.playBlip()}
               className="px-3.5 py-1.5 rounded-full bg-[#fffdf9] hover:bg-[#faf5ec] border border-[#d4b48c] text-xs font-sans font-medium text-[#5c4d47] flex items-center gap-1.5 transition-colors"
             >
               <Phone className="w-3.5 h-3.5 text-[#d97b84]" />

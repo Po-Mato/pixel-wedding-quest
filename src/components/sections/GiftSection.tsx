@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, Heart, Sparkles, ExternalLink, AlertCircle, Send } from 'lucide-react';
+import { Copy, Check, Heart, Sparkles, ExternalLink, Send } from 'lucide-react';
 import { WeddingConfig, BankAccount } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
 import { fireCelebrationConfetti } from '../../utils/motion';
-import { isSampleAccountNumber } from '../../utils/weddingPhase';
 
 interface GiftSectionProps {
   config: WeddingConfig;
@@ -24,18 +23,11 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
   }, [initialSide]);
 
   const handleCopyAccount = async (acc: BankAccount, key: string) => {
-    if (
-      isSampleAccountNumber(acc.accountNumber) &&
-      !window.confirm(
-        '현재 표시된 계좌번호는 청첩장 제작용 예시 번호입니다.\n실제 송금 전 예금주와 계좌번호를 꼭 확인해 주세요. 번호를 복사하시겠습니까?'
-      )
-    ) {
-      return;
-    }
-    soundEngine.playCoin();
-    // Copy only digits and hyphens so mobile banking apps accept paste cleanly
     const cleanAccountNumber =
       acc.accountNumber.replace(/[^0-9-]/g, '').trim() || acc.accountNumber.trim();
+    if (!cleanAccountNumber) return;
+
+    soundEngine.playCoin();
     await copyTextToClipboard(cleanAccountNumber);
     setCopiedKey(key);
     setCopiedSummary(`${acc.bank} ${cleanAccountNumber} (예금주: ${acc.name})`);
@@ -52,18 +44,12 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
   };
 
   const handleOpenToss = async (acc: BankAccount, key: string) => {
-    if (
-      isSampleAccountNumber(acc.accountNumber) &&
-      !window.confirm(
-        '현재 표시된 계좌번호는 청첩장 제작용 예시 번호입니다.\n실제 송금 전 예금주와 계좌번호를 꼭 확인해 주세요. 진행하시겠습니까?'
-      )
-    ) {
-      return;
-    }
-    soundEngine.playCoin();
     const digitsOnly = acc.accountNumber.replace(/[^0-9]/g, '');
     const cleanAccountNumber =
       acc.accountNumber.replace(/[^0-9-]/g, '').trim() || acc.accountNumber.trim();
+    if (!cleanAccountNumber) return;
+
+    soundEngine.playCoin();
     await copyTextToClipboard(cleanAccountNumber);
     setCopiedKey(key);
     setCopiedSummary(`${acc.bank} ${cleanAccountNumber} (예금주: ${acc.name})`);
@@ -77,7 +63,6 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
 
   const accounts =
     activeSide === 'groom' ? config.accounts.groomSide : config.accounts.brideSide;
-  const hasAnySample = accounts.some((a) => isSampleAccountNumber(a.accountNumber));
 
   return (
     <div className="pixel-card p-5 sm:p-6 bg-[#fffdf9] space-y-5">
@@ -130,20 +115,11 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
       </div>
 
       {/* Account List */}
-      {hasAnySample && (
-        <div className="bg-[#fff8ed] border border-[#e6c994] rounded-xl p-3 text-[11px] font-sans text-[#7a5824] flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-[#c88a2e] shrink-0 mt-0.5" />
-          <span>
-            현재 일부 계좌번호가 <strong>예시 번호</strong>로 표시되어 있습니다. 실제 계좌번호는 예식 전 순차적으로 업데이트될 예정입니다.
-          </span>
-        </div>
-      )}
-
       <div className="space-y-2.5 font-sans">
         {accounts.map((acc, idx) => {
           const key = `${activeSide}-${idx}`;
           const isCopied = copiedKey === key;
-          const isSample = isSampleAccountNumber(acc.accountNumber);
+          const hasNumber = Boolean(acc.accountNumber?.trim());
 
           return (
             <div
@@ -164,64 +140,64 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
                   <span className="text-sm font-bold text-[#3b2f2f]">
                     예금주 : {acc.name}
                   </span>
-                  {isSample && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#fff3dc] border border-[#e6c994] text-[#8a6220] font-semibold">
-                      예시 번호
-                    </span>
-                  )}
                 </div>
 
                 <div className="mt-1.5 text-xs sm:text-sm text-[#5c4d47] font-medium tracking-wide">
-                  {acc.bank} · <strong className="text-[#3b2f2f]">{acc.accountNumber}</strong>
+                  {acc.bank} ·{' '}
+                  <strong className="text-[#3b2f2f]">
+                    {hasNumber ? acc.accountNumber : '계좌 정보 불러오는 중'}
+                  </strong>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                {acc.kakaoPayUrl && (
-                  <a
-                    href={acc.kakaoPayUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => soundEngine.playCoin()}
-                    className="px-3 py-2 rounded-lg text-xs font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-1 transition-all"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>카카오페이</span>
-                  </a>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => handleOpenToss(acc, key)}
-                  title="계좌번호 복사 후 토스 앱 송금 화면 열기"
-                  className="px-3 py-2 rounded-lg text-xs font-bold border bg-[#eef4ff] hover:bg-[#dfeaff] text-[#1b64da] border-[#bdd4ff] flex items-center justify-center gap-1 transition-all"
-                >
-                  <Send className="w-3 h-3" />
-                  <span>토스 송금</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleCopyAccount(acc, key)}
-                  className={`px-3.5 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-all flex-1 sm:flex-initial ${
-                    isCopied
-                      ? 'bg-[#6b9071] text-white border-[#587a5e]'
-                      : 'bg-[#fffdf9] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#d4b48c]'
-                  }`}
-                >
-                  {isCopied ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>번호 복사됨</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5 text-[#c59b6d]" />
-                      <span>계좌번호 복사</span>
-                    </>
+              {hasNumber && (
+                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                  {acc.kakaoPayUrl && (
+                    <a
+                      href={acc.kakaoPayUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => soundEngine.playCoin()}
+                      className="px-3 py-2 rounded-lg text-xs font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-1 transition-all"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>카카오페이</span>
+                    </a>
                   )}
-                </button>
-              </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenToss(acc, key)}
+                    title="계좌번호 복사 후 토스 앱 송금 화면 열기"
+                    className="px-3 py-2 rounded-lg text-xs font-bold border bg-[#eef4ff] hover:bg-[#dfeaff] text-[#1b64da] border-[#bdd4ff] flex items-center justify-center gap-1 transition-all"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>토스 송금</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopyAccount(acc, key)}
+                    className={`px-3.5 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-all flex-1 sm:flex-initial ${
+                      isCopied
+                        ? 'bg-[#6b9071] text-white border-[#587a5e]'
+                        : 'bg-[#fffdf9] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#d4b48c]'
+                    }`}
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>번호 복사됨</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-[#c59b6d]" />
+                        <span>계좌번호 복사</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}

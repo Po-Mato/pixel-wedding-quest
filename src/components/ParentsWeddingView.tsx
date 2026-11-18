@@ -19,7 +19,6 @@ import {
   Trash2,
   ExternalLink,
   ShieldCheck,
-  AlertCircle,
 } from 'lucide-react';
 import { WeddingConfig, GuestbookEntry, BankAccount } from '../data/weddingConfig';
 import {
@@ -29,16 +28,8 @@ import {
 import { copyTextToClipboard } from '../utils/clipboard';
 import { fillCoupleText } from '../utils/coupleText';
 import { fireCelebrationConfetti } from '../utils/motion';
-import {
-  isSampleAccountNumber,
-  isSamplePhoneNumber,
-  getWeddingDayDiff,
-} from '../utils/weddingPhase';
-import {
-  formatKoreanPhoneInput,
-  cleanPhoneForHref,
-  guardSamplePhoneAction,
-} from '../utils/phone';
+import { getWeddingDayDiff } from '../utils/weddingPhase';
+import { formatKoreanPhoneInput, cleanPhoneForHref } from '../utils/phone';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { shareViaKakaoTalk } from '../utils/kakaoShare';
 import { joinCoupleNames, orderedSides, useCoupleOrder } from '../utils/coupleOrder';
@@ -168,16 +159,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   };
 
   const handleCopyAccount = async (acc: BankAccount, key: string) => {
-    if (
-      isSampleAccountNumber(acc.accountNumber) &&
-      !window.confirm(
-        '현재 표시된 계좌번호는 청첩장 제작용 예시 번호입니다.\n실제 송금 전 예금주와 계좌번호를 꼭 확인해 주세요. 번호를 복사하시겠습니까?'
-      )
-    ) {
-      return;
-    }
     const cleanAccountNumber =
       acc.accountNumber.replace(/[^0-9-]/g, '').trim() || acc.accountNumber.trim();
+    if (!cleanAccountNumber) return;
+
     await copyTextToClipboard(cleanAccountNumber);
     setCopiedKey(key);
     fireCelebrationConfetti({
@@ -480,22 +465,6 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </p>
         </div>
 
-        {[
-          config.groom.phone,
-          config.groom.fatherPhone,
-          config.groom.motherPhone,
-          config.bride.phone,
-          config.bride.fatherPhone,
-          config.bride.motherPhone,
-        ].some((p) => isSamplePhoneNumber(p)) && (
-          <div className="bg-[#fff8ed] border border-[#e6c994] rounded-2xl p-4 text-sm text-[#7a5824] flex items-start gap-2.5">
-            <AlertCircle className="w-5 h-5 text-[#c88a2e] shrink-0 mt-0.5" />
-            <span>
-              현재 일부 연락처가 <strong>예시 번호</strong>로 표시되어 있습니다. 전화·문자 연결 시 실발신 방지를 위해 확인 창을 안내해 드립니다.
-            </span>
-          </div>
-        )}
-
         <div className="space-y-5">
           {orderedParentGroups.map((side) => {
             const isGroom = side === 'groom';
@@ -538,7 +507,6 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
                 <div className="space-y-3">
                   {contacts.map((c) => {
-                    const isSample = isSamplePhoneNumber(c.phone);
                     const dialHref = cleanPhoneForHref(c.phone);
                     return (
                       <div
@@ -546,42 +514,35 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                         className="bg-[#fffdf9] border border-[#e5d8c5] rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                       >
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[#69584f]">
-                              {c.role}
-                            </span>
-                            {isSample && (
-                              <span className="text-[11px] px-2 py-0.5 rounded bg-[#fff3dc] border border-[#e6c994] text-[#8a6220] font-bold">
-                                예시 번호
-                              </span>
-                            )}
+                          <div className="text-sm font-semibold text-[#69584f]">
+                            {c.role}
                           </div>
                           <div className={`${textScale.nameLarge} font-bold text-[#2d221e] mt-0.5`}>
                             {c.name}
                           </div>
                           <div className="text-sm text-[#56463f] tabular-nums mt-0.5">
-                            {c.phone}
+                            {c.phone || '연락처 확인 중'}
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 shrink-0">
-                          <a
-                            href={`tel:${dialHref}`}
-                            onClick={(e) => guardSamplePhoneAction(e, c.phone, '전화 걸기')}
-                            className="px-4 py-3 rounded-xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
-                          >
-                            <Phone className="w-4 h-4 shrink-0" />
-                            <span>전화걸기</span>
-                          </a>
-                          <a
-                            href={`sms:${dialHref}`}
-                            onClick={(e) => guardSamplePhoneAction(e, c.phone, '문자 보내기')}
-                            className="px-4 py-3 rounded-xl bg-[#faf5ec] hover:bg-[#efe5d4] border border-[#c9b69c] text-[#2d221e] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
-                          >
-                            <MessageSquare className="w-4 h-4 shrink-0 text-[#8c6747]" />
-                            <span>문자하기</span>
-                          </a>
-                        </div>
+                        {dialHref && (
+                          <div className="grid grid-cols-2 gap-2 shrink-0">
+                            <a
+                              href={`tel:${dialHref}`}
+                              className="px-4 py-3 rounded-xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
+                            >
+                              <Phone className="w-4 h-4 shrink-0" />
+                              <span>전화걸기</span>
+                            </a>
+                            <a
+                              href={`sms:${dialHref}`}
+                              className="px-4 py-3 rounded-xl bg-[#faf5ec] hover:bg-[#efe5d4] border border-[#c9b69c] text-[#2d221e] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
+                            >
+                              <MessageSquare className="w-4 h-4 shrink-0 text-[#8c6747]" />
+                              <span>문자하기</span>
+                            </a>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -723,7 +684,6 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
             <a
               href={`tel:${cleanPhoneForHref(config.wedding.tel)}`}
-              onClick={(e) => guardSamplePhoneAction(e, config.wedding.tel, '전화 걸기')}
               className={`${textScale.btn} rounded-2xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#c9b69c] text-[#2d221e] font-bold flex items-center justify-center gap-2`}
             >
               <Phone className="w-5 h-5 text-[#8c6747]" />
@@ -888,20 +848,11 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
 
         {/* Large Account Cards */}
-        {activeAccounts.some((a) => isSampleAccountNumber(a.accountNumber)) && (
-          <div className="bg-[#fff8ed] border border-[#e6c994] rounded-2xl p-4 text-sm text-[#7a5824] flex items-start gap-2.5">
-            <AlertCircle className="w-5 h-5 text-[#c88a2e] shrink-0 mt-0.5" />
-            <span>
-              현재 표시된 계좌번호는 <strong>청첩장 제작용 예시 번호</strong>입니다. 실제 계좌번호는 예식 전 순차적으로 등록될 예정입니다.
-            </span>
-          </div>
-        )}
-
         <div className="space-y-3.5">
           {activeAccounts.map((acc, idx) => {
             const key = `${activeAccountSide}-${idx}`;
             const isCopied = copiedKey === key;
-            const isSample = isSampleAccountNumber(acc.accountNumber);
+            const hasNumber = Boolean(acc.accountNumber?.trim());
 
             return (
               <div
@@ -909,22 +860,15 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 className="bg-[#faf5ec] border-2 border-[#dfd2be] rounded-2xl p-5 space-y-3.5"
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-bold ${
-                        activeAccountSide === 'groom'
-                          ? 'bg-[#e6ebe8] text-[#2f453c]'
-                          : 'bg-[#f9ebea] text-[#9e4751]'
-                      }`}
-                    >
-                      {acc.role}
-                    </span>
-                    {isSample && (
-                      <span className="px-2 py-0.5 rounded bg-[#fff3dc] border border-[#e6c994] text-xs font-bold text-[#8a6220]">
-                        예시 번호
-                      </span>
-                    )}
-                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-bold ${
+                      activeAccountSide === 'groom'
+                        ? 'bg-[#e6ebe8] text-[#2f453c]'
+                        : 'bg-[#f9ebea] text-[#9e4751]'
+                    }`}
+                  >
+                    {acc.role}
+                  </span>
                   <span className={`${textScale.nameLarge} font-bold text-[#2d221e]`}>
                     예금주 : {acc.name}
                   </span>
@@ -935,45 +879,47 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                     {acc.bank}
                   </div>
                   <div className={`${textScale.nameLarge} font-extrabold text-[#2d221e] tabular-nums tracking-wider mt-0.5 select-all`}>
-                    {acc.accountNumber}
+                    {hasNumber ? acc.accountNumber : '계좌 정보 불러오는 중'}
                   </div>
                 </div>
 
-                <div className={`grid ${acc.kakaoPayUrl ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2`}>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyAccount(acc, key)}
-                    className={`w-full ${textScale.btn} rounded-xl font-bold border flex items-center justify-center gap-2 transition-colors ${
-                      isCopied
-                        ? 'bg-[#355e40] text-white border-[#2a4c33]'
-                        : 'bg-[#2d221e] hover:bg-[#1e1613] text-white border-[#2d221e]'
-                    }`}
-                  >
-                    {isCopied ? (
-                      <>
-                        <Check className="w-5 h-5" />
-                        <span>복사 완료 ({acc.bank} {acc.name})</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-5 h-5 text-[#e6d5b8]" />
-                        <span>계좌번호 복사하기</span>
-                      </>
-                    )}
-                  </button>
-
-                  {acc.kakaoPayUrl && (
-                    <a
-                      href={acc.kakaoPayUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`w-full ${textScale.btn} rounded-xl font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-2 transition-colors`}
+                {hasNumber && (
+                  <div className={`grid ${acc.kakaoPayUrl ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyAccount(acc, key)}
+                      className={`w-full ${textScale.btn} rounded-xl font-bold border flex items-center justify-center gap-2 transition-colors ${
+                        isCopied
+                          ? 'bg-[#355e40] text-white border-[#2a4c33]'
+                          : 'bg-[#2d221e] hover:bg-[#1e1613] text-white border-[#2d221e]'
+                      }`}
                     >
-                      <ExternalLink className="w-5 h-5 shrink-0" />
-                      <span>카카오페이 송금</span>
-                    </a>
-                  )}
-                </div>
+                      {isCopied ? (
+                        <>
+                          <Check className="w-5 h-5" />
+                          <span>복사 완료 ({acc.bank} {acc.name})</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-5 h-5 text-[#e6d5b8]" />
+                          <span>계좌번호 복사하기</span>
+                        </>
+                      )}
+                    </button>
+
+                    {acc.kakaoPayUrl && (
+                      <a
+                        href={acc.kakaoPayUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`w-full ${textScale.btn} rounded-xl font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-2 transition-colors`}
+                      >
+                        <ExternalLink className="w-5 h-5 shrink-0" />
+                        <span>카카오페이 송금</span>
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
