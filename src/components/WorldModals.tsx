@@ -45,7 +45,7 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
 }) => (
   <div
     onClick={onClose}
-    className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 font-sans"
+    className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 font-sans"
   >
     <div
       onClick={(e) => e.stopPropagation()}
@@ -193,7 +193,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   onConfirm,
   onClose,
 }) => (
-  <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 font-sans">
+  <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 font-sans">
     <div className="pixel-card w-full max-w-[440px] bg-[#fffdf9] overflow-hidden animate-fadeIn">
       <div className="p-3.5 bg-[#faf5ec] border-b border-[#e6d5b8] flex items-center justify-between">
         <div>
@@ -335,7 +335,7 @@ export const SecretArchiveModal: React.FC<SecretArchiveModalProps> = ({
   onNavigateToSecret,
   onClose,
 }) => (
-  <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+  <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4">
     <div className="pixel-card w-full max-w-[480px] max-h-[88vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn font-sans">
       <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between">
         <div>

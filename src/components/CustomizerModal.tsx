@@ -25,8 +25,9 @@ import {
 } from '../data/weddingConfig';
 import { soundEngine } from '../utils/soundEngine';
 import { copyTextToClipboard } from '../utils/clipboard';
+import { showToast } from '../utils/toast';
 import { syncAccountHolderNames } from '../utils/configSync';
-import { getSampleDataChecklist } from '../utils/weddingPhase';
+import { getSampleDataChecklist, WeddingPhase } from '../utils/weddingPhase';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import {
   adminLogin,
@@ -41,6 +42,8 @@ import {
 
 interface CustomizerModalProps {
   config: WeddingConfig;
+  activePhase?: WeddingPhase;
+  onChangePhasePreview?: (phase: WeddingPhase | null) => void;
   onUpdateConfig: (newConfig: WeddingConfig) => void;
   onClose: () => void;
 }
@@ -49,6 +52,8 @@ type AdminTabId = 'couple' | 'venue' | 'accounts' | 'gallery' | 'guestbook' | 's
 
 export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   config,
+  activePhase = 'upcoming',
+  onChangePhasePreview,
   onUpdateConfig,
   onClose,
 }) => {
@@ -73,12 +78,18 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   const [pwChangeNotice, setPwChangeNotice] = useState<string>('');
   const [copiedLinkType, setCopiedLinkType] = useState<string | null>(null);
 
-  const handleCopyShareLink = async (kind: 'friends' | 'parents' | 'groom_parents' | 'bride_parents') => {
+  const handleCopyShareLink = async (
+    kind: 'entry' | 'groom_friends' | 'bride_friends' | 'parents' | 'groom_parents' | 'bride_parents'
+  ) => {
     soundEngine.playCoin();
     const url = new URL(window.location.href);
     url.search = '';
     url.hash = '';
-    if (kind === 'parents') {
+    if (kind === 'groom_friends') {
+      url.searchParams.set('side', 'groom');
+    } else if (kind === 'bride_friends') {
+      url.searchParams.set('side', 'bride');
+    } else if (kind === 'parents') {
       url.searchParams.set('mode', 'parents');
     } else if (kind === 'groom_parents') {
       url.searchParams.set('mode', 'parents');
@@ -89,6 +100,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
     }
     await copyTextToClipboard(url.toString());
     setCopiedLinkType(kind);
+    showToast('선택하신 전용 청첩장 링크가 복사되었습니다');
     setTimeout(() => setCopiedLinkType(null), 2500);
   };
 
@@ -384,7 +396,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   // 1. LOCKED PASSWORD GATE VIEW
   if (!isUnlocked) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
         <div className="pixel-card w-full max-w-sm bg-[#fffdf9] overflow-hidden animate-fadeIn">
           <div className="p-4 bg-[#faf5ec] border-b border-[#e6d5b8] flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-bold text-[#3b2f2f]">
@@ -449,7 +461,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
   // 2. UNLOCKED 6-TAB ADMIN CONSOLE VIEW
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto font-sans">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto font-sans">
       <div className="pixel-card w-full max-w-xl bg-[#fffdf9] max-h-[92vh] flex flex-col overflow-hidden animate-fadeIn">
         {/* Top Header */}
         <div className="p-3.5 bg-[#3b2f2f] text-[#fffdf9] border-b border-[#c59b6d] flex items-center justify-between gap-2">
@@ -489,7 +501,9 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
           <div className="flex flex-wrap items-center gap-1 pt-0.5">
             <span className="font-bold text-[#284b31] mr-1">🔗 청첩장 주소 복사:</span>
             {[
-              { id: 'friends' as const, label: '👫 신랑·신부 지인용' },
+              { id: 'entry' as const, label: '🏠 처음 선택(기본)' },
+              { id: 'groom_friends' as const, label: '🤵 신랑 지인용' },
+              { id: 'bride_friends' as const, label: '👰 신부 지인용' },
               { id: 'parents' as const, label: '👴👵 부모님용(통합)' },
               { id: 'groom_parents' as const, label: '🤵 신랑측 혼주용' },
               { id: 'bride_parents' as const, label: '👰 신부측 혼주용' },
@@ -504,6 +518,36 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
               </button>
             ))}
           </div>
+          {onChangePhasePreview && (
+            <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-[#d8ebdc]">
+              <span className="font-bold text-[#284b31] mr-1">🗓️ 시점별 미리보기:</span>
+              {[
+                { id: 'upcoming' as const, label: '예식 전(기본)' },
+                { id: 'dday' as const, label: '💍 예식 당일' },
+                { id: 'post' as const, label: '💐 예식 후 감사장' },
+              ].map((item) => {
+                const isCurrent = activePhase === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      soundEngine.playBlip();
+                      onChangePhasePreview(item.id === 'upcoming' ? null : item.id);
+                      showToast(`${item.label} 화면으로 미리보기를 전환했습니다`, 'info');
+                    }}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                      isCurrent
+                        ? 'bg-[#284b31] text-white border-[#284b31]'
+                        : 'bg-white hover:bg-[#e5f3e8] text-[#284b31] border-[#9ac4a3]'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Sample Data Pre-Launch Checklist Banner */}

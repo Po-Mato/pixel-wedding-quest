@@ -5,14 +5,14 @@ import { PixelHeart, PixelRing } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { useCoupleOrder } from '../../utils/coupleOrder';
 import { getWeddingDayDiff } from '../../utils/weddingPhase';
+import { openGoogleCalendar, downloadWeddingIcs } from '../../utils/calendar';
 
 interface CeremonySectionProps {
   config: WeddingConfig;
 }
 
 export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
-  const { names } = useCoupleOrder();
-  const coupleFullNames = names(config, 'fullName');
+  const { primary, names } = useCoupleOrder();
   const coupleShortNames = names(config, 'name');
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
@@ -67,72 +67,14 @@ export const CeremonySection: React.FC<CeremonySectionProps> = ({ config }) => {
   for (let i = 0; i < firstDayOfWeek; i++) calendarCells.push(null);
   for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
 
-  const formatUtcCalendarDate = (date: Date) =>
-    date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-
-  const getEventDates = () => {
-    const start = new Date(config.wedding.dateISO);
-    const safeStart = Number.isNaN(start.getTime())
-      ? new Date('2027-05-01T17:10:00+09:00')
-      : start;
-    const end = new Date(safeStart.getTime() + 2 * 60 * 60 * 1000);
-    return {
-      startUtc: formatUtcCalendarDate(safeStart),
-      endUtc: formatUtcCalendarDate(end),
-      stampUtc: formatUtcCalendarDate(new Date()),
-    };
-  };
-
   const handleOpenGoogleCalendar = () => {
     soundEngine.playSelect();
-    const { startUtc, endUtc } = getEventDates();
-    const title = `[결혼식] ${coupleFullNames}`;
-    const location = `${config.wedding.venueName} ${config.wedding.hallName} (${config.wedding.addressRoad})`;
-    const details = `${config.invitationMessage.headline}\n\n일시: ${config.wedding.dateDisplay} ${config.wedding.timeDisplay}\n장소: ${location}\n문의: ${config.wedding.tel}`;
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-      title
-    )}&dates=${startUtc}/${endUtc}&details=${encodeURIComponent(
-      details
-    )}&location=${encodeURIComponent(location)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    openGoogleCalendar(config, primary);
   };
 
   const handleDownloadIcs = () => {
     soundEngine.playFanfare();
-    const { startUtc, endUtc, stampUtc } = getEventDates();
-    const icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//PixelWeddingQuest//KR',
-      'CALSCALE:GREGORIAN',
-      'BEGIN:VEVENT',
-      `UID:wedding-${config.wedding.year}${String(config.wedding.month).padStart(2, '0')}${String(
-        config.wedding.day
-      ).padStart(2, '0')}@pixelweddingquest`,
-      `DTSTAMP:${stampUtc}`,
-      `SUMMARY:[결혼식] ${coupleFullNames}`,
-      `DTSTART:${startUtc}`,
-      `DTEND:${endUtc}`,
-      `LOCATION:${config.wedding.venueName} ${config.wedding.hallName} (${config.wedding.addressRoad})`,
-      `DESCRIPTION:${config.invitationMessage.questObjective}`,
-      'BEGIN:VALARM',
-      'TRIGGER:-P1D',
-      'ACTION:DISPLAY',
-      `DESCRIPTION:내일은 ${coupleShortNames}의 결혼식입니다.`,
-      'END:VALARM',
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ].join('\r\n');
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `wedding-${config.groom.name}-${config.bride.name}.ics`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadWeddingIcs(config, primary);
   };
 
   const formatTimeHm = (ms: number) => {

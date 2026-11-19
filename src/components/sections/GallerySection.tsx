@@ -48,6 +48,25 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
     return init;
   });
   const [imgErrorMap, setImgErrorMap] = useState<Record<string, boolean>>({});
+  const [imgLoadedMap, setImgLoadedMap] = useState<Record<string, boolean>>({});
+
+  // Preload adjacent gallery images so swiping/stepping feels instant
+  useEffect(() => {
+    if (viewMode !== 'photo' || config.gallery.length <= 1) return;
+    const prevIdx = (selectedIdx - 1 + config.gallery.length) % config.gallery.length;
+    const nextIdx = (selectedIdx + 1) % config.gallery.length;
+    [prevIdx, nextIdx].forEach((idx) => {
+      const target = config.gallery[idx];
+      if (!target?.imageUrl || imgLoadedMap[target.imageUrl]) return;
+      const preloader = new Image();
+      preloader.onload = () => {
+        setImgLoadedMap((prev) =>
+          prev[target.imageUrl] ? prev : { ...prev, [target.imageUrl]: true }
+        );
+      };
+      preloader.src = target.imageUrl;
+    });
+  }, [selectedIdx, viewMode, config.gallery, imgLoadedMap]);
 
   useEffect(() => {
     try {
@@ -197,14 +216,27 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
               }}
               className="w-full h-full relative cursor-zoom-in"
             >
+              {!imgLoadedMap[activeItem.imageUrl] && (
+                <div className="absolute inset-0 bg-[#efe6d8] animate-pulse" />
+              )}
               <img
                 src={activeItem.imageUrl}
                 alt={activeItem.title}
-                loading="lazy"
+                loading="eager"
+                decoding="async"
+                onLoad={() =>
+                  setImgLoadedMap((prev) =>
+                    prev[activeItem.imageUrl]
+                      ? prev
+                      : { ...prev, [activeItem.imageUrl]: true }
+                  )
+                }
                 onError={() =>
                   setImgErrorMap((prev) => ({ ...prev, [activeItem.id]: true }))
                 }
-                className="w-full h-full object-cover transition-all duration-300"
+                className={`w-full h-full object-cover transition-opacity duration-300 ${
+                  imgLoadedMap[activeItem.imageUrl] ? 'opacity-100' : 'opacity-0'
+                }`}
               />
             </div>
           )}
@@ -217,7 +249,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
               setLightboxOpen(true);
             }}
             aria-label="사진 크게 보기"
-            className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-[#3b2f2f]/75 hover:bg-[#3b2f2f] text-white text-[10px] font-sans font-semibold flex items-center gap-1 backdrop-blur-xs shadow"
+            className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-[#3b2f2f]/75 hover:bg-[#3b2f2f] text-white text-[10px] font-sans font-semibold flex items-center gap-1 backdrop-blur-sm shadow"
           >
             <Maximize2 className="w-3 h-3" />
             <span>크게 보기</span>
@@ -287,6 +319,8 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                 <img
                   src={item.imageUrl}
                   alt={item.title}
+                  loading="lazy"
+                  decoding="async"
                   onError={() =>
                     setImgErrorMap((prev) => ({ ...prev, [item.id]: true }))
                   }
@@ -344,7 +378,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
           onClick={() => setLightboxOpen(false)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs overscroll-contain flex flex-col items-center justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-6 animate-fadeIn select-none"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm overscroll-contain flex flex-col items-center justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-6 animate-fadeIn select-none"
         >
           <div
             onClick={(e) => e.stopPropagation()}

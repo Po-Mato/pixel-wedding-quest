@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Phone,
   MessageSquare,
@@ -6,6 +6,7 @@ import {
   Copy,
   Check,
   Calendar,
+  Download,
   Train,
   Bus,
   Car,
@@ -19,6 +20,8 @@ import {
   Trash2,
   ExternalLink,
   ShieldCheck,
+  ArrowUp,
+  CheckCircle2,
 } from 'lucide-react';
 import { WeddingConfig, GuestbookEntry, BankAccount } from '../data/weddingConfig';
 import {
@@ -27,15 +30,32 @@ import {
 } from '../utils/weddingCloudSync';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { fillCoupleText } from '../utils/coupleText';
-import { fireCelebrationConfetti } from '../utils/motion';
+import { fireCelebrationConfetti, prefersReducedMotion } from '../utils/motion';
 import { getWeddingDayDiff } from '../utils/weddingPhase';
 import { formatKoreanPhoneInput, cleanPhoneForHref } from '../utils/phone';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { shareViaKakaoTalk } from '../utils/kakaoShare';
 import { joinCoupleNames, orderedSides, useCoupleOrder } from '../utils/coupleOrder';
+import { openGoogleCalendar, downloadWeddingIcs } from '../utils/calendar';
+import {
+  hasValidWeddingCoords,
+  getKakaoMapUrl,
+  getNaverMapWebUrl,
+  getTmapDeepLink,
+  openNaverMap,
+  openTmap,
+} from '../utils/navigation';
+import { showToast } from '../utils/toast';
 
 export type ParentsSideFilter = 'all' | 'groom' | 'bride';
 type FontScaleMode = 'normal' | 'large' | 'xlarge';
+const PARENTS_NAV_IDS = [
+  'parents-greeting',
+  'parents-contact',
+  'parents-location',
+  'parents-gift',
+] as const;
+type ParentsNavId = (typeof PARENTS_NAV_IDS)[number];
 
 interface ParentsWeddingViewProps {
   config: WeddingConfig;
@@ -60,6 +80,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [activeNavId, setActiveNavId] = useState<ParentsNavId | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [imgLoadedMap, setImgLoadedMap] = useState<Record<string, boolean>>({});
+  const lightboxTouchStartRef = useRef<{ x: number; y: number } | null>(null);
   useBodyScrollLock(lightboxIdx !== null && Boolean(config.gallery[lightboxIdx]));
 
   // Simple Senior-Friendly RSVP + Guestbook Form State
@@ -80,6 +104,88 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     setActiveAccountSide(primary);
     setGuestSide(primary);
   }, [primary]);
+
+  // Scroll spy for sticky quick-jump bar + floating "back to top" button
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      setShowScrollTop(scrollY > 420);
+      if (scrollY < 260) {
+        setActiveNavId(null);
+        return;
+      }
+      const triggerLine = window.innerHeight * 0.34;
+      let current: ParentsNavId | null = 'parents-greeting';
+      for (const id of PARENTS_NAV_IDS) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= triggerLine) {
+          current = id;
+        }
+      }
+      setActiveNavId(current);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Preload adjacent gallery photos & keyboard navigation when lightbox is open
+  useEffect(() => {
+    if (lightboxIdx === null || config.gallery.length === 0) return;
+    const prevIdx = (lightboxIdx - 1 + config.gallery.length) % config.gallery.length;
+    const nextIdx = (lightboxIdx + 1) % config.gallery.length;
+    [prevIdx, nextIdx].forEach((idx) => {
+      const target = config.gallery[idx];
+      if (!target?.imageUrl || imgLoadedMap[target.imageUrl]) return;
+      const preloader = new Image();
+      preloader.onload = () => {
+        setImgLoadedMap((prev) =>
+          prev[target.imageUrl] ? prev : { ...prev, [target.imageUrl]: true }
+        );
+      };
+      preloader.src = target.imageUrl;
+    });
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLightboxIdx(null);
+      } else if (e.key === 'ArrowLeft') {
+        setLightboxIdx((prev) =>
+          prev === null ? null : (prev - 1 + config.gallery.length) % config.gallery.length
+        );
+      } else if (e.key === 'ArrowRight') {
+        setLightboxIdx((prev) =>
+          prev === null ? null : (prev + 1) % config.gallery.length
+        );
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightboxIdx, config.gallery, imgLoadedMap]);
+
+  const handleLightboxTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    lightboxTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleLightboxTouchEnd = (e: React.TouchEvent) => {
+    if (!lightboxTouchStartRef.current || lightboxIdx === null) return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - lightboxTouchStartRef.current.x;
+    const dy = touch.clientY - lightboxTouchStartRef.current.y;
+    lightboxTouchStartRef.current = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      if (dx < 0) {
+        setLightboxIdx((lightboxIdx + 1) % config.gallery.length);
+      } else {
+        setLightboxIdx((lightboxIdx - 1 + config.gallery.length) % config.gallery.length);
+      }
+    }
+  };
+
+  const myLatestEntry = guestbook.find((item) => canEditOwnGuestbookEntry(item.id));
 
   const groomOrder = primary === 'bride' ? 3 : 1;
   const brideOrder = primary === 'bride' ? 1 : 3;
@@ -124,37 +230,23 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
   const weddingDayDiff = getWeddingDayDiff(config.wedding.dateISO) ?? 0;
 
-  const encodedVenue = encodeURIComponent(config.wedding.venueName);
-  const encodedAddr = encodeURIComponent(config.wedding.addressRoad);
-  const hasValidCoords =
-    Number.isFinite(config.wedding.lat) &&
-    Number.isFinite(config.wedding.lng) &&
-    config.wedding.lat !== 0 &&
-    config.wedding.lng !== 0;
+  const hasValidCoords = hasValidWeddingCoords(config.wedding);
+  const kakaoNavUrl = getKakaoMapUrl(config.wedding);
+  const naverNavUrl = getNaverMapWebUrl(config.wedding);
+  const tmapDeepLink = getTmapDeepLink(config.wedding);
 
-  const kakaoNavUrl = hasValidCoords
-    ? `https://map.kakao.com/link/to/${encodedVenue},${config.wedding.lat},${config.wedding.lng}`
-    : `https://map.kakao.com/link/search/${encodedAddr}`;
-
-  const tmapDeepLink = hasValidCoords
-    ? `tmap://route?goalname=${encodedVenue}&goalx=${config.wedding.lng}&goaly=${config.wedding.lat}`
-    : `tmap://search?name=${encodedVenue}`;
+  const handleOpenNaver = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    openNaverMap(config.wedding, e);
+  };
 
   const handleOpenTmap = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (!isMobile) {
-      e.preventDefault();
-      window.open(
-        `https://map.naver.com/p/search/${encodedAddr}`,
-        '_blank',
-        'noopener,noreferrer'
-      );
-    }
+    openTmap(config.wedding, e);
   };
 
   const handleCopyAddress = async () => {
     await copyTextToClipboard(config.wedding.addressRoad);
     setCopiedAddress(true);
+    showToast('예식장 주소가 복사되었습니다');
     setTimeout(() => setCopiedAddress(false), 3000);
   };
 
@@ -165,6 +257,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
     await copyTextToClipboard(cleanAccountNumber);
     setCopiedKey(key);
+    showToast(`${acc.bank} 계좌번호(${acc.name})가 복사되었습니다`);
     fireCelebrationConfetti({
       particleCount: 24,
       spread: 50,
@@ -216,6 +309,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     } else {
       await copyTextToClipboard(shareUrl);
       setCopiedShare(label);
+      showToast('청첩장 링크가 복사되었습니다');
       setTimeout(() => setCopiedShare(null), 3000);
     }
   };
@@ -231,6 +325,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     const res = await shareViaKakaoTalk(config, shareUrl, prefix, primary);
     if (res === 'copied_card') {
       setCopiedShare('kakao');
+      showToast('카카오톡 초대 문구가 복사되었습니다');
       setTimeout(() => setCopiedShare(null), 3500);
     }
   };
@@ -324,25 +419,37 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </div>
         </div>
 
-        {/* Big Quick-Jump Anchor Buttons */}
+        {/* Big Quick-Jump Anchor Buttons with Active Scroll Spy */}
         <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-[#efe6d8] text-center">
-          {[
-            { id: 'parents-greeting', label: '모시는 글' },
-            { id: 'parents-contact', label: '혼주 연락처' },
-            { id: 'parents-location', label: '오시는 길' },
-            { id: 'parents-gift', label: '마음 전할 곳' },
-          ].map((nav) => (
-            <button
-              key={nav.id}
-              type="button"
-              onClick={() =>
-                document.getElementById(nav.id)?.scrollIntoView({ behavior: 'smooth' })
-              }
-              className="py-2 px-1 rounded-xl bg-[#faf5ec] hover:bg-[#f1e7d6] border border-[#e2d4c0] text-[#3b2f2f] text-xs sm:text-sm font-bold"
-            >
-              {nav.label}
-            </button>
-          ))}
+          {(
+            [
+              { id: 'parents-greeting', label: '모시는 글' },
+              { id: 'parents-contact', label: '혼주 연락처' },
+              { id: 'parents-location', label: '오시는 길' },
+              { id: 'parents-gift', label: '마음 전할 곳' },
+            ] as const
+          ).map((nav) => {
+            const isActive = activeNavId === nav.id;
+            return (
+              <button
+                key={nav.id}
+                type="button"
+                onClick={() => {
+                  setActiveNavId(nav.id);
+                  document.getElementById(nav.id)?.scrollIntoView({
+                    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                  });
+                }}
+                className={`py-2 px-1 rounded-xl border text-xs sm:text-sm font-bold transition-colors ${
+                  isActive
+                    ? 'bg-[#2d221e] text-[#fffdf9] border-[#2d221e] shadow-xs'
+                    : 'bg-[#faf5ec] hover:bg-[#f1e7d6] border-[#e2d4c0] text-[#3b2f2f]'
+                }`}
+              >
+                {nav.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -632,6 +739,26 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             </span>
           )}
         </div>
+
+        {/* Senior-Friendly Calendar Save Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-sans">
+          <button
+            type="button"
+            onClick={() => openGoogleCalendar(config, primary)}
+            className={`${textScale.btn} rounded-2xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold flex items-center justify-center gap-2`}
+          >
+            <Calendar className="w-5 h-5 text-[#e6d5b8] shrink-0" />
+            <span>구글 캘린더에 저장</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadWeddingIcs(config, primary)}
+            className={`${textScale.btn} rounded-2xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#c9b69c] text-[#2d221e] font-bold flex items-center justify-center gap-2`}
+          >
+            <Download className="w-5 h-5 text-[#b35c66] shrink-0" />
+            <span>휴대폰 일정(.ics) 저장</span>
+          </button>
+        </div>
       </section>
 
       {/* 5. Location, Map & Large Navigation / Transport Guide */}
@@ -728,9 +855,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               <span>카카오맵 길찾기</span>
             </a>
             <a
-              href={`https://map.naver.com/p/search/${encodedAddr}`}
+              href={naverNavUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handleOpenNaver}
               className={`${textScale.btn} rounded-2xl bg-[#03c75a] text-white border border-[#02b04f] font-bold flex items-center justify-center gap-2 shadow-xs`}
             >
               <Navigation className="w-5 h-5 shrink-0" />
@@ -945,11 +1073,23 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               onClick={() => setLightboxIdx(idx)}
               className="group text-left bg-[#faf5ec] border border-[#dfd2be] rounded-2xl overflow-hidden shadow-xs"
             >
-              <div className="aspect-[4/4.5] w-full overflow-hidden bg-[#f0e8da]">
+              <div className="relative aspect-[4/4.5] w-full overflow-hidden bg-[#efe6d8]">
+                {!imgLoadedMap[item.imageUrl] && (
+                  <div className="absolute inset-0 bg-[#efe6d8] animate-pulse" />
+                )}
                 <img
                   src={item.imageUrl}
                   alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={() =>
+                    setImgLoadedMap((prev) =>
+                      prev[item.imageUrl] ? prev : { ...prev, [item.imageUrl]: true }
+                    )
+                  }
+                  className={`w-full h-full object-cover group-hover:scale-103 transition-all duration-300 ${
+                    imgLoadedMap[item.imageUrl] ? 'opacity-100' : 'opacity-0'
+                  }`}
                 />
               </div>
               <div className="p-3.5 font-sans">
@@ -971,6 +1111,37 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             정성스러운 식사 대접을 위해 참석 여부나 축하의 말씀을 남겨주시면 감사하겠습니다.
           </p>
         </div>
+
+        {/* My Registered RSVP Summary Card (for Elders' Peace of Mind) */}
+        {myLatestEntry && (
+          <div className="bg-[#edf5ef] border-2 border-[#a3bfa8] rounded-2xl p-4 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-[#2d6340] shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <div className={`${textScale.sub} font-bold text-[#22472f]`}>
+                등록하신 참석 의사 확인 · {myLatestEntry.name}님
+              </div>
+              <div className="text-sm text-[#355e40] font-semibold">
+                {myLatestEntry.side === 'bride'
+                  ? '신부측'
+                  : myLatestEntry.side === 'groom'
+                  ? '신랑측'
+                  : '하객'}{' '}
+                ·{' '}
+                {myLatestEntry.attendance === 'attend'
+                  ? `참석 (${myLatestEntry.companions || 1}명 · ${
+                      myLatestEntry.meal === 'yes'
+                        ? '식사 예정'
+                        : myLatestEntry.meal === 'no'
+                        ? '식사 안 함'
+                        : '식사 미정'
+                    })`
+                  : myLatestEntry.attendance === 'unable'
+                  ? '마음만 전함'
+                  : '참석 미정'}
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmitGuestbook} className="space-y-4 bg-[#faf5ec] p-5 rounded-2xl border border-[#dfd2be]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1280,31 +1451,36 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
       </section>
 
-      {/* Fullscreen Photo Lightbox for Elders */}
+      {/* Fullscreen Photo Lightbox for Elders with Swipe & Keyboard Navigation */}
       {lightboxIdx !== null && config.gallery[lightboxIdx] && (
         <div
-          className="fixed inset-0 z-50 bg-black/85 overscroll-contain flex flex-col items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans"
+          role="dialog"
+          aria-modal="true"
+          aria-label="웨딩 사진 크게 보기"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm overscroll-contain flex flex-col items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans select-none"
           onClick={() => setLightboxIdx(null)}
+          onTouchStart={handleLightboxTouchStart}
+          onTouchEnd={handleLightboxTouchEnd}
         >
           <div
             className="relative max-w-lg w-full bg-[#fffdf9] rounded-2xl overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-3.5 bg-[#2d221e] text-white flex items-center justify-between">
-              <span className="font-bold text-base">
+            <div className="p-3.5 bg-[#2d221e] text-white flex items-center justify-between gap-2">
+              <span className="font-bold text-base truncate">
                 {config.gallery[lightboxIdx].title} ({lightboxIdx + 1} /{' '}
                 {config.gallery.length})
               </span>
               <button
                 type="button"
                 onClick={() => setLightboxIdx(null)}
-                className="px-3 py-1 rounded-lg bg-white/15 text-white text-sm font-bold flex items-center gap-1"
+                className="px-3 py-1 rounded-lg bg-white/15 text-white text-sm font-bold flex items-center gap-1 shrink-0"
               >
                 <X className="w-4 h-4" /> 닫기
               </button>
             </div>
 
-            <div className="bg-black flex items-center justify-center max-h-[70vh]">
+            <div className="bg-black flex items-center justify-center max-h-[70vh] min-h-[260px]">
               <img
                 src={config.gallery[lightboxIdx].imageUrl}
                 alt={config.gallery[lightboxIdx].title}
@@ -1312,7 +1488,11 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               />
             </div>
 
-            <div className="p-4 bg-[#fffdf9] flex items-center justify-between gap-2">
+            <div className="px-4 pt-2.5 pb-1 bg-[#fffdf9] text-center text-xs text-[#7d6e65]">
+              사진을 좌우로 밀거나 아래 버튼으로 넘겨 보실 수 있습니다
+            </div>
+
+            <div className="p-4 pt-2 bg-[#fffdf9] flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() =>
@@ -1336,6 +1516,25 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Senior-Friendly Floating Scroll-To-Top Button */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => {
+            window.scrollTo({
+              top: 0,
+              behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+            });
+          }}
+          aria-label="맨 위로 이동"
+          style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
+          className="fixed right-4 z-40 px-4 py-2.5 rounded-full bg-[#2d221e]/95 hover:bg-[#1e1613] text-[#fffdf9] border-2 border-[#d4b48c] shadow-lg text-sm font-sans font-bold flex items-center gap-1.5 backdrop-blur-sm transition-all active:scale-95"
+        >
+          <ArrowUp className="w-4 h-4 text-[#f0d29c]" />
+          <span>맨 위로</span>
+        </button>
       )}
     </div>
   );

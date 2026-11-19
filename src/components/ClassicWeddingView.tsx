@@ -367,7 +367,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           }}
           aria-label="맨 위로 이동"
           style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
-          className="fixed right-4 z-40 px-3 py-2 rounded-full bg-[#3b2f2f]/90 hover:bg-[#3b2f2f] text-[#fffdf9] border border-[#d4b48c] shadow-lg text-xs font-sans font-bold flex items-center gap-1 backdrop-blur-xs transition-all"
+          className="fixed right-4 z-40 px-3 py-2 rounded-full bg-[#3b2f2f]/90 hover:bg-[#3b2f2f] text-[#fffdf9] border border-[#d4b48c] shadow-lg text-xs font-sans font-bold flex items-center gap-1 backdrop-blur-sm transition-all"
         >
           <ArrowUp className="w-3.5 h-3.5" />
           <span>맨 위로</span>

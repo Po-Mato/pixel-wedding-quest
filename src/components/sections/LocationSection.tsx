@@ -4,6 +4,15 @@ import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
 import { cleanPhoneForHref } from '../../utils/phone';
+import { showToast } from '../../utils/toast';
+import {
+  hasValidWeddingCoords,
+  getKakaoMapUrl,
+  getNaverMapWebUrl,
+  getTmapDeepLink,
+  openNaverMap,
+  openTmap,
+} from '../../utils/navigation';
 
 interface LocationSectionProps {
   config: WeddingConfig;
@@ -70,47 +79,35 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
     soundEngine.playCoin();
     await copyTextToClipboard(config.wedding.addressRoad);
     setCopied(true);
+    showToast('예식장 도로명 주소가 복사되었습니다');
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const encodedVenue = encodeURIComponent(config.wedding.venueName);
-  const encodedAddr = encodeURIComponent(config.wedding.addressRoad);
-  const hasValidCoords =
-    Number.isFinite(config.wedding.lat) &&
-    Number.isFinite(config.wedding.lng) &&
-    config.wedding.lat !== 0 &&
-    config.wedding.lng !== 0;
+  const hasValidCoords = hasValidWeddingCoords(config.wedding);
+  const tmapDeepLink = getTmapDeepLink(config.wedding);
 
-  const tmapDeepLink = hasValidCoords
-    ? `tmap://route?goalname=${encodedVenue}&goalx=${config.wedding.lng}&goaly=${config.wedding.lat}`
-    : `tmap://search?name=${encodedVenue}`;
+  const handleOpenNaver = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    soundEngine.playSelect();
+    openNaverMap(config.wedding, e);
+  };
 
   const handleOpenTmap = (e: React.MouseEvent<HTMLAnchorElement>) => {
     soundEngine.playSelect();
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (!isMobile) {
-      e.preventDefault();
-      window.open(
-        `https://map.naver.com/p/search/${encodedAddr}`,
-        '_blank',
-        'noopener,noreferrer'
-      );
-    }
+    openTmap(config.wedding, e);
   };
 
   const navLinks = [
     {
       name: '네이버 지도',
       bg: 'bg-[#03c75a] text-white border-[#02b350]',
-      url: `https://map.naver.com/p/search/${encodedAddr}`,
+      url: getNaverMapWebUrl(config.wedding),
       external: true,
+      onClick: handleOpenNaver,
     },
     {
       name: '카카오맵',
       bg: 'bg-[#fee500] text-[#191919] border-[#e6cf00]',
-      url: hasValidCoords
-        ? `https://map.kakao.com/link/to/${encodedVenue},${config.wedding.lat},${config.wedding.lng}`
-        : `https://map.kakao.com/link/search/${encodedAddr}`,
+      url: getKakaoMapUrl(config.wedding),
       external: true,
     },
     {

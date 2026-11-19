@@ -22,6 +22,8 @@ import {
 } from './data/weddingConfig';
 import { soundEngine } from './utils/soundEngine';
 import { copyTextToClipboard } from './utils/clipboard';
+import { showToast } from './utils/toast';
+import { GlobalToast } from './components/GlobalToast';
 import { fireCelebrationConfetti, prefersReducedMotion } from './utils/motion';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { shareViaKakaoTalk } from './utils/kakaoShare';
@@ -615,24 +617,6 @@ export function App() {
     }
   };
 
-  const handleSelectShareSide = (nextSide: ParentsSideFilter) => {
-    soundEngine.playBlip();
-    if (nextSide === 'all') {
-      setRandomSide(rollRandomPrimarySide());
-    }
-    setParentsSide(nextSide);
-    try {
-      const nextUrl = buildShareTargetUrl(nextSide);
-      window.history.replaceState(
-        { screenMode, activeQuest, side: nextSide },
-        '',
-        nextUrl
-      );
-    } catch {
-      // ignore
-    }
-  };
-
   const handleShareLink = async () => {
     soundEngine.playCoin();
     const url = buildShareTargetUrl(parentsSide);
@@ -653,6 +637,7 @@ export function App() {
     } else {
       await copyTextToClipboard(url);
       setCopiedLink(true);
+      showToast('청첩장 링크가 복사되었습니다');
       setTimeout(() => setCopiedLink(false), 2500);
     }
   };
@@ -669,6 +654,7 @@ export function App() {
     const res = await shareViaKakaoTalk(config, url, prefix, defaultGuestSide);
     if (res === 'copied_card') {
       setCopiedKakao(true);
+      showToast('카카오톡 초대 문구가 복사되었습니다');
       setTimeout(() => setCopiedKakao(false), 3000);
     }
   };
@@ -985,69 +971,6 @@ export function App() {
               </div>
             )}
           </div>
-
-          {screenMode !== 'parents' && (
-            <div className="pt-2 border-t border-[#efe6d8] space-y-2 text-[11px] text-[#8c7a70]">
-              <div className="flex items-center justify-between gap-2">
-                <span>공유 링크 맞춤 설정 (계좌·방명록 기본 탭)</span>
-                <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e2d4c0]">
-                  {[
-                    { id: 'all' as const, label: '일반(랜덤)' },
-                    { id: 'groom' as const, label: '신랑측 지인용' },
-                    { id: 'bride' as const, label: '신부측 지인용' },
-                  ].map((s) => {
-                    const isSelected = parentsSide === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => handleSelectShareSide(s.id)}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                          isSelected
-                            ? s.id === 'bride'
-                              ? 'bg-[#d97b84] text-white'
-                              : 'bg-[#3b2f2f] text-white'
-                            : 'text-[#7d6e65] hover:text-[#3b2f2f]'
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span>시점별 화면 미리보기</span>
-                <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e2d4c0]">
-                  {[
-                    { id: 'upcoming' as const, label: '예식 전(기본)' },
-                    { id: 'dday' as const, label: '💍 예식 당일' },
-                    { id: 'post' as const, label: '💐 예식 후 감사장' },
-                  ].map((item) => {
-                    const isCurrent = activePhase === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          soundEngine.playBlip();
-                          setPhaseOverride(item.id === 'upcoming' ? null : item.id);
-                        }}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                          isCurrent
-                            ? 'bg-[#3b2f2f] text-white'
-                            : 'text-[#7d6e65] hover:text-[#3b2f2f]'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
         </footer>
         )}
       </div>
@@ -1059,7 +982,7 @@ export function App() {
             soundEngine.playBlip(440);
             closeActiveQuest();
           }}
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs overscroll-contain flex items-center justify-center p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:p-4"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm overscroll-contain flex items-center justify-center p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -1156,6 +1079,8 @@ export function App() {
         <Suspense fallback={null}>
           <CustomizerModal
             config={config}
+            activePhase={activePhase}
+            onChangePhasePreview={(next) => setPhaseOverride(next)}
             onUpdateConfig={(nextConfig) => {
               setConfig(nextConfig);
               saveCachedCloudConfig(nextConfig);
@@ -1175,6 +1100,8 @@ export function App() {
           />
         </Suspense>
       )}
+
+      <GlobalToast />
     </div>
     </CoupleOrderProvider>
   );

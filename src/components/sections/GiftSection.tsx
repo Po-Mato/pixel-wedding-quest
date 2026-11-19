@@ -4,6 +4,7 @@ import { WeddingConfig, BankAccount } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
 import { fireCelebrationConfetti } from '../../utils/motion';
+import { showToast } from '../../utils/toast';
 
 interface GiftSectionProps {
   config: WeddingConfig;
@@ -31,6 +32,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
     await copyTextToClipboard(cleanAccountNumber);
     setCopiedKey(key);
     setCopiedSummary(`${acc.bank} ${cleanAccountNumber} (예금주: ${acc.name})`);
+    showToast(`${acc.bank} 계좌번호(${acc.name})가 복사되었습니다`);
 
     fireCelebrationConfetti({
       particleCount: 28,
@@ -53,6 +55,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
     await copyTextToClipboard(cleanAccountNumber);
     setCopiedKey(key);
     setCopiedSummary(`${acc.bank} ${cleanAccountNumber} (예금주: ${acc.name})`);
+    showToast(`계좌번호 복사 완료 · 토스 송금 앱을 연결합니다`, 'info');
 
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isMobile && digitsOnly) {

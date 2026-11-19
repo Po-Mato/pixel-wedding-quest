@@ -113,6 +113,16 @@ const STORAGE_GUEST_NAME_KEY = 'pixel_wedding_quest_guest_name_v1';
 
 export type WalkMode = 'guest' | 'couple';
 
+const STORAGE_WALK_HINT_KEY = 'pixel_wedding_quest_walk_hint_seen_v1';
+
+interface OffscreenPortalIndicator {
+  portal: MapPortal;
+  leftPct: number;
+  topPct: number;
+  arrow: string;
+  shortLabel: string;
+}
+
 export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   config,
   visitedQuests,
@@ -304,6 +314,26 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const [nearbySecret, setNearbySecret] = useState<SecretPropItem | null>(null);
   const [ambientNpc, setAmbientNpc] = useState<ActiveNpcTarget | null>(null);
   const npcBubbleIndexRef = useRef<number>(0);
+  const [offscreenPortals, setOffscreenPortals] = useState<OffscreenPortalIndicator[]>([]);
+  const offscreenPortalSigRef = useRef<string>('');
+  const [showWalkHint, setShowWalkHint] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(STORAGE_WALK_HINT_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  });
+  const dismissWalkHint = useCallback(() => {
+    setShowWalkHint((prev) => {
+      if (!prev) return false;
+      try {
+        localStorage.setItem(STORAGE_WALK_HINT_KEY, '1');
+      } catch {
+        // ignore
+      }
+      return false;
+    });
+  }, []);
 
   // Follow Camera State: 1024x1024 world viewed through a 660x660 (1.55x zoom) smooth follow viewport
   const [cameraZoomMode, setCameraZoomMode] = useState<'follow' | 'overview'>('follow');
@@ -691,49 +721,61 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     travelToMap,
   ]);
 
-  const walkToLandmark = useCallback((lm: MapLandmark) => {
-    soundEngine.playBlip(700);
-    const goalX = lm.x;
-    const goalY = Math.min(91, lm.y + 6.5);
-    pathQueueRef.current = findWalkablePath(
-      posRef.current.x,
-      posRef.current.y,
-      goalX,
-      goalY,
-      currentMapRef.current
-    );
-    pendingLandmarkRef.current = lm;
-    pendingPortalRef.current = null;
-    pendingSecretRef.current = null;
-  }, []);
+  const walkToLandmark = useCallback(
+    (lm: MapLandmark) => {
+      dismissWalkHint();
+      soundEngine.playBlip(700);
+      const goalX = lm.x;
+      const goalY = Math.min(91, lm.y + 6.5);
+      pathQueueRef.current = findWalkablePath(
+        posRef.current.x,
+        posRef.current.y,
+        goalX,
+        goalY,
+        currentMapRef.current
+      );
+      pendingLandmarkRef.current = lm;
+      pendingPortalRef.current = null;
+      pendingSecretRef.current = null;
+    },
+    [dismissWalkHint]
+  );
 
-  const walkToPortal = useCallback((portal: MapPortal) => {
-    soundEngine.playBlip(760);
-    pathQueueRef.current = findWalkablePath(
-      posRef.current.x,
-      posRef.current.y,
-      portal.x,
-      portal.y,
-      currentMapRef.current
-    );
-    pendingPortalRef.current = portal;
-    pendingLandmarkRef.current = null;
-    pendingSecretRef.current = null;
-  }, []);
+  const walkToPortal = useCallback(
+    (portal: MapPortal) => {
+      dismissWalkHint();
+      soundEngine.playBlip(760);
+      pathQueueRef.current = findWalkablePath(
+        posRef.current.x,
+        posRef.current.y,
+        portal.x,
+        portal.y,
+        currentMapRef.current
+      );
+      pendingPortalRef.current = portal;
+      pendingLandmarkRef.current = null;
+      pendingSecretRef.current = null;
+    },
+    [dismissWalkHint]
+  );
 
-  const walkToSecretProp = useCallback((prop: SecretPropItem) => {
-    soundEngine.playBlip(740);
-    pathQueueRef.current = findWalkablePath(
-      posRef.current.x,
-      posRef.current.y,
-      prop.x,
-      prop.y,
-      currentMapRef.current
-    );
-    pendingSecretRef.current = prop;
-    pendingLandmarkRef.current = null;
-    pendingPortalRef.current = null;
-  }, []);
+  const walkToSecretProp = useCallback(
+    (prop: SecretPropItem) => {
+      dismissWalkHint();
+      soundEngine.playBlip(740);
+      pathQueueRef.current = findWalkablePath(
+        posRef.current.x,
+        posRef.current.y,
+        prop.x,
+        prop.y,
+        currentMapRef.current
+      );
+      pendingSecretRef.current = prop;
+      pendingLandmarkRef.current = null;
+      pendingPortalRef.current = null;
+    },
+    [dismissWalkHint]
+  );
 
   // Open 3-Choice Dialogue Modal with a Guest NPC, Pet Cat '모찌', Groom, or Bride
   const openNpcDialogue = useCallback((npc: ActiveNpcTarget) => {
@@ -810,6 +852,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   ]);
 
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    dismissWalkHint();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -1370,7 +1413,67 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       );
       cam.x += (targetCamX - cam.x) * camLerp;
       cam.y += (targetCamY - cam.y) * camLerp;
+      const didSnapCam = snapCameraRef.current;
       snapCameraRef.current = false;
+
+      // Compute off-screen portal edge indicators while zoomed in (throttled to avoid extra React renders)
+      if (didSnapCam || tick % 6 === 0) {
+        const nextIndicators: OffscreenPortalIndicator[] = [];
+        if (cameraZoomModeRef.current === 'follow' && cam.viewW < W - 40) {
+          const marginX = 28;
+          const marginTop = 44;
+          const marginBottom = 64;
+          const camCenterX = cam.x + cam.viewW / 2;
+          const camCenterY = cam.y + cam.viewH / 2;
+
+          for (const portal of mapConfig.portals) {
+            const px = (portal.x / 100) * W;
+            const py = (portal.y / 100) * H;
+            const inView =
+              px >= cam.x + marginX &&
+              px <= cam.x + cam.viewW - marginX &&
+              py >= cam.y + marginTop &&
+              py <= cam.y + cam.viewH - marginBottom;
+            if (inView) continue;
+
+            const dx = px - camCenterX;
+            const dy = py - camCenterY;
+            const safeHalfW = 40; // 10% .. 90%
+            const safeHalfH = 35; // 11% .. 81%
+            const scaleX = dx !== 0 ? safeHalfW / Math.abs(dx) : Infinity;
+            const scaleY = dy !== 0 ? safeHalfH / Math.abs(dy) : Infinity;
+            const t = Math.min(scaleX, scaleY);
+            const leftPct = Math.max(11, Math.min(89, Math.round(50 + dx * t)));
+            const isTopCenter = leftPct >= 34 && leftPct <= 66;
+            const minTopPct = isTopCenter ? 11 : 17;
+            const topPct = Math.max(minTopPct, Math.min(81, Math.round(46 + dy * t)));
+
+            const arrow =
+              Math.abs(dy) >= Math.abs(dx)
+                ? dy > 0
+                  ? '▼'
+                  : '▲'
+                : dx > 0
+                ? '▶'
+                : '◀';
+            const shortLabel = GARDEN_MAPS[portal.targetMap]?.tabLabel || portal.label;
+            nextIndicators.push({
+              portal,
+              leftPct,
+              topPct,
+              arrow,
+              shortLabel,
+            });
+          }
+        }
+        const sig = nextIndicators
+          .map((item) => `${item.portal.id}:${item.leftPct}:${item.topPct}`)
+          .join('|');
+        if (sig !== offscreenPortalSigRef.current) {
+          offscreenPortalSigRef.current = sig;
+          setOffscreenPortals(nextIndicators);
+        }
+      }
 
       const camScale = CANVAS_LOGICAL / cam.viewW;
       ctx.setTransform(
@@ -2301,9 +2404,15 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     travelToMap,
   ]);
 
-  const handleJoystickVectorChange = useCallback((dx: number, dy: number) => {
-    dpadDirRef.current = { dx, dy };
-  }, []);
+  const handleJoystickVectorChange = useCallback(
+    (dx: number, dy: number) => {
+      if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
+        dismissWalkHint();
+      }
+      dpadDirRef.current = { dx, dy };
+    },
+    [dismissWalkHint]
+  );
 
   // Evaluate Zone Mini-Quest completion for current map
   const isMiniQuestStepDone = (step: ZoneMiniQuestItem): boolean => {
@@ -2474,7 +2583,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 soundEngine.playSelect();
                 setShowWorldMapSheet(true);
               }}
-              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-xs hover:bg-[#fffdf9] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[11px] text-[#3b2f2f] font-bold flex items-center gap-1.5 shadow-xs truncate"
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#fffdf9] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[11px] text-[#3b2f2f] font-bold flex items-center gap-1.5 shadow-xs truncate"
             >
               <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse shrink-0" />
               <span>
@@ -2494,7 +2603,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 setCameraZoomMode((z) => (z === 'follow' ? 'overview' : 'follow'));
               }}
               title="산책 확대 카메라 / 전체 맵 보기 전환"
-              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-xs hover:bg-[#faf5ec] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#5c4d47] shadow-xs shrink-0 whitespace-nowrap"
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#faf5ec] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#5c4d47] shadow-xs shrink-0 whitespace-nowrap"
             >
               {cameraZoomMode === 'follow' ? '🗺️ 전체보기' : '🔍 산책확대'}
             </button>
@@ -2505,12 +2614,44 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 soundEngine.playSelect();
                 setWalkMode((m) => (m === 'guest' ? 'couple' : 'guest'));
               }}
-              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-xs hover:bg-[#fcf0f1] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#3b2f2f] shadow-xs shrink-0 whitespace-nowrap"
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#fcf0f1] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#3b2f2f] shadow-xs shrink-0 whitespace-nowrap"
             >
               {walkMode === 'guest' ? '👫 커플 산책' : '🎒 하객 모드'}
             </button>
           </div>
         </div>
+
+        {/* First-Visit Gentle Walk Controls Hint (auto-dismissed on first movement) */}
+        {showWalkHint && !activeDialogueNpc && !activeStoryToast && (
+          <div className="absolute bottom-12 inset-x-2 z-10 flex justify-center pointer-events-none">
+            <button
+              type="button"
+              onClick={dismissWalkHint}
+              className="pointer-events-auto bg-[#3b2f2f]/90 hover:bg-[#3b2f2f] backdrop-blur-sm text-[#fffdf9] border border-[#d4b48c] rounded-full px-3.5 py-1.5 text-[11px] font-sans font-bold shadow-md whitespace-nowrap flex items-center gap-1.5 animate-fadeIn"
+            >
+              <span>👆 바닥 터치 · 아래 조이스틱으로 산책해 보세요!</span>
+              <span className="text-[#e6d5b8] text-[10px]">✕</span>
+            </button>
+          </div>
+        )}
+
+        {/* Off-screen Portal Edge Indicators (helps guests find exits while zoomed in) */}
+        {!activeDialogueNpc &&
+          offscreenPortals.map((ind) => (
+            <button
+              key={ind.portal.id}
+              type="button"
+              onClick={() => walkToPortal(ind.portal)}
+              style={{
+                left: `${ind.leftPct}%`,
+                top: `${ind.topPct}%`,
+              }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-10 bg-[#3b2f2f]/90 hover:bg-[#d97b84] backdrop-blur-sm text-[#fffdf9] border border-[#e6d5b8] rounded-full px-2.5 py-1 text-[10px] font-sans font-bold shadow-md whitespace-nowrap flex items-center gap-1 transition-colors active:scale-95"
+            >
+              <span className="text-[#f4acb7]">{ind.arrow}</span>
+              <span>{ind.shortLabel}</span>
+            </button>
+          ))}
 
         {/* Clean Non-Overlapping 1-Line NPC Ambient Chatter Bar (Bottom of Canvas) */}
         {ambientNpc && !activeDialogueNpc && (
@@ -2538,7 +2679,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
         {/* Story / Secret Toast Overlay when visiting special spots */}
         {activeStoryToast && !activeDialogueNpc && (
-          <div className="absolute top-11 left-2.5 right-2.5 z-10 bg-[#fffdf9]/95 backdrop-blur-xs border-2 border-[#d97b84] rounded-xl px-3 py-2 shadow-md flex items-center justify-between gap-2 animate-fadeIn">
+          <div className="absolute top-11 left-2.5 right-2.5 z-10 bg-[#fffdf9]/95 backdrop-blur-sm border-2 border-[#d97b84] rounded-xl px-3 py-2 shadow-md flex items-center justify-between gap-2 animate-fadeIn">
             <div className="min-w-0">
               <div className="text-[10px] font-sans font-bold text-[#d97b84] tracking-wider">
                 {activeStoryToast.badge} · {activeStoryToast.title}
@@ -2560,7 +2701,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         {activeDialogueNpc && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute inset-x-2.5 bottom-2.5 z-20 bg-[#fffdf9]/95 backdrop-blur-xs border-2 border-[#c59b6d] rounded-2xl p-3 shadow-xl space-y-2 animate-fadeIn font-sans"
+            className="absolute inset-x-2.5 bottom-2.5 z-20 bg-[#fffdf9]/95 backdrop-blur-sm border-2 border-[#c59b6d] rounded-2xl p-3 shadow-xl space-y-2 animate-fadeIn font-sans"
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">

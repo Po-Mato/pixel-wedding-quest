@@ -416,7 +416,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs overscroll-contain flex items-center justify-center p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:p-4">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overscroll-contain flex items-center justify-center p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:p-4">
       <div className="pixel-card w-full max-w-[520px] max-h-[92vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn">
         {/* Header */}
         <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between gap-2 shrink-0">

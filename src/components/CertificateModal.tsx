@@ -22,7 +22,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
   const [firstName, secondName] = pair(config.groom.fullName, config.bride.fullName);
   useBodyScrollLock(true);
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs overscroll-contain flex items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overscroll-contain flex items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <div className="pixel-card w-full max-w-md p-6 bg-[#fffdf9] text-center relative animate-fadeIn">
         <button
           onClick={onClose}
