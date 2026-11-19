@@ -78,6 +78,37 @@ type AppScreenMode = 'title' | 'world' | 'classic' | 'parents';
 
 const STORAGE_GUESTBOOK_KEY = 'pixel_wedding_quest_guestbook_v2';
 const STORAGE_CLOUD_CONFIG_KEY = 'pixel_wedding_quest_cloud_config_v3';
+const STORAGE_ENTRY_PREF_KEY = 'pixel_wedding_quest_entry_pref_v1';
+
+interface SavedEntryPref {
+  mode: 'classic' | 'parents';
+  side: CoupleSide;
+}
+
+function loadSavedEntryPref(): SavedEntryPref | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_ENTRY_PREF_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedEntryPref>;
+    if (
+      (parsed.mode === 'classic' || parsed.mode === 'parents') &&
+      (parsed.side === 'groom' || parsed.side === 'bride')
+    ) {
+      return { mode: parsed.mode, side: parsed.side };
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveEntryPref(mode: 'classic' | 'parents', side: CoupleSide): void {
+  try {
+    localStorage.setItem(STORAGE_ENTRY_PREF_KEY, JSON.stringify({ mode, side }));
+  } catch {
+    // ignore
+  }
+}
 
 function loadCachedCloudConfig(): WeddingConfig | null {
   try {
@@ -103,31 +134,40 @@ function saveCachedCloudConfig(cfg: WeddingConfig): void {
   }
 }
 
-function detectInitialScreenMode(): AppScreenMode {
+function detectInitialRoute(): { mode: AppScreenMode; side: ParentsSideFilter } {
   try {
     const params = new URLSearchParams(window.location.search);
-    const mode = params.get('mode') || params.get('target');
-    if (mode === 'parents' || window.location.hash === '#parents') {
-      return 'parents';
-    }
-    if (mode === 'title' || mode === 'cover') return 'title';
-    if (mode === 'world' || mode === 'garden') return 'world';
-    if (mode === 'classic') return 'classic';
-  } catch {
-    // ignore
-  }
-  return 'classic';
-}
+    const rawMode = params.get('mode') || params.get('target');
+    const rawSide = params.get('side');
+    const explicitSide: ParentsSideFilter | null =
+      rawSide === 'groom' || rawSide === 'bride' ? rawSide : null;
 
-function detectInitialParentsSide(): ParentsSideFilter {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const side = params.get('side');
-    if (side === 'groom' || side === 'bride') return side;
+    if (rawMode === 'parents' || window.location.hash === '#parents') {
+      return { mode: 'parents', side: explicitSide ?? 'all' };
+    }
+    if (rawMode === 'title' || rawMode === 'cover') {
+      return { mode: 'title', side: 'all' };
+    }
+    if (rawMode === 'world' || rawMode === 'garden') {
+      return { mode: 'world', side: explicitSide ?? 'all' };
+    }
+    if (rawMode === 'classic') {
+      return { mode: 'classic', side: explicitSide ?? 'all' };
+    }
+    // 전용 링크(?side=groom / ?side=bride)로 접속 시 선택 화면을 건너뛰고 바로 진입
+    if (explicitSide) {
+      return { mode: 'classic', side: explicitSide };
+    }
   } catch {
     // ignore
   }
-  return 'all';
+
+  // 기본 링크 재방문 시 이전에 고른 맞춤 모드로 바로 진입, 최초 방문 시 4버튼 선택 화면 표시
+  const saved = loadSavedEntryPref();
+  if (saved) {
+    return { mode: saved.mode, side: saved.side };
+  }
+  return { mode: 'title', side: 'all' };
 }
 
 export function App() {
@@ -160,8 +200,9 @@ export function App() {
     return DEFAULT_WEDDING_CONFIG.initialGuestbook;
   });
 
-  const [screenMode, setScreenMode] = useState<AppScreenMode>(detectInitialScreenMode);
-  const [parentsSide, setParentsSide] = useState<ParentsSideFilter>(detectInitialParentsSide);
+  const initialRoute = useMemo(() => detectInitialRoute(), []);
+  const [screenMode, setScreenMode] = useState<AppScreenMode>(initialRoute.mode);
+  const [parentsSide, setParentsSide] = useState<ParentsSideFilter>(initialRoute.side);
   const [randomSide, setRandomSide] = useState<CoupleSide>(getRandomPrimarySide);
   // 신랑측 링크 → 신랑 우선, 신부측 링크 → 신부 우선, 일반 링크 → 무작위(전 섹션 동일 순서)
   const defaultGuestSide = resolvePrimarySide(parentsSide, randomSide);
@@ -297,38 +338,61 @@ export function App() {
       const state = e.state as {
         screenMode?: AppScreenMode;
         activeQuest?: QuestBuildingId | null;
+        side?: ParentsSideFilter;
       } | null;
       if (state && state.screenMode) {
         setScreenMode(state.screenMode);
         setActiveQuest(state.activeQuest || null);
+        if (state.side) {
+          setParentsSide(state.side);
+        }
       } else {
+        const route = detectInitialRoute();
         setActiveQuest(null);
-        setScreenMode(detectInitialScreenMode());
+        setScreenMode(route.mode);
+        setParentsSide(route.side);
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const buildNavigationUrl = (nextMode: AppScreenMode) => {
+  const buildNavigationUrl = (
+    nextMode: AppScreenMode,
+    nextSide: ParentsSideFilter = parentsSide
+  ) => {
     const url = new URL(window.location.href);
-    if (nextMode === 'classic') {
+    if (nextMode === 'title') {
+      url.searchParams.set('mode', 'title');
+      url.searchParams.delete('side');
+    } else if (nextMode === 'classic') {
       url.searchParams.delete('mode');
+      if (nextSide === 'groom' || nextSide === 'bride') {
+        url.searchParams.set('side', nextSide);
+      } else {
+        url.searchParams.delete('side');
+      }
     } else {
       url.searchParams.set('mode', nextMode);
+      if (nextSide === 'groom' || nextSide === 'bride') {
+        url.searchParams.set('side', nextSide);
+      } else {
+        url.searchParams.delete('side');
+      }
     }
     return url.toString();
   };
 
   const pushNavigationState = (
     nextMode: AppScreenMode,
-    nextQuest: QuestBuildingId | null = null
+    nextQuest: QuestBuildingId | null = null,
+    nextSide: ParentsSideFilter = parentsSide
   ) => {
     try {
       window.history.pushState(
-        { screenMode: nextMode, activeQuest: nextQuest },
+        { screenMode: nextMode, activeQuest: nextQuest, side: nextSide },
         '',
-        buildNavigationUrl(nextMode)
+        buildNavigationUrl(nextMode, nextSide)
       );
     } catch {
       // ignore
@@ -337,13 +401,14 @@ export function App() {
 
   const replaceNavigationState = (
     nextMode: AppScreenMode,
-    nextQuest: QuestBuildingId | null = null
+    nextQuest: QuestBuildingId | null = null,
+    nextSide: ParentsSideFilter = parentsSide
   ) => {
     try {
       window.history.replaceState(
-        { screenMode: nextMode, activeQuest: nextQuest },
+        { screenMode: nextMode, activeQuest: nextQuest, side: nextSide },
         '',
-        buildNavigationUrl(nextMode)
+        buildNavigationUrl(nextMode, nextSide)
       );
     } catch {
       // ignore
@@ -495,22 +560,38 @@ export function App() {
     setBgmPlaying(playing);
   };
 
-  const handleStartWorldMode = (withBgm: boolean) => {
-    if (withBgm) {
-      soundEngine.setMuted(false);
-      soundEngine.startBgm();
-      setBgmPlaying(true);
-    } else {
+  const handleSelectEntry = (mode: 'classic' | 'parents', side: CoupleSide) => {
+    saveEntryPref(mode, side);
+    if (mode === 'parents') {
       soundEngine.stopBgm();
       setBgmPlaying(false);
     }
-    setScreenMode('world');
-    pushNavigationState('world', null);
+    setActiveQuest(null);
+    setParentsSide(side);
+    setScreenMode(mode);
+    pushNavigationState(mode, null, side);
+    window.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+  };
+
+  const handleReturnToEntry = () => {
+    soundEngine.playBlip();
+    setActiveQuest(null);
+    setRandomSide(rollRandomPrimarySide());
+    setParentsSide('all');
+    setScreenMode('title');
+    pushNavigationState('title', null, 'all');
+    window.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
   };
 
   const handleStartClassicMode = () => {
     setScreenMode('classic');
-    pushNavigationState('classic', null);
+    pushNavigationState('classic', null, parentsSide);
     window.scrollTo({
       top: 0,
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
@@ -610,14 +691,19 @@ export function App() {
     setBgmPlaying(false);
     setParentsSide(side);
     setScreenMode('parents');
-    pushNavigationState('parents', null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    pushNavigationState('parents', null, side);
+    window.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
   };
 
   return (
     <CoupleOrderProvider primary={defaultGuestSide}>
     <div
-      className={`min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center justify-start ${
+      className={`min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center ${
+        screenMode === 'title' ? 'justify-center' : 'justify-start'
+      } ${
         screenMode === 'world'
           ? 'pt-1.5 sm:pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-3 px-1.5 sm:px-3'
           : 'pt-3 sm:pt-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-6 px-2.5 sm:px-4'
@@ -632,28 +718,19 @@ export function App() {
             : 'max-w-[480px] gap-3'
         }`}
       >
-        {/* Top Mode Switcher Bar (Hidden in dedicated Parents Mode to keep senior UX distraction-free) */}
-        {screenMode !== 'parents' && (
+        {/* Top Mode Switcher Bar (Hidden on initial 4-button entry screen and dedicated Parents Mode) */}
+        {screenMode !== 'parents' && screenMode !== 'title' && (
           <header
             className={`pixel-card bg-[#fffdf9] flex items-center justify-between gap-1 font-sans ${
               screenMode === 'world' ? 'px-2 py-1.5 sm:px-2.5' : 'px-2.5 py-2 sm:px-3 sm:py-2.5'
             }`}
           >
-            {/* Left: Cover & Mode Toggle Pills */}
+            {/* Left: Entry Selector & Mode Toggle Pills */}
             <div className="flex items-center gap-1 shrink-0">
               <button
-                onClick={() => {
-                  soundEngine.playBlip();
-                  setActiveQuest(null);
-                  setScreenMode('title');
-                  pushNavigationState('title', null);
-                }}
-                title="표지 화면으로"
-                className={`p-1.5 rounded-full border transition-all shrink-0 ${
-                  screenMode === 'title'
-                    ? 'bg-[#3b2f2f] text-[#fffdf9] border-[#3b2f2f] shadow-xs'
-                    : 'bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#e2d4c0]'
-                }`}
+                onClick={handleReturnToEntry}
+                title="처음 선택 화면으로"
+                className="p-1.5 rounded-full border transition-all shrink-0 bg-[#faf5ec] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#e2d4c0]"
               >
                 <Home className="w-3.5 h-3.5" />
               </button>
@@ -787,9 +864,8 @@ export function App() {
             {screenMode === 'title' && (
               <TitleScreen
                 config={config}
-                onStartWorldMode={handleStartWorldMode}
-                onStartClassicMode={handleStartClassicMode}
-                onStartParentsMode={() => handleStartParentsMode('all')}
+                onSelectEntry={handleSelectEntry}
+                onSecretTap={handleSecretFooterTap}
               />
             )}
 
@@ -840,7 +916,8 @@ export function App() {
           )}
         </main>
 
-        {/* Footer Share, Phase Preview Switcher & Couple Mark (5-tap secret trigger for Admin Console) */}
+        {/* Footer Share, Phase Preview Switcher & Couple Mark (Hidden on initial 4-button entry screen) */}
+        {screenMode !== 'title' && (
         <footer className="pixel-card p-3.5 bg-[#fffdf9] space-y-2.5 text-xs font-sans">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div
@@ -860,12 +937,20 @@ export function App() {
             </div>
 
             {screenMode === 'parents' ? (
-              <button
-                onClick={handleStartClassicMode}
-                className="px-3 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold shrink-0"
-              >
-                신랑·신부 지인용 보기
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={handleReturnToEntry}
+                  className="px-2.5 py-1.5 rounded-full bg-[#fffdf9] hover:bg-[#faf5ec] border border-[#e2d4c0] text-[#7d6e65] text-xs font-semibold shrink-0"
+                >
+                  처음 화면
+                </button>
+                <button
+                  onClick={handleStartClassicMode}
+                  className="px-3 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#d4b48c] text-[#5c4d47] text-xs font-semibold shrink-0"
+                >
+                  신랑·신부 지인용 보기
+                </button>
+              </div>
             ) : (
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
@@ -948,9 +1033,6 @@ export function App() {
                         onClick={() => {
                           soundEngine.playBlip();
                           setPhaseOverride(item.id === 'upcoming' ? null : item.id);
-                          if (screenMode === 'title') {
-                            handleStartClassicMode();
-                          }
                         }}
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
                           isCurrent
@@ -967,6 +1049,7 @@ export function App() {
             </div>
           )}
         </footer>
+        )}
       </div>
 
       {/* Pavilion Modal (when exploring Pixel Garden Mode) */}
