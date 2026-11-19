@@ -62,7 +62,7 @@ export const GroomSprite: React.FC<CharacterSpriteProps> = ({
       width={size}
       height={size}
       style={{ width: size, height: size }}
-      className={`pixelated select-none object-contain drop-shadow-[0_2px_4px_rgba(59,47,47,0.12)] ${
+      className={`select-none object-contain drop-shadow-[0_2px_4px_rgba(59,47,47,0.12)] ${
         bounce ? 'animate-floatSlow' : ''
       } ${className}`}
     />
@@ -88,7 +88,7 @@ export const BrideSprite: React.FC<CharacterSpriteProps> = ({
       width={size}
       height={size}
       style={{ width: size, height: size }}
-      className={`pixelated select-none object-contain drop-shadow-[0_2px_4px_rgba(59,47,47,0.12)] ${
+      className={`select-none object-contain drop-shadow-[0_2px_4px_rgba(59,47,47,0.12)] ${
         bounce ? 'animate-floatSlow' : ''
       } ${className}`}
     />
@@ -108,7 +108,7 @@ export const PetDogCreamSprite: React.FC<{ size?: number; className?: string }> 
     width={size}
     height={size}
     style={{ width: size, height: size }}
-    className={`pixelated select-none object-contain drop-shadow-[0_2px_3px_rgba(59,47,47,0.12)] ${className}`}
+    className={`select-none object-contain drop-shadow-[0_2px_3px_rgba(59,47,47,0.12)] ${className}`}
   />
 );
 
@@ -122,7 +122,7 @@ export const PetDogKkomiSprite: React.FC<{ size?: number; className?: string }> 
     width={size}
     height={size}
     style={{ width: size, height: size }}
-    className={`pixelated select-none object-contain drop-shadow-[0_2px_3px_rgba(59,47,47,0.12)] ${className}`}
+    className={`select-none object-contain drop-shadow-[0_2px_3px_rgba(59,47,47,0.12)] ${className}`}
   />
 );
 
@@ -181,7 +181,7 @@ export const GuestAvatarSprite: React.FC<{
       <img
         src={src}
         alt={`${avatar} 하객 캐릭터`}
-        className="w-[96%] h-[96%] object-contain object-bottom pixelated"
+        className="w-[96%] h-[96%] object-contain object-bottom"
       />
     </div>
   );
@@ -287,7 +287,7 @@ export const PixelSceneBanner: React.FC<{
         src={bgByTheme[theme] || PIXEL_ASSETS.weddingCover}
         alt="웨딩 픽셀 일러스트"
         style={{ filter: filterByTheme[theme] || 'none' }}
-        className="absolute inset-0 w-full h-full object-cover object-center pixelated"
+        className="absolute inset-0 w-full h-full object-cover object-center"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-[#2b211e]/35 via-transparent to-transparent" />
 

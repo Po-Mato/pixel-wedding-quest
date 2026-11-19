@@ -158,7 +158,8 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     const H = 820;
     canvas.width = W;
     canvas.height = H;
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const frame = FRAME_STYLES.find((f) => f.id === selectedFrame) || FRAME_STYLES[0];
     const pose = POSE_EFFECTS.find((p) => p.id === selectedPose) || POSE_EFFECTS[0];

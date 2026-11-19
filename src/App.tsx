@@ -701,7 +701,7 @@ export function App() {
   return (
     <CoupleOrderProvider primary={defaultGuestSide}>
     <div
-      className={`min-h-screen bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center ${
+      className={`min-h-screen w-full overflow-x-hidden bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center ${
         screenMode === 'title' ? 'justify-center' : 'justify-start'
       } ${
         screenMode === 'world'
@@ -710,7 +710,7 @@ export function App() {
       }`}
     >
       <div
-        className={`w-full flex flex-col ${
+        className={`w-full min-w-0 flex flex-col ${
           screenMode === 'parents'
             ? 'max-w-[540px] gap-3'
             : screenMode === 'world'
@@ -830,7 +830,7 @@ export function App() {
         )}
 
         {/* MAIN VIEWPORT */}
-        <main className="w-full space-y-2.5">
+        <main className="w-full min-w-0 space-y-2.5">
           {screenMode === 'world' && activePhase !== 'upcoming' && (
             <WeddingPhaseBanner
               config={config}

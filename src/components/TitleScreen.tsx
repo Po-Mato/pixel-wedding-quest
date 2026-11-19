@@ -100,7 +100,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           <img
             src={PIXEL_ASSETS.weddingCover}
             alt={`${firstName} ♥ ${secondName} 웨딩 표지`}
-            className="w-full h-full object-cover object-center pixelated"
+            className="w-full h-full object-cover object-center"
           />
         </div>
       </div>

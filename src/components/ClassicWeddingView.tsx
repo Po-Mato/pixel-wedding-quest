@@ -189,9 +189,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
                     : config.gallery[0]?.imageUrl
                 }
                 alt="Wedding Main"
-                className={`w-full h-full object-cover ${
-                  heroStyle === 'pixel' ? 'pixelated' : ''
-                }`}
+                className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
               <div className="absolute bottom-8 inset-x-4 text-white text-xs tracking-widest font-engSerif">

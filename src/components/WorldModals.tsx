@@ -293,7 +293,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
                   <img
                     src={GUEST_SPRITES[cls.id].sprite}
                     alt={cls.name}
-                    className="w-12 h-12 object-contain pixelated"
+                    className="w-12 h-12 object-contain"
                   />
                   <span className="text-[11px] font-bold text-[#3b2f2f] truncate w-full text-center">
                     {cls.name}

@@ -90,8 +90,12 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
 
     const W = 300;
     const H = 220;
-    canvas.width = W;
-    canvas.height = H;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const items: FallingItem[] = [];
     let tick = 0;
@@ -264,7 +268,7 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
                 ref={canvasRef}
                 onPointerMove={handlePointerMove}
                 onPointerDown={handlePointerMove}
-                className="w-full h-full block touch-none cursor-ew-resize pixelated"
+                className="w-full h-full block touch-none cursor-ew-resize"
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center p-5 text-center space-y-3">

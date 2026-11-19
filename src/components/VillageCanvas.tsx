@@ -871,9 +871,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
     const W = 760;
     const H = 760;
-    canvas.width = W;
-    canvas.height = H;
-    ctx.imageSmoothingEnabled = false;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const TILE_PX_W = ((92 - 8) / (TILE_GRID_SIZE - 1) / 100) * W;
     const TILE_PX_H = ((93 - 14) / (TILE_GRID_SIZE - 1) / 100) * H;
@@ -1037,6 +1040,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     };
 
     const render = () => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       tick++;
       if (portalCooldownRef.current > 0) {
         portalCooldownRef.current--;
@@ -1809,19 +1815,19 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               ctx.restore();
             }
 
-            // Guest Protagonist Overhead Nameplate
+            // Guest Protagonist Nameplate (below feet so it doesn't overlap overhead landmarks)
             const label = `🎒 ${guestNicknameRef.current}`;
-            ctx.font = 'bold 13px "Gowun Batang", sans-serif';
-            const tagW = Math.max(92, ctx.measureText(label).width + 18);
-            const tagY = playerFootY - playerH - 32 - walkBob;
-            ctx.fillStyle = 'rgba(255, 253, 249, 0.95)';
-            ctx.fillRect(playerFootX - tagW / 2, tagY, tagW, 22);
+            ctx.font = 'bold 12px "Gowun Batang", sans-serif';
+            const tagW = Math.max(88, ctx.measureText(label).width + 16);
+            const tagY = Math.min(H - 26, Math.round(playerFootY + 10));
+            ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
+            ctx.fillRect(Math.round(playerFootX - tagW / 2), tagY, tagW, 20);
             ctx.strokeStyle = '#c59b6d';
-            ctx.lineWidth = 1.8;
-            ctx.strokeRect(playerFootX - tagW / 2, tagY, tagW, 22);
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(Math.round(playerFootX - tagW / 2), tagY, tagW, 20);
             ctx.fillStyle = '#3b2f2f';
             ctx.textAlign = 'center';
-            ctx.fillText(label, playerFootX, tagY + 15);
+            ctx.fillText(label, playerFootX, tagY + 14);
           },
         });
       } else {
@@ -2064,32 +2070,33 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         const snippet =
           speaker.msg.length > 16 ? speaker.msg.slice(0, 16) + '…' : speaker.msg;
         const bubbleText = `${speaker.name}: "${snippet}"`;
-        ctx.font = 'bold 14px "Pretendard", sans-serif';
-        const bw = Math.min(420, ctx.measureText(bubbleText).width + 24);
-        const bx = Math.max(bw / 2 + 8, Math.min(W - bw / 2 - 8, speaker.x));
-        const by = speaker.y - 12;
+        ctx.font = 'bold 13px "Pretendard", sans-serif';
+        const bw = Math.min(340, ctx.measureText(bubbleText).width + 22);
+        const bx = Math.max(bw / 2 + 10, Math.min(W - bw / 2 - 10, speaker.x));
+        const by = Math.max(40, speaker.y - 12);
 
         ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
-        ctx.fillRect(bx - bw / 2, by - 26, bw, 26);
+        ctx.fillRect(Math.round(bx - bw / 2), Math.round(by - 25), Math.round(bw), 25);
         ctx.strokeStyle = '#c59b6d';
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(bx - bw / 2, by - 26, bw, 26);
+        ctx.strokeRect(Math.round(bx - bw / 2), Math.round(by - 25), Math.round(bw), 25);
+        const tailX = Math.max(bx - bw / 2 + 12, Math.min(bx + bw / 2 - 12, speaker.x));
         ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
         ctx.beginPath();
-        ctx.moveTo(speaker.x - 6, by - 1);
-        ctx.lineTo(speaker.x + 6, by - 1);
-        ctx.lineTo(speaker.x, by + 8);
+        ctx.moveTo(tailX - 6, by - 1);
+        ctx.lineTo(tailX + 6, by - 1);
+        ctx.lineTo(tailX, by + 7);
         ctx.closePath();
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(speaker.x - 6, by);
-        ctx.lineTo(speaker.x, by + 8);
-        ctx.lineTo(speaker.x + 6, by);
+        ctx.moveTo(tailX - 6, by);
+        ctx.lineTo(tailX, by + 7);
+        ctx.lineTo(tailX + 6, by);
         ctx.stroke();
 
         ctx.fillStyle = '#3b2f2f';
         ctx.textAlign = 'center';
-        ctx.fillText(bubbleText, bx, by - 8);
+        ctx.fillText(bubbleText, bx, by - 8, bw - 16);
       }
 
       // 9. Live Floating Emoji Reactions
@@ -2233,9 +2240,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   ).length;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="w-full min-w-0 flex flex-col gap-1.5">
       {/* ULTRA-SLIM 1-ROW WORLD HUD BAR: Map Drawer + 9-Map Strip + Utility Icons */}
-      <div className="pixel-card px-2 py-1.5 bg-[#fffdf9] flex items-center justify-between gap-1.5 font-sans">
+      <div className="pixel-card w-full min-w-0 overflow-hidden px-2 py-1.5 bg-[#fffdf9] flex items-center justify-between gap-1.5 font-sans">
         {/* Left: World Map & Mission Drawer Trigger */}
         <button
           type="button"
@@ -2460,15 +2467,15 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         <canvas
           ref={canvasRef}
           onPointerDown={handleCanvasPointerDown}
-          className={`w-full aspect-square block cursor-pointer pixelated touch-none transition-opacity duration-200 ${
+          className={`w-full aspect-square block cursor-pointer touch-none transition-opacity duration-200 ${
             mapTransitionFade ? 'opacity-40' : 'opacity-100'
           }`}
         />
       </div>
 
       {/* COMPACT STICKY CONSOLE DOCK: Joystick + Action CTA + 1-Line Spot Quick-Chips */}
-      <div className="sticky bottom-1.5 z-30 pixel-card bg-[#fffdf9] border-2 border-[#c59b6d] px-3 py-2 shadow-lg rounded-2xl space-y-1.5 font-sans">
-        <div className="flex items-center justify-between gap-2.5">
+      <div className="sticky bottom-1.5 z-30 w-full min-w-0 overflow-hidden pixel-card bg-[#fffdf9] border-2 border-[#c59b6d] px-2.5 sm:px-3 py-2 shadow-lg rounded-2xl space-y-1.5 font-sans">
+        <div className="flex items-center justify-between gap-2 min-w-0">
           {/* Left: Wedding Compass Virtual Joystick */}
           <div className="flex items-center shrink-0">
             <InGameVirtualJoystick onVectorChange={handleJoystickVectorChange} />
@@ -2477,7 +2484,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           {/* Right: Live Emoji Reactions + Contextual Portal/Secret/Landmark Action Dock */}
           <div className="flex-1 min-w-0 flex flex-col justify-between gap-1.5">
             {/* Upper Row: Live Blessing Emoji Reactions + NPC Talk Button */}
-            <div className="flex items-center justify-between gap-1 bg-[#faf5ec] px-2.5 py-1 rounded-full border border-[#e6d5b8]">
+            <div className="flex items-center justify-between gap-1 bg-[#faf5ec] px-2 py-1 rounded-full border border-[#e6d5b8] min-w-0 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => {
@@ -2494,19 +2501,19 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                     };
                   openNpcDialogue(target);
                 }}
-                className="text-[10px] font-bold text-[#b85d67] hover:text-[#d97b84] flex items-center gap-1 shrink-0"
+                className="text-[10px] font-bold text-[#b85d67] hover:text-[#d97b84] flex items-center gap-1 whitespace-nowrap shrink-0"
               >
-                <MessageCircle className="w-3 h-3" />
+                <MessageCircle className="w-3 h-3 shrink-0" />
                 <span>대화·축복 ♥{blessingCount}</span>
               </button>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                 {REACTION_EMOJIS.map((item) => (
                   <button
                     key={item.emoji}
                     type="button"
                     onClick={() => spawnFloatingReaction(item.emoji)}
                     title={`${item.label} 축복 보내기`}
-                    className="w-5.5 h-5.5 rounded-full bg-[#fffdf9] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] flex items-center justify-center text-[11px] transition-transform"
+                    className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full bg-[#fffdf9] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] flex items-center justify-center text-[10px] sm:text-[11px] transition-transform shrink-0"
                   >
                     {item.emoji}
                   </button>
