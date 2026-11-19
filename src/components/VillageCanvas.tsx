@@ -302,7 +302,22 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const [nearbyLandmark, setNearbyLandmark] = useState<MapLandmark | null>(null);
   const [nearbyPortal, setNearbyPortal] = useState<MapPortal | null>(null);
   const [nearbySecret, setNearbySecret] = useState<SecretPropItem | null>(null);
-  const [npcBubbleIndex, setNpcBubbleIndex] = useState<number>(0);
+  const [ambientNpc, setAmbientNpc] = useState<ActiveNpcTarget | null>(null);
+  const npcBubbleIndexRef = useRef<number>(0);
+
+  // Follow Camera State: 1024x1024 world viewed through a 660x660 (1.55x zoom) smooth follow viewport
+  const [cameraZoomMode, setCameraZoomMode] = useState<'follow' | 'overview'>('follow');
+  const cameraZoomModeRef = useRef<'follow' | 'overview'>('follow');
+  useEffect(() => {
+    cameraZoomModeRef.current = cameraZoomMode;
+  }, [cameraZoomMode]);
+  const cameraRef = useRef<{ x: number; y: number; viewW: number; viewH: number }>({
+    x: Math.max(0, Math.min(1024 - 660, (48 / 100) * 1024 - 660 / 2)),
+    y: Math.max(0, Math.min(1024 - 660, (70 / 100) * 1024 - 660 / 2)),
+    viewW: 660,
+    viewH: 660,
+  });
+  const snapCameraRef = useRef<boolean>(true);
 
   // Preload all 9 Map Backgrounds + Chibi Character Sprites + Bichon Dogs (Cream & Kkomi)
   const assetsRef = useRef<{
@@ -520,6 +535,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       setVisitedMaps((prev) => ({ ...prev, [targetMap]: true }));
       posRef.current = { x: snapped.x, y: snapped.y };
       currentTileRef.current = snapped;
+      snapCameraRef.current = true;
+      setAmbientNpc(null);
       trailRef.current = Array.from({ length: 28 }, () => ({
         x: snapped.x,
         y: snapped.y,
@@ -616,11 +633,26 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   );
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNpcBubbleIndex((prev) => prev + 1);
-    }, 3600);
-    return () => window.clearInterval(timer);
-  }, []);
+    const syncAmbientSpeaker = (advance: boolean) => {
+      const npcs = liveNpcsRef.current;
+      if (!npcs || npcs.length === 0) {
+        setAmbientNpc(null);
+        return;
+      }
+      if (advance) {
+        npcBubbleIndexRef.current += 1;
+      }
+      const next = npcs[npcBubbleIndexRef.current % npcs.length];
+      setAmbientNpc(next || null);
+    };
+
+    const initTimer = window.setTimeout(() => syncAmbientSpeaker(false), 350);
+    const timer = window.setInterval(() => syncAmbientSpeaker(true), 4200);
+    return () => {
+      window.clearTimeout(initTimer);
+      window.clearInterval(timer);
+    };
+  }, [currentMapId, walkMode]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -781,8 +813,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const clickX = ((e.clientX - rect.left) / rect.width) * 100;
-    const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+    const normX = (e.clientX - rect.left) / rect.width;
+    const normY = (e.clientY - rect.top) / rect.height;
+    const cam = cameraRef.current;
+    const worldPxX = cam.x + normX * cam.viewW;
+    const worldPxY = cam.y + normY * cam.viewH;
+    const clickX = Math.max(0, Math.min(100, (worldPxX / 1024) * 100));
+    const clickY = Math.max(0, Math.min(100, (worldPxY / 1024) * 100));
 
     const mapConfig = GARDEN_MAPS[currentMapRef.current];
 
@@ -869,14 +906,33 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const W = 760;
-    const H = 760;
+    const W = 1024;
+    const H = 1024;
+    const FOLLOW_VIEW_W = 660;
+    const CANVAS_LOGICAL = 660;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(W * dpr);
-    canvas.height = Math.round(H * dpr);
+    canvas.width = Math.round(CANVAS_LOGICAL * dpr);
+    canvas.height = Math.round(CANVAS_LOGICAL * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+
+    const drawRoundedPill = (
+      rx: number,
+      ry: number,
+      rw: number,
+      rh: number,
+      radius: number
+    ) => {
+      const r = Math.min(radius, rw / 2, rh / 2);
+      ctx.beginPath();
+      ctx.moveTo(rx + r, ry);
+      ctx.arcTo(rx + rw, ry, rx + rw, ry + rh, r);
+      ctx.arcTo(rx + rw, ry + rh, rx, ry + rh, r);
+      ctx.arcTo(rx, ry + rh, rx, ry, r);
+      ctx.arcTo(rx, ry, rx + rw, ry, r);
+      ctx.closePath();
+    };
 
     const TILE_PX_W = ((92 - 8) / (TILE_GRID_SIZE - 1) / 100) * W;
     const TILE_PX_H = ((93 - 14) / (TILE_GRID_SIZE - 1) / 100) * H;
@@ -902,7 +958,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       bx: number,
       by: number,
       isVisited: boolean,
-      isNear: boolean
+      isNear: boolean,
+      showFullLabel: boolean
     ) => {
       const x = Math.round(bx);
       const y = Math.round(by);
@@ -911,62 +968,105 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         ctx.save();
         ctx.fillStyle = 'rgba(255, 253, 249, 0.28)';
         ctx.beginPath();
-        ctx.arc(x, y, 52, 0, Math.PI * 2);
+        ctx.arc(x, y, 58, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#d97b84';
         ctx.lineWidth = 2.5;
-        ctx.setLineDash([6, 4]);
+        ctx.setLineDash([7, 5]);
         ctx.beginPath();
-        ctx.arc(x, y, 52 + Math.sin(tick * 0.08) * 3, 0, Math.PI * 2);
+        ctx.arc(x, y, 58 + Math.sin(tick * 0.08) * 3.5, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
+      } else {
+        // Subtle ground pin halo so landmarks are clearly discoverable without visual clutter
+        ctx.save();
+        ctx.fillStyle = isVisited
+          ? 'rgba(107, 144, 113, 0.2)'
+          : 'rgba(217, 123, 132, 0.18)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 6, 22, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
 
       const floatY = Math.sin(tick * 0.07 + lm.x) * 3.5;
-      const badgeW = 30;
-      const badgeH = 24;
-      const labelY = lm.y > 84 ? y - 34 : y + 26;
-      const badgeY = lm.y > 84 ? labelY - 28 + floatY : y - 56 + floatY;
+      const pinRadius = isNear ? 20 : 17;
+      const pinY = Math.round(y - 34 + floatY);
+      const iconEmoji = lm.name.split(' ')[0] || '♥';
 
-      ctx.fillStyle = isVisited ? '#6b9071' : '#fffdf9';
-      ctx.fillRect(x - badgeW / 2, badgeY, badgeW, badgeH);
-      ctx.strokeStyle = isVisited ? '#fffdf9' : '#c59b6d';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x - badgeW / 2, badgeY, badgeW, badgeH);
+      // Circular Floating Icon Pin
+      ctx.save();
+      ctx.fillStyle = isVisited
+        ? '#6b9071'
+        : isNear
+        ? '#d97b84'
+        : 'rgba(255, 253, 249, 0.96)';
+      ctx.beginPath();
+      ctx.arc(x, pinY, pinRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = isVisited || isNear ? '#fffdf9' : '#c59b6d';
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
 
-      ctx.fillStyle = isVisited ? '#fffdf9' : '#d97b84';
-      ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = isVisited || isNear ? '#fffdf9' : '#d97b84';
+      ctx.font = `bold ${isVisited ? 16 : 15}px sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(isVisited ? '✓' : '♥', x, badgeY + 17);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(isVisited ? '✓' : iconEmoji, x, pinY + 1);
+      ctx.restore();
 
-      const label = lm.shortName;
-      ctx.font = 'bold 16px "Gowun Batang", "Pretendard", sans-serif';
-      const textWidth = ctx.measureText(label).width + 20;
+      // Show full text pill ONLY when player approaches or targets this landmark (keeps map uncluttered!)
+      if (showFullLabel) {
+        const label = lm.shortName;
+        ctx.save();
+        ctx.font = 'bold 14px "Pretendard", "Gowun Batang", sans-serif';
+        const textWidth = ctx.measureText(label).width + 22;
+        const pillH = 26;
+        const labelY = lm.y > 84 ? Math.round(pinY - 40) : Math.round(y + 18);
+        const clampedX = Math.max(
+          textWidth / 2 + 12,
+          Math.min(W - textWidth / 2 - 12, x)
+        );
 
-      ctx.fillStyle = isNear ? '#d97b84' : 'rgba(255, 253, 249, 0.95)';
-      ctx.fillRect(x - textWidth / 2, labelY, textWidth, 25);
-      ctx.strokeStyle = isNear ? '#fffdf9' : '#c59b6d';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x - textWidth / 2, labelY, textWidth, 25);
+        ctx.fillStyle = isNear ? '#d97b84' : 'rgba(255, 253, 249, 0.96)';
+        drawRoundedPill(
+          Math.round(clampedX - textWidth / 2),
+          labelY,
+          Math.round(textWidth),
+          pillH,
+          13
+        );
+        ctx.fill();
+        ctx.strokeStyle = isNear ? '#fffdf9' : '#c59b6d';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-      ctx.fillStyle = isNear ? '#fffdf9' : '#3b2f2f';
-      ctx.fillText(label, x, labelY + 17);
+        ctx.fillStyle = isNear ? '#fffdf9' : '#3b2f2f';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, clampedX, labelY + pillH / 2 + 0.5);
+        ctx.restore();
+      }
     };
 
-    const drawPortalGate = (portal: MapPortal, isNear: boolean) => {
+    const drawPortalGate = (
+      portal: MapPortal,
+      isNear: boolean,
+      showFullLabel: boolean
+    ) => {
       const px = Math.round((portal.x / 100) * W);
       const py = Math.round((portal.y / 100) * H);
       const pulse = Math.sin(tick * 0.1) * 3;
 
       ctx.save();
-      ctx.fillStyle = isNear ? 'rgba(217, 123, 132, 0.36)' : 'rgba(255, 245, 225, 0.34)';
+      ctx.fillStyle = isNear ? 'rgba(217, 123, 132, 0.36)' : 'rgba(255, 245, 225, 0.32)';
       ctx.beginPath();
-      ctx.ellipse(px, py + 6, 32 + pulse, 15 + pulse * 0.4, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 6, 36 + pulse, 16 + pulse * 0.4, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = isNear ? '#fffdf9' : '#d97b84';
       ctx.lineWidth = 2.2;
       ctx.beginPath();
-      ctx.ellipse(px, py + 6, 32 + pulse, 15 + pulse * 0.4, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 6, 36 + pulse, 16 + pulse * 0.4, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
 
@@ -979,23 +1079,42 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           ? '◀ '
           : '';
       const suffix = portal.direction === 'east' ? ' ▶' : '';
-      const text = `${arrow}${portal.label}${suffix}`;
+      const targetTabLabel = GARDEN_MAPS[portal.targetMap]?.tabLabel || portal.label;
+      const text = showFullLabel
+        ? `${arrow}${portal.label}${suffix}`
+        : `${arrow}${targetTabLabel}${suffix}`;
 
-      ctx.font = 'bold 15px "Pretendard", sans-serif';
-      const pillW = ctx.measureText(text).width + 22;
-      const pillH = 26;
-      const clampedX = Math.max(pillW / 2 + 8, Math.min(W - pillW / 2 - 8, px));
+      ctx.save();
+      ctx.font = showFullLabel
+        ? 'bold 14px "Pretendard", sans-serif'
+        : 'bold 12px "Pretendard", sans-serif';
+      const pillW = ctx.measureText(text).width + (showFullLabel ? 24 : 18);
+      const pillH = showFullLabel ? 28 : 23;
+      const clampedX = Math.max(pillW / 2 + 10, Math.min(W - pillW / 2 - 10, px));
       const pillY = Math.round(py - 28 + Math.sin(tick * 0.08) * 2.5);
 
-      ctx.fillStyle = isNear ? '#3b2f2f' : '#d97b84';
-      ctx.fillRect(clampedX - pillW / 2, pillY, pillW, pillH);
+      ctx.fillStyle = isNear
+        ? '#3b2f2f'
+        : showFullLabel
+        ? '#d97b84'
+        : 'rgba(217, 123, 132, 0.88)';
+      drawRoundedPill(
+        Math.round(clampedX - pillW / 2),
+        pillY,
+        Math.round(pillW),
+        pillH,
+        pillH / 2
+      );
+      ctx.fill();
       ctx.strokeStyle = '#fffdf9';
       ctx.lineWidth = 2;
-      ctx.strokeRect(clampedX - pillW / 2, pillY, pillW, pillH);
+      ctx.stroke();
 
       ctx.fillStyle = '#fffdf9';
       ctx.textAlign = 'center';
-      ctx.fillText(text, clampedX, pillY + 18);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, clampedX, pillY + pillH / 2 + 0.5);
+      ctx.restore();
     };
 
     const drawSecretProp = (
@@ -1040,9 +1159,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     };
 
     const render = () => {
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
       tick++;
       if (portalCooldownRef.current > 0) {
         portalCooldownRef.current--;
@@ -1233,7 +1349,42 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         return prev;
       });
 
-      // 2. Draw Current Map Background
+      // 2. Smooth Follow Camera Transform (1.55x Follow Zoom OR 1.0x Full Overview)
+      const targetViewW =
+        cameraZoomModeRef.current === 'overview' ? W : FOLLOW_VIEW_W;
+      const targetViewH = targetViewW;
+      const cam = cameraRef.current;
+      const camLerp = reducedMotion || snapCameraRef.current ? 1 : 0.14;
+      cam.viewW += (targetViewW - cam.viewW) * camLerp;
+      cam.viewH += (targetViewH - cam.viewH) * camLerp;
+
+      const playerWorldX = (posRef.current.x / 100) * W;
+      const playerWorldY = (posRef.current.y / 100) * H;
+      const targetCamX = Math.max(
+        0,
+        Math.min(W - cam.viewW, playerWorldX - cam.viewW / 2)
+      );
+      const targetCamY = Math.max(
+        0,
+        Math.min(H - cam.viewH, playerWorldY - cam.viewH / 2)
+      );
+      cam.x += (targetCamX - cam.x) * camLerp;
+      cam.y += (targetCamY - cam.y) * camLerp;
+      snapCameraRef.current = false;
+
+      const camScale = CANVAS_LOGICAL / cam.viewW;
+      ctx.setTransform(
+        dpr * camScale,
+        0,
+        0,
+        dpr * camScale,
+        -cam.x * dpr * camScale,
+        -cam.y * dpr * camScale
+      );
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Draw Current Map Background
       const bgImg = assetsRef.current.maps[activeMapId] || assetsRef.current.maps.garden;
       if (bgImg) {
         ctx.drawImage(bgImg, 0, 0, W, H);
@@ -1304,18 +1455,36 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         );
       });
 
-      // 5. Draw Landmarks & Portals
+      // 5. Draw Landmarks & Portals (Show full text pill only when nearby or targeted)
       mapConfig.landmarks.forEach((lm) => {
         const bx = (lm.x / 100) * W;
         const by = (lm.y / 100) * H;
         const done = lm.questId
           ? !!visitedQuests[lm.questId]
           : !!visitedMemories[lm.id];
-        drawLandmarkBadge(lm, bx, by, done, closestLandmark?.id === lm.id);
+        const distToPlayer = Math.hypot(
+          posRef.current.x - lm.x,
+          posRef.current.y - lm.y
+        );
+        const isNear = closestLandmark?.id === lm.id;
+        const showFullLabel =
+          isNear ||
+          pendingLandmarkRef.current?.id === lm.id ||
+          distToPlayer < 22;
+        drawLandmarkBadge(lm, bx, by, done, isNear, showFullLabel);
       });
 
       mapConfig.portals.forEach((p) => {
-        drawPortalGate(p, closestPortal?.id === p.id);
+        const distToPlayer = Math.hypot(
+          posRef.current.x - p.x,
+          posRef.current.y - p.y
+        );
+        const isNear = closestPortal?.id === p.id;
+        const showFullLabel =
+          isNear ||
+          pendingPortalRef.current?.id === p.id ||
+          distToPlayer < 24;
+        drawPortalGate(p, isNear, showFullLabel);
       });
 
       // 6. Draw Footstep Surface Puffs
@@ -2063,41 +2232,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       depthList.sort((a, b) => a.footY - b.footY);
       depthList.forEach((actor) => actor.draw());
 
-      // 8. Speech bubble above the active speaker NPC
-      if (guestHeads.length > 0) {
-        const activeIdx = npcBubbleIndex % guestHeads.length;
-        const speaker = guestHeads[activeIdx];
-        const snippet =
-          speaker.msg.length > 16 ? speaker.msg.slice(0, 16) + '…' : speaker.msg;
-        const bubbleText = `${speaker.name}: "${snippet}"`;
-        ctx.font = 'bold 13px "Pretendard", sans-serif';
-        const bw = Math.min(340, ctx.measureText(bubbleText).width + 22);
-        const bx = Math.max(bw / 2 + 10, Math.min(W - bw / 2 - 10, speaker.x));
-        const by = Math.max(40, speaker.y - 12);
-
-        ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
-        ctx.fillRect(Math.round(bx - bw / 2), Math.round(by - 25), Math.round(bw), 25);
-        ctx.strokeStyle = '#c59b6d';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(Math.round(bx - bw / 2), Math.round(by - 25), Math.round(bw), 25);
-        const tailX = Math.max(bx - bw / 2 + 12, Math.min(bx + bw / 2 - 12, speaker.x));
-        ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
-        ctx.beginPath();
-        ctx.moveTo(tailX - 6, by - 1);
-        ctx.lineTo(tailX + 6, by - 1);
-        ctx.lineTo(tailX, by + 7);
-        ctx.closePath();
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(tailX - 6, by);
-        ctx.lineTo(tailX, by + 7);
-        ctx.lineTo(tailX + 6, by);
-        ctx.stroke();
-
-        ctx.fillStyle = '#3b2f2f';
-        ctx.textAlign = 'center';
-        ctx.fillText(bubbleText, bx, by - 8, bw - 16);
-      }
+      // 8. Ambient NPC speech is now rendered cleanly in the bottom HUD overlay (no overlap on map)
+      void guestHeads;
 
       // 9. Live Floating Emoji Reactions
       for (let i = reactionsRef.current.length - 1; i >= 0; i--) {
@@ -2160,7 +2296,6 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     visitedQuests,
     visitedMemories,
     guestbook,
-    npcBubbleIndex,
     activateLandmark,
     activateSecretProp,
     travelToMap,
@@ -2351,17 +2486,55 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             </button>
           </div>
 
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playBlip(680);
+                setCameraZoomMode((z) => (z === 'follow' ? 'overview' : 'follow'));
+              }}
+              title="산책 확대 카메라 / 전체 맵 보기 전환"
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-xs hover:bg-[#faf5ec] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#5c4d47] shadow-xs shrink-0 whitespace-nowrap"
+            >
+              {cameraZoomMode === 'follow' ? '🗺️ 전체보기' : '🔍 산책확대'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                setWalkMode((m) => (m === 'guest' ? 'couple' : 'guest'));
+              }}
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-xs hover:bg-[#fcf0f1] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#3b2f2f] shadow-xs shrink-0 whitespace-nowrap"
+            >
+              {walkMode === 'guest' ? '👫 커플 산책' : '🎒 하객 모드'}
+            </button>
+          </div>
+        </div>
+
+        {/* Clean Non-Overlapping 1-Line NPC Ambient Chatter Bar (Bottom of Canvas) */}
+        {ambientNpc && !activeDialogueNpc && (
           <button
             type="button"
-            onClick={() => {
-              soundEngine.playSelect();
-              setWalkMode((m) => (m === 'guest' ? 'couple' : 'guest'));
-            }}
-            className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-xs hover:bg-[#fcf0f1] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[10px] font-bold text-[#3b2f2f] shadow-xs shrink-0"
+            onClick={() => openNpcDialogue(ambientNpc)}
+            className="absolute bottom-2 left-2 right-2 z-10 bg-[#fffdf9]/95 hover:bg-[#fffdf9] backdrop-blur-sm border border-[#d4b48c] rounded-full px-2.5 py-1.5 shadow-md flex items-center gap-2 text-left font-sans transition-all"
           >
-            {walkMode === 'guest' ? '👫 커플 산책' : '🎒 하객 모드'}
+            <img
+              src={resolveDialoguePortrait(ambientNpc.avatar)}
+              alt={ambientNpc.name}
+              className="w-6 h-6 rounded-full object-cover border border-[#d97b84] bg-[#faf5ec] shrink-0"
+            />
+            <span className="text-[11px] font-bold text-[#3b2f2f] shrink-0">
+              {ambientNpc.name}
+            </span>
+            <span className="text-[11px] text-[#5c4d47] truncate flex-1 min-w-0">
+              “{ambientNpc.initialMessage}”
+            </span>
+            <span className="text-[10px] font-bold text-[#d97b84] shrink-0">
+              대화 ▸
+            </span>
           </button>
-        </div>
+        )}
 
         {/* Story / Secret Toast Overlay when visiting special spots */}
         {activeStoryToast && !activeDialogueNpc && (
