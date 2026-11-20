@@ -99,6 +99,8 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedBanner, setSubmittedBanner] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [guestbookFilter, setGuestbookFilter] = useState<'all' | 'groom' | 'bride'>('all');
+  const [visibleGuestbookCount, setVisibleGuestbookCount] = useState<number>(5);
 
   useEffect(() => {
     setActiveAccountSide(primary);
@@ -362,6 +364,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       setPrivacyAgreed(false);
       setMessage('');
       setSubmittedBanner(true);
+      showToast('소중한 축하 말씀과 참석 의사가 전달되었습니다');
       setTimeout(() => setSubmittedBanner(false), 5000);
     } finally {
       setIsSubmitting(false);
@@ -375,6 +378,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     setDeletingId(null);
     if (ok && onDeleteGuestbook) {
       onDeleteGuestbook(entryId);
+      showToast('작성하신 축하 글이 삭제되었습니다', 'info');
     }
   };
 
@@ -442,7 +446,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 }}
                 className={`py-2 px-1 rounded-xl border text-xs sm:text-sm font-bold transition-colors ${
                   isActive
-                    ? 'bg-[#2d221e] text-[#fffdf9] border-[#2d221e] shadow-xs'
+                    ? 'bg-[#2d221e] text-[#fffdf9] border-[#2d221e] shadow-sm'
                     : 'bg-[#faf5ec] hover:bg-[#f1e7d6] border-[#e2d4c0] text-[#3b2f2f]'
                 }`}
               >
@@ -849,7 +853,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               href={kakaoNavUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={`${textScale.btn} rounded-2xl bg-[#fee500] text-[#191919] border border-[#dfca00] font-bold flex items-center justify-center gap-2 shadow-xs`}
+              className={`${textScale.btn} rounded-2xl bg-[#fee500] text-[#191919] border border-[#dfca00] font-bold flex items-center justify-center gap-2 shadow-sm`}
             >
               <Navigation className="w-5 h-5 shrink-0" />
               <span>카카오맵 길찾기</span>
@@ -859,7 +863,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleOpenNaver}
-              className={`${textScale.btn} rounded-2xl bg-[#03c75a] text-white border border-[#02b04f] font-bold flex items-center justify-center gap-2 shadow-xs`}
+              className={`${textScale.btn} rounded-2xl bg-[#03c75a] text-white border border-[#02b04f] font-bold flex items-center justify-center gap-2 shadow-sm`}
             >
               <Navigation className="w-5 h-5 shrink-0" />
               <span>네이버 지도 보기</span>
@@ -867,7 +871,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             <a
               href={tmapDeepLink}
               onClick={handleOpenTmap}
-              className={`${textScale.btn} rounded-2xl bg-[#2d221e] text-white border border-[#1d1513] font-bold flex items-center justify-center gap-2 shadow-xs`}
+              className={`${textScale.btn} rounded-2xl bg-[#2d221e] text-white border border-[#1d1513] font-bold flex items-center justify-center gap-2 shadow-sm`}
             >
               <Navigation className="w-5 h-5 shrink-0" />
               <span>티맵(T map) 내비</span>
@@ -1071,7 +1075,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               key={item.id}
               type="button"
               onClick={() => setLightboxIdx(idx)}
-              className="group text-left bg-[#faf5ec] border border-[#dfd2be] rounded-2xl overflow-hidden shadow-xs"
+              className="group text-left bg-[#faf5ec] border border-[#dfd2be] rounded-2xl overflow-hidden shadow-sm"
             >
               <div className="relative aspect-[4/4.5] w-full overflow-hidden bg-[#efe6d8]">
                 {!imgLoadedMap[item.imageUrl] && (
@@ -1087,7 +1091,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                       prev[item.imageUrl] ? prev : { ...prev, [item.imageUrl]: true }
                     )
                   }
-                  className={`w-full h-full object-cover group-hover:scale-103 transition-all duration-300 ${
+                  className={`w-full h-full object-cover group-hover:scale-[1.03] transition-all duration-300 ${
                     imgLoadedMap[item.imageUrl] ? 'opacity-100' : 'opacity-0'
                   }`}
                 />
@@ -1334,55 +1338,141 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           )}
         </form>
 
-        {/* Recent Guestbook Messages */}
-        <div className="space-y-3 pt-2">
-          <div className={`${textScale.sub} font-bold text-[#4a3a33]`}>
-            남겨주신 축하 말씀 ({guestbook.length}건)
-          </div>
-          <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-            {guestbook.map((item) => {
-              const isMine = canEditOwnGuestbookEntry(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-4 space-y-1.5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <strong className={`${textScale.body} text-[#2d221e]`}>
-                        {item.name}
-                      </strong>
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#fffdf9] border border-[#dfd2be] text-[#69584f] font-semibold">
-                        {item.side === 'bride'
-                          ? '신부측'
-                          : item.side === 'groom'
-                          ? '신랑측'
-                          : '하객'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-[#7d6e65]">{item.createdAt}</span>
-                      {isMine && (
-                        <button
-                          type="button"
-                          disabled={deletingId === item.id}
-                          onClick={() => handleDeleteEntry(item.id)}
-                          className="px-2 py-1 rounded-lg bg-[#fcf0f1] border border-[#e2a3a9] text-[#c04854] text-xs font-bold flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>삭제</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <p className={`${textScale.body} text-[#2d221e] break-keep`}>
-                    {fillCoupleText(item.message, config)}
-                  </p>
+        {/* Recent Guestbook Messages (No Scroll Trap + Side Filter + Load More) */}
+        {(() => {
+          const filteredParentsGuestbook =
+            guestbookFilter === 'all'
+              ? guestbook
+              : guestbook.filter((item) => item.side === guestbookFilter);
+          const visibleParentsGuestbook = filteredParentsGuestbook.slice(
+            0,
+            visibleGuestbookCount
+          );
+          const remainingParentsCount = Math.max(
+            0,
+            filteredParentsGuestbook.length - visibleGuestbookCount
+          );
+          const groomTotal = guestbook.filter((item) => item.side === 'groom').length;
+          const brideTotal = guestbook.filter((item) => item.side === 'bride').length;
+          const filterTabs =
+            primary === 'bride'
+              ? [
+                  { id: 'all' as const, label: `전체 (${guestbook.length})` },
+                  { id: 'bride' as const, label: `신부측 (${brideTotal})` },
+                  { id: 'groom' as const, label: `신랑측 (${groomTotal})` },
+                ]
+              : [
+                  { id: 'all' as const, label: `전체 (${guestbook.length})` },
+                  { id: 'groom' as const, label: `신랑측 (${groomTotal})` },
+                  { id: 'bride' as const, label: `신부측 (${brideTotal})` },
+                ];
+
+          return (
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className={`${textScale.sub} font-bold text-[#4a3a33]`}>
+                  남겨주신 축하 말씀 ({guestbook.length}건)
                 </div>
-              );
-            })}
-          </div>
-        </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {filterTabs.map((tab) => {
+                    const active = guestbookFilter === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => {
+                          setGuestbookFilter(tab.id);
+                          setVisibleGuestbookCount(5);
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs sm:text-sm font-bold border transition-colors ${
+                          active
+                            ? tab.id === 'bride'
+                              ? 'bg-[#b35c66] text-white border-[#b35c66]'
+                              : 'bg-[#2d221e] text-white border-[#2d221e]'
+                            : 'bg-[#faf5ec] text-[#56463f] border-[#d8c7b0] hover:bg-[#f0e5d4]'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {visibleParentsGuestbook.length === 0 ? (
+                  <div className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-5 text-center text-sm text-[#69584f]">
+                    아직 등록된 축하 말씀이 없습니다. 첫 번째 축복의 말씀을 남겨주세요.
+                  </div>
+                ) : (
+                  visibleParentsGuestbook.map((item) => {
+                    const isMine = canEditOwnGuestbookEntry(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-4 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <strong className={`${textScale.body} text-[#2d221e]`}>
+                              {item.name}
+                            </strong>
+                            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#fffdf9] border border-[#dfd2be] text-[#69584f] font-semibold">
+                              {item.side === 'bride'
+                                ? '신부측'
+                                : item.side === 'groom'
+                                ? '신랑측'
+                                : '하객'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[#7d6e65]">{item.createdAt}</span>
+                            {isMine && (
+                              <button
+                                type="button"
+                                disabled={deletingId === item.id}
+                                onClick={() => handleDeleteEntry(item.id)}
+                                className="px-2 py-1 rounded-lg bg-[#fcf0f1] border border-[#e2a3a9] text-[#c04854] text-xs font-bold flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>삭제</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className={`${textScale.body} text-[#2d221e] break-keep`}>
+                          {fillCoupleText(item.message, config)}
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {filteredParentsGuestbook.length > 5 && (
+                <div className="pt-1">
+                  {remainingParentsCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleGuestbookCount((prev) => prev + 5)}
+                      className={`w-full ${textScale.btn} rounded-2xl bg-[#faf5ec] hover:bg-[#f0e5d4] border-2 border-[#c9b69c] text-[#2d221e] font-bold`}
+                    >
+                      축하 말씀 더보기 (+{Math.min(5, remainingParentsCount)}건 · 총 {remainingParentsCount}건 남음)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleGuestbookCount(5)}
+                      className="w-full py-3 rounded-2xl bg-[#fffdf9] hover:bg-[#faf5ec] border border-[#dfd2be] text-[#69584f] text-sm font-bold"
+                    >
+                      최근 5건만 간략히 보기 ▲
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </section>
 
       {/* 9. Share Parents Invitation Link Box */}
@@ -1394,7 +1484,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         <button
           type="button"
           onClick={handleShareKakaoParents}
-          className={`w-full ${textScale.btn} rounded-2xl bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border border-[#dfca00] font-bold flex items-center justify-center gap-2 shadow-xs`}
+          className={`w-full ${textScale.btn} rounded-2xl bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border border-[#dfca00] font-bold flex items-center justify-center gap-2 shadow-sm`}
         >
           {copiedShare === 'kakao' ? (
             <>

@@ -4,6 +4,7 @@ import { WeddingConfig } from '../data/weddingConfig';
 import { GroomSprite, BrideSprite, PixelRing } from './PixelSprites';
 import { useCoupleOrder } from '../utils/coupleOrder';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { useEscapeKey } from '../utils/useEscapeKey';
 
 interface CertificateModalProps {
   config: WeddingConfig;
@@ -21,11 +22,23 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
   const { pair } = useCoupleOrder();
   const [firstName, secondName] = pair(config.groom.fullName, config.bride.fullName);
   useBodyScrollLock(true);
+  useEscapeKey(true, onClose);
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overscroll-contain flex items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-      <div className="pixel-card w-full max-w-md p-6 bg-[#fffdf9] text-center relative animate-fadeIn">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="봄날의 정원 산책 초대권"
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overscroll-contain flex items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="pixel-card w-full max-w-md p-6 bg-[#fffdf9] text-center relative animate-fadeIn"
+      >
         <button
+          type="button"
           onClick={onClose}
+          aria-label="닫기"
           className="absolute top-3.5 right-3.5 p-1.5 rounded-full bg-[#faf5ec] text-[#7d6e65] hover:text-[#3b2f2f] border border-[#e2d4c0]"
         >
           <X className="w-4 h-4" />

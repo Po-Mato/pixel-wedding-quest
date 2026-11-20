@@ -101,7 +101,7 @@ export const WeddingPhaseBanner: React.FC<WeddingPhaseBannerProps> = ({
               soundEngine.playSelect();
               onJumpToSection('location');
             }}
-            className="py-2 px-2.5 rounded-lg bg-[#3b2f2f] text-white text-xs font-bold flex items-center justify-center gap-1 shadow-xs"
+            className="py-2 px-2.5 rounded-lg bg-[#3b2f2f] text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm"
           >
             <MapPin className="w-3.5 h-3.5 text-[#e6d5b8]" />
             <span>오시는 길·주차</span>
@@ -112,7 +112,7 @@ export const WeddingPhaseBanner: React.FC<WeddingPhaseBannerProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => soundEngine.playSelect()}
-            className="py-2 px-2.5 rounded-lg bg-[#fee500] text-[#191919] border border-[#dfca00] text-xs font-bold flex items-center justify-center gap-1 shadow-xs"
+            className="py-2 px-2.5 rounded-lg bg-[#fee500] text-[#191919] border border-[#dfca00] text-xs font-bold flex items-center justify-center gap-1 shadow-sm"
           >
             <Navigation className="w-3.5 h-3.5" />
             <span>카카오맵 길찾기</span>

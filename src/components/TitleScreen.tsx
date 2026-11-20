@@ -168,7 +168,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
                   soundEngine.playSelect();
                   onSelectEntry('classic', side);
                 }}
-                className={`rounded-2xl border p-3.5 text-center flex flex-col items-center justify-center gap-1 shadow-xs transition-all active:scale-[0.98] ${opt.buttonClass}`}
+                className={`rounded-2xl border p-3.5 text-center flex flex-col items-center justify-center gap-1 shadow-sm transition-all active:scale-[0.98] ${opt.buttonClass}`}
               >
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${opt.badgeClass}`}
@@ -196,7 +196,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
                   soundEngine.playSelect();
                   onSelectEntry('parents', side);
                 }}
-                className={`w-full rounded-2xl border-2 px-4 py-3.5 flex items-center justify-between gap-2 shadow-2xs transition-all active:scale-[0.99] ${opt.buttonClass}`}
+                className={`w-full rounded-2xl border-2 px-4 py-3.5 flex items-center justify-between gap-2 shadow-sm transition-all active:scale-[0.99] ${opt.buttonClass}`}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">

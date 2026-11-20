@@ -29,6 +29,7 @@ import { showToast } from '../utils/toast';
 import { syncAccountHolderNames } from '../utils/configSync';
 import { getSampleDataChecklist, WeddingPhase } from '../utils/weddingPhase';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { useEscapeKey } from '../utils/useEscapeKey';
 import {
   adminLogin,
   fetchAdminOverview,
@@ -58,6 +59,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   onClose,
 }) => {
   useBodyScrollLock(true);
+  useEscapeKey(true, onClose);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [adminToken, setAdminToken] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState<string>('');
@@ -396,7 +398,12 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   // 1. LOCKED PASSWORD GATE VIEW
   if (!isUnlocked) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="청첩장 관리자 로그인"
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans"
+      >
         <div className="pixel-card w-full max-w-sm bg-[#fffdf9] overflow-hidden animate-fadeIn">
           <div className="p-4 bg-[#faf5ec] border-b border-[#e6d5b8] flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-bold text-[#3b2f2f]">
@@ -461,7 +468,12 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
 
   // 2. UNLOCKED 6-TAB ADMIN CONSOLE VIEW
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto font-sans">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="청첩장 관리자 설정 패널"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto font-sans"
+    >
       <div className="pixel-card w-full max-w-xl bg-[#fffdf9] max-h-[92vh] flex flex-col overflow-hidden animate-fadeIn">
         {/* Top Header */}
         <div className="p-3.5 bg-[#3b2f2f] text-[#fffdf9] border-b border-[#c59b6d] flex items-center justify-between gap-2">
@@ -611,7 +623,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
               }}
               className={`py-2 px-1 rounded-lg border text-center truncate transition-all ${
                 activeTab === tab.id
-                  ? 'bg-[#d97b84] text-white border-[#b85d67] shadow-xs'
+                  ? 'bg-[#d97b84] text-white border-[#b85d67] shadow-sm'
                   : 'bg-[#fffdf9] text-[#5c4d47] border-[#e2d4c0] hover:border-[#c59b6d]'
               }`}
             >

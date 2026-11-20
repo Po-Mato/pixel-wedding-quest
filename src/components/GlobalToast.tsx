@@ -33,7 +33,7 @@ export const GlobalToast: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-[70] flex justify-center pointer-events-none font-sans"
+      className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[70] flex justify-center pointer-events-none font-sans"
     >
       <div
         key={toast.id}

@@ -13,6 +13,7 @@ import { PIXEL_ASSETS, GUEST_SPRITES } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { useCoupleOrder } from '../../utils/coupleOrder';
 import { useBodyScrollLock } from '../../utils/useBodyScrollLock';
+import { useEscapeKey } from '../../utils/useEscapeKey';
 import { incrementReactionCounter } from '../../utils/weddingCloudSync';
 
 interface PhotoBoothModalProps {
@@ -86,6 +87,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { names } = useCoupleOrder();
   useBodyScrollLock(true);
+  useEscapeKey(true, onClose);
 
   const [selectedMap, setSelectedMap] = useState<GardenMapId>('garden');
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarClassId>('mage');
@@ -416,8 +418,17 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overscroll-contain flex items-center justify-center p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:p-4">
-      <div className="pixel-card w-full max-w-[520px] max-h-[92vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="신랑 신부와 픽셀 기념 포토부스"
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overscroll-contain flex items-center justify-center p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="pixel-card w-full max-w-[520px] max-h-[92vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn"
+      >
         {/* Header */}
         <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between gap-2 shrink-0">
           <div>
@@ -459,7 +470,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
             <button
               type="button"
               onClick={handleTakeSnap}
-              className="py-2.5 px-3 rounded-xl bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#3b2f2f] text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs active:scale-98"
+              className="py-2.5 px-3 rounded-xl bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#3b2f2f] text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98]"
             >
               <Camera className="w-4 h-4 text-[#d97b84]" />
               <span>📸 찰칵! 기념 촬영 {snappedCount > 0 ? `(${snappedCount})` : ''}</span>
@@ -468,7 +479,7 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
             <button
               type="button"
               onClick={handleDownloadPolaroid}
-              className="py-2.5 px-3 rounded-xl bg-[#d97b84] hover:bg-[#c56871] border border-[#b85d67] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-98"
+              className="py-2.5 px-3 rounded-xl bg-[#d97b84] hover:bg-[#c56871] border border-[#b85d67] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98]"
             >
               {downloadedToast ? (
                 <>

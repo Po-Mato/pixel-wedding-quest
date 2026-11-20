@@ -1,5 +1,14 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { Sparkles, ChevronDown, ChevronUp, Image as ImageIcon, ArrowUp } from 'lucide-react';
+import {
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
+  ArrowUp,
+  MapPin,
+  Heart,
+  PenLine,
+} from 'lucide-react';
 import {
   WeddingConfig,
   GuestbookEntry,
@@ -14,6 +23,7 @@ import {
   PixelRing,
   PixelHeart,
 } from './PixelSprites';
+import { RevealSection } from './RevealSection';
 import { StorySection } from './sections/StorySection';
 import { CeremonySection } from './sections/CeremonySection';
 import { GallerySection } from './sections/GallerySection';
@@ -55,6 +65,14 @@ const NAV_SECTION_IDS: QuestBuildingId[] = [
   'rsvp',
 ];
 
+const HERO_PETALS = [
+  { left: '14%', width: 9, height: 6, duration: '9.5s', delay: '0s' },
+  { left: '32%', width: 7, height: 5, duration: '11s', delay: '2.2s' },
+  { left: '52%', width: 10, height: 6, duration: '8.8s', delay: '4.1s' },
+  { left: '68%', width: 8, height: 5, duration: '10.4s', delay: '1.3s' },
+  { left: '84%', width: 9, height: 6, duration: '9.2s', delay: '5.5s' },
+];
+
 export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   config,
   guestbook,
@@ -73,13 +91,20 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
   const [heroStyle, setHeroStyle] = useState<'pixel' | 'photo'>('pixel');
   const [activeSectionId, setActiveSectionId] = useState<QuestBuildingId | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const { primary, pair } = useCoupleOrder();
   const [firstName, secondName] = pair(config.groom.fullName, config.bride.fullName);
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
-      setShowScrollTop(scrollY > 420);
+      setShowScrollTop(scrollY > 320);
+
+      const maxScroll = Math.max(
+        1,
+        document.documentElement.scrollHeight - window.innerHeight
+      );
+      setScrollProgress(Math.min(100, Math.max(0, Math.round((scrollY / maxScroll) * 100))));
 
       if (scrollY < 260) {
         setActiveSectionId(null);
@@ -152,7 +177,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
                 }}
                 className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
                   heroStyle === 'pixel'
-                    ? 'bg-[#d97b84] text-white shadow-2xs'
+                    ? 'bg-[#d97b84] text-white shadow-sm'
                     : 'text-[#7d6e65] hover:text-[#3b2f2f]'
                 }`}
               >
@@ -167,7 +192,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
                 }}
                 className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all ${
                   heroStyle === 'photo'
-                    ? 'bg-[#3b2f2f] text-white shadow-2xs'
+                    ? 'bg-[#3b2f2f] text-white shadow-sm'
                     : 'text-[#7d6e65] hover:text-[#3b2f2f]'
                 }`}
               >
@@ -192,6 +217,24 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+              {/* Subtle Ambient Spring Petals */}
+              <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none">
+                {HERO_PETALS.map((petal, idx) => (
+                  <span
+                    key={idx}
+                    className="hero-petal"
+                    style={
+                      {
+                        left: petal.left,
+                        width: `${petal.width}px`,
+                        height: `${petal.height}px`,
+                        '--petal-duration': petal.duration,
+                        '--petal-delay': petal.delay,
+                      } as React.CSSProperties
+                    }
+                  />
+                ))}
+              </div>
               <div className="absolute bottom-8 inset-x-4 text-white text-xs tracking-widest font-engSerif">
                 WE INVITE YOU TO OUR SPRING GARDEN
               </div>
@@ -236,67 +279,78 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
               soundEngine.playSelect();
               onSwitchToGardenMode();
             }}
-            className="px-3 py-1.5 rounded-full bg-[#d97b84] text-white text-xs font-sans font-bold shrink-0 flex items-center gap-1 shadow-xs"
+            className="px-3 py-1.5 rounded-full bg-[#d97b84] text-white text-xs font-sans font-bold shrink-0 flex items-center gap-1 shadow-sm"
           >
             <Sparkles className="w-3 h-3" /> 픽셀 정원 산책하기
           </button>
         </div>
       </div>
 
-      {/* Sticky Quick-Jump Navigation Bar with Active Section Scroll Spy */}
+      {/* Sticky Quick-Jump Navigation Bar with Active Section Scroll Spy & Reading Progress */}
       <nav
         aria-label="청첩장 섹션 바로가기"
-        className="sticky top-1 z-30 bg-[#fffdf9]/95 backdrop-blur-sm border border-[#d4b48c] rounded-full px-2.5 py-1.5 shadow-sm flex items-center justify-between gap-1 overflow-x-auto font-sans"
+        className="sticky top-1 z-30 bg-[#fffdf9]/95 backdrop-blur-sm border border-[#d4b48c] rounded-full px-2.5 py-1.5 shadow-sm overflow-hidden font-sans"
       >
-        {QUEST_BUILDINGS.filter((b) => b.id !== 'minigame').map((b) => {
-          const isActive = activeSectionId === b.id;
-          return (
-            <button
-              key={b.id}
-              type="button"
-              onClick={() => {
-                soundEngine.playBlip();
-                scrollToClassicSection(b.id);
-              }}
-              className={`px-2.5 py-1 rounded-full text-xs shrink-0 transition-all ${
-                isActive
-                  ? 'bg-[#3b2f2f] text-[#fffdf9] font-bold shadow-2xs'
-                  : 'hover:bg-[#faf5ec] text-[#5c4d47] hover:text-[#3b2f2f] font-medium'
-              }`}
-            >
-              {b.shortName}
-            </button>
-          );
-        })}
+        <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
+          {QUEST_BUILDINGS.filter((b) => b.id !== 'minigame').map((b) => {
+            const isActive = activeSectionId === b.id;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => {
+                  soundEngine.playBlip();
+                  scrollToClassicSection(b.id);
+                }}
+                className={`px-2.5 py-1 rounded-full text-xs shrink-0 transition-all ${
+                  isActive
+                    ? 'bg-[#3b2f2f] text-[#fffdf9] font-bold shadow-sm'
+                    : 'hover:bg-[#faf5ec] text-[#5c4d47] hover:text-[#3b2f2f] font-medium'
+                }`}
+              >
+                {b.shortName}
+              </button>
+            );
+          })}
+        </div>
+        <div
+          aria-hidden="true"
+          className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#efe6d8] rounded-full overflow-hidden"
+        >
+          <div
+            className="h-full bg-gradient-to-r from-[#d4b48c] to-[#d97b84] transition-[width] duration-150"
+            style={{ width: `${scrollProgress}%` }}
+          />
+        </div>
       </nav>
 
       {/* 1. Invitation & Couple Story */}
-      <section id="classic-story" className="scroll-mt-16">
+      <RevealSection id="classic-story" className="scroll-mt-16">
         <StorySection config={config} initialSide={initialSide} />
-      </section>
+      </RevealSection>
 
       {/* 2. Ceremony Calendar & D-Day */}
-      <section id="classic-ceremony" className="scroll-mt-16">
+      <RevealSection id="classic-ceremony" className="scroll-mt-16">
         <CeremonySection config={config} />
-      </section>
+      </RevealSection>
 
       {/* 3. Photo Gallery */}
-      <section id="classic-gallery" className="scroll-mt-16">
+      <RevealSection id="classic-gallery" className="scroll-mt-16">
         <GallerySection config={config} onUnlockTitle={onUnlockTitle} />
-      </section>
+      </RevealSection>
 
       {/* 4. Location & Directions */}
-      <section id="classic-location" className="scroll-mt-16">
+      <RevealSection id="classic-location" className="scroll-mt-16">
         <LocationSection config={config} />
-      </section>
+      </RevealSection>
 
       {/* 5. Blessing Gift Accounts */}
-      <section id="classic-gift" className="scroll-mt-16">
+      <RevealSection id="classic-gift" className="scroll-mt-16">
         <GiftSection config={config} initialSide={initialSide} />
-      </section>
+      </RevealSection>
 
       {/* 6. RSVP & Guestbook */}
-      <section id="classic-rsvp" className="scroll-mt-16">
+      <RevealSection id="classic-rsvp" className="scroll-mt-16">
         <RsvpGuestbookSection
           config={config}
           guestbook={guestbook}
@@ -306,10 +360,10 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           onAddGuestbook={onAddGuestbook}
           onDeleteGuestbook={onDeleteGuestbook}
         />
-      </section>
+      </RevealSection>
 
       {/* 7. Optional Collapsible Mini-Game & Couple Quiz Card */}
-      <section id="classic-minigame" className="scroll-mt-16 space-y-3">
+      <RevealSection id="classic-minigame" className="scroll-mt-16 space-y-3 pb-12">
         <button
           onClick={() => {
             soundEngine.playSelect();
@@ -352,26 +406,58 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
             </Suspense>
           </div>
         )}
-      </section>
+      </RevealSection>
 
-      {/* Floating Scroll-To-Top Button */}
+      {/* Thumb-Friendly Floating Bottom Quick-Action Pill Bar */}
       {showScrollTop && (
-        <button
-          type="button"
-          onClick={() => {
-            soundEngine.playBlip(680);
-            window.scrollTo({
-              top: 0,
-              behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-            });
-          }}
-          aria-label="맨 위로 이동"
-          style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
-          className="fixed right-4 z-40 px-3 py-2 rounded-full bg-[#3b2f2f]/90 hover:bg-[#3b2f2f] text-[#fffdf9] border border-[#d4b48c] shadow-lg text-xs font-sans font-bold flex items-center gap-1 backdrop-blur-sm transition-all"
+        <div
+          style={{ bottom: 'calc(0.85rem + env(safe-area-inset-bottom))' }}
+          className="fixed inset-x-3 z-40 flex justify-center pointer-events-none font-sans"
         >
-          <ArrowUp className="w-3.5 h-3.5" />
-          <span>맨 위로</span>
-        </button>
+          <div className="pointer-events-auto bg-[#3b2f2f]/95 backdrop-blur-sm border border-[#d4b48c] rounded-full px-1.5 py-1 shadow-xl flex items-center gap-1 animate-fadeIn">
+            {[
+              { id: 'location' as const, label: '오시는 길', Icon: MapPin },
+              { id: 'gift' as const, label: '마음 전하기', Icon: Heart },
+              { id: 'rsvp' as const, label: '참석 전달', Icon: PenLine },
+            ].map(({ id, label, Icon }) => {
+              const active = activeSectionId === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    soundEngine.playBlip(640);
+                    scrollToClassicSection(id);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold flex items-center gap-1 whitespace-nowrap transition-colors ${
+                    active
+                      ? 'bg-[#d97b84] text-white shadow-sm'
+                      : 'text-[#fffdf9]/90 hover:bg-white/10'
+                  }`}
+                >
+                  <Icon className="w-3 h-3 shrink-0" />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+            <span className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playBlip(680);
+                window.scrollTo({
+                  top: 0,
+                  behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                });
+              }}
+              aria-label="맨 위로 이동"
+              title="맨 위로"
+              className="p-1.5 rounded-full text-[#f0d29c] hover:bg-white/10 transition-colors"
+            >
+              <ArrowUp className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

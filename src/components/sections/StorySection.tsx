@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Phone, MessageSquare, Heart, Sparkles } from 'lucide-react';
+import { Phone, MessageSquare, Heart, Sparkles, Copy, Check } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { GroomSprite, BrideSprite, PetCatSprite, PixelHeart } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { fillCoupleText } from '../../utils/coupleText';
 import { cleanPhoneForHref } from '../../utils/phone';
+import { copyTextToClipboard } from '../../utils/clipboard';
+import { showToast } from '../../utils/toast';
 
 interface StorySectionProps {
   config: WeddingConfig;
@@ -16,6 +18,17 @@ export const StorySection: React.FC<StorySectionProps> = ({
   initialSide = 'groom',
 }) => {
   const [showContacts, setShowContacts] = useState(false);
+  const [copiedPhoneKey, setCopiedPhoneKey] = useState<string | null>(null);
+
+  const handleCopyPhone = async (label: string, phone: string, key: string) => {
+    soundEngine.playCoin();
+    await copyTextToClipboard(phone.trim());
+    setCopiedPhoneKey(key);
+    showToast(`${label} 연락처가 복사되었습니다`);
+    window.setTimeout(() => {
+      setCopiedPhoneKey((prev) => (prev === key ? null : prev));
+    }, 2200);
+  };
 
   const orderedContactGroups =
     initialSide === 'bride'
@@ -114,7 +127,7 @@ export const StorySection: React.FC<StorySectionProps> = ({
                           {c.label}
                         </span>
                         {cleanHref ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                             <a
                               href={`tel:${cleanHref}`}
                               onClick={() => soundEngine.playBlip()}
@@ -133,6 +146,22 @@ export const StorySection: React.FC<StorySectionProps> = ({
                               <MessageSquare className="w-3 h-3" />
                               <span>문자</span>
                             </a>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCopyPhone(c.label, c.phone, `${group}-${i}`)
+                              }
+                              className="px-2 py-1 rounded-full bg-[#faf5ec] text-[#5c4d47] border border-[#e2d4c0] hover:bg-[#f3e9d8] flex items-center gap-0.5 text-[11px] font-bold"
+                              title="번호 복사"
+                              aria-label={`${c.label} 번호 복사`}
+                            >
+                              {copiedPhoneKey === `${group}-${i}` ? (
+                                <Check className="w-3 h-3 text-[#4d6b53]" />
+                              ) : (
+                                <Copy className="w-3 h-3 text-[#8c7a70]" />
+                              )}
+                              <span>{copiedPhoneKey === `${group}-${i}` ? '복사됨' : '복사'}</span>
+                            </button>
                           </div>
                         ) : (
                           <span className="text-[10px] text-[#9c897e] shrink-0">
@@ -165,7 +194,7 @@ export const StorySection: React.FC<StorySectionProps> = ({
           <div
             style={{ order: initialSide === 'bride' ? 2 : 1 }}
             className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 flex flex-col items-center text-center">
-            <div className="w-32 h-36 rounded-t-full rounded-b-2xl bg-gradient-to-b from-[#fffdf9] to-[#f4ece0] border border-[#d4b48c] flex items-end justify-center pt-2 mb-3 shadow-xs overflow-hidden">
+            <div className="w-32 h-36 rounded-t-full rounded-b-2xl bg-gradient-to-b from-[#fffdf9] to-[#f4ece0] border border-[#d4b48c] flex items-end justify-center pt-2 mb-3 shadow-sm overflow-hidden">
               <GroomSprite size={126} variant="portrait" bounce />
             </div>
             <span className="text-[11px] text-[#6b9071] font-sans font-semibold">
@@ -186,7 +215,7 @@ export const StorySection: React.FC<StorySectionProps> = ({
           <div
             style={{ order: initialSide === 'bride' ? 1 : 2 }}
             className="bg-[#fcf5f5] border border-[#ebd2d4] rounded-xl p-4 flex flex-col items-center text-center">
-            <div className="w-32 h-36 rounded-t-full rounded-b-2xl bg-gradient-to-b from-[#fffdf9] to-[#fae8eb] border border-[#e2a3a9] flex items-end justify-center pt-2 mb-3 shadow-xs overflow-hidden">
+            <div className="w-32 h-36 rounded-t-full rounded-b-2xl bg-gradient-to-b from-[#fffdf9] to-[#fae8eb] border border-[#e2a3a9] flex items-end justify-center pt-2 mb-3 shadow-sm overflow-hidden">
               <BrideSprite size={126} variant="portrait" bounce />
             </div>
             <span className="text-[11px] text-[#d97b84] font-sans font-semibold">

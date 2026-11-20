@@ -352,7 +352,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
             soundEngine.playSelect();
             setShowPhotoBooth(true);
           }}
-          className="px-4 py-2 rounded-full bg-[#d97b84] hover:bg-[#c56871] text-white text-xs font-sans font-bold shrink-0 flex items-center gap-1.5 shadow-xs transition-transform active:scale-95"
+          className="px-4 py-2 rounded-full bg-[#d97b84] hover:bg-[#c56871] text-white text-xs font-sans font-bold shrink-0 flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
         >
           <Camera className="w-3.5 h-3.5" />
           <span>포토부스 촬영하기</span>

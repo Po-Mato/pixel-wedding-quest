@@ -18,6 +18,8 @@ import {
 import { GUEST_SPRITES } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
 import { fillCoupleText } from '../utils/coupleText';
+import { useEscapeKey } from '../utils/useEscapeKey';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import type { WalkMode } from './VillageCanvas';
 
 interface WorldMapSheetModalProps {
@@ -42,10 +44,16 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
   onSelectMap,
   onSelectMiniQuestStep,
   onClose,
-}) => (
+}) => {
+  useBodyScrollLock(true);
+  useEscapeKey(true, onClose);
+  return (
   <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="웨딩 여정 전체 맵 및 미션 안내"
     onClick={onClose}
-    className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 font-sans"
+    className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm overscroll-contain flex items-center justify-center p-2.5 sm:p-4 font-sans"
   >
     <div
       onClick={(e) => e.stopPropagation()}
@@ -90,7 +98,7 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
                   onClick={() => onSelectMap(mapId)}
                   className={`p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
                     isActive
-                      ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                      ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-sm'
                       : isVisited
                       ? 'bg-[#faf5ec] text-[#3b2f2f] border-[#c59b6d] font-semibold'
                       : 'bg-[#fcfaf5] text-[#7d6e65] border-[#e2d4c0]'
@@ -121,7 +129,7 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
                   onClick={() => onSelectMap(mapId)}
                   className={`p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
                     isActive
-                      ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                      ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-sm'
                       : isVisited
                       ? 'bg-[#faf5ec] text-[#3b2f2f] border-[#c59b6d] font-semibold'
                       : 'bg-[#fcfaf5] text-[#7d6e65] border-[#e2d4c0]'
@@ -170,7 +178,8 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
       </div>
     </div>
   </div>
-);
+  );
+};
 
 interface AvatarPickerModalProps {
   walkMode: WalkMode;
@@ -192,9 +201,21 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   onSelectAvatar,
   onConfirm,
   onClose,
-}) => (
-  <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 font-sans">
-    <div className="pixel-card w-full max-w-[440px] bg-[#fffdf9] overflow-hidden animate-fadeIn">
+}) => {
+  useBodyScrollLock(true);
+  useEscapeKey(true, onClose);
+  return (
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="하객 캐릭터 스타일링 및 산책 모드 선택"
+    onClick={onClose}
+    className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm overscroll-contain flex items-center justify-center p-2.5 sm:p-4 font-sans"
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="pixel-card w-full max-w-[440px] bg-[#fffdf9] overflow-hidden animate-fadeIn"
+    >
       <div className="p-3.5 bg-[#faf5ec] border-b border-[#e6d5b8] flex items-center justify-between">
         <div>
           <div className="text-[10px] font-bold text-[#c59b6d] tracking-wider">
@@ -224,7 +245,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
             }}
             className={`p-2.5 rounded-xl border text-left transition-all ${
               walkMode === 'guest'
-                ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-sm'
                 : 'bg-[#faf5ec] text-[#3b2f2f] border-[#e2d4c0]'
             }`}
           >
@@ -242,7 +263,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
             }}
             className={`p-2.5 rounded-xl border text-left transition-all ${
               walkMode === 'couple'
-                ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-sm'
                 : 'bg-[#faf5ec] text-[#3b2f2f] border-[#e2d4c0]'
             }`}
           >
@@ -286,7 +307,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
                   }}
                   className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${
                     selected
-                      ? 'bg-[#fcf0f1] border-2 border-[#d97b84] shadow-xs scale-[1.02]'
+                      ? 'bg-[#fcf0f1] border-2 border-[#d97b84] shadow-sm scale-[1.02]'
                       : 'bg-[#faf5ec] border-[#e2d4c0] hover:border-[#c59b6d]'
                   }`}
                 >
@@ -314,7 +335,8 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
       </div>
     </div>
   </div>
-);
+  );
+};
 
 interface SecretArchiveModalProps {
   config: WeddingConfig;
@@ -334,9 +356,21 @@ export const SecretArchiveModal: React.FC<SecretArchiveModalProps> = ({
   onSelectAura,
   onNavigateToSecret,
   onClose,
-}) => (
-  <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4">
-    <div className="pixel-card w-full max-w-[480px] max-h-[88vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn font-sans">
+}) => {
+  useBodyScrollLock(true);
+  useEscapeKey(true, onClose);
+  return (
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="웨딩 월드 비밀 소품 도감 및 오라 장착"
+    onClick={onClose}
+    className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm overscroll-contain flex items-center justify-center p-2.5 sm:p-4"
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="pixel-card w-full max-w-[480px] max-h-[88vh] bg-[#f7f2e9] flex flex-col overflow-hidden animate-fadeIn font-sans"
+    >
       <div className="p-3.5 bg-[#fffdf9] border-b border-[#e6d5b8] flex items-center justify-between">
         <div>
           <div className="text-[10px] tracking-widest font-bold text-[#c59b6d]">
@@ -450,4 +484,5 @@ export const SecretArchiveModal: React.FC<SecretArchiveModalProps> = ({
       </div>
     </div>
   </div>
-);
+  );
+};

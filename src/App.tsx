@@ -26,6 +26,7 @@ import { showToast } from './utils/toast';
 import { GlobalToast } from './components/GlobalToast';
 import { fireCelebrationConfetti, prefersReducedMotion } from './utils/motion';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
+import { useEscapeKey } from './utils/useEscapeKey';
 import { shareViaKakaoTalk } from './utils/kakaoShare';
 import { detectWeddingPhase, WeddingPhase } from './utils/weddingPhase';
 import {
@@ -662,7 +663,12 @@ export function App() {
   const currentBuildingMeta = activeQuest
     ? QUEST_BUILDINGS.find((b) => b.id === activeQuest)
     : null;
-  useBodyScrollLock(screenMode === 'world' && Boolean(activeQuest && currentBuildingMeta));
+  const isPavilionOpen = screenMode === 'world' && Boolean(activeQuest && currentBuildingMeta);
+  useBodyScrollLock(isPavilionOpen);
+  useEscapeKey(isPavilionOpen, () => {
+    soundEngine.playBlip(440);
+    closeActiveQuest();
+  });
 
   const navigateAdjacentQuest = (dir: -1 | 1) => {
     if (!activeQuest) return;
@@ -730,7 +736,7 @@ export function App() {
                   }}
                   className={`px-1.5 sm:px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-0.5 sm:gap-1 whitespace-nowrap shrink-0 transition-all ${
                     screenMode === 'classic'
-                      ? 'bg-[#3b2f2f] text-[#fffdf9] shadow-xs'
+                      ? 'bg-[#3b2f2f] text-[#fffdf9] shadow-sm'
                       : 'text-[#7d6e65] hover:text-[#3b2f2f]'
                   }`}
                 >
@@ -747,7 +753,7 @@ export function App() {
                   }}
                   className={`px-1.5 sm:px-2 py-1 rounded-full text-[11px] font-bold flex items-center gap-0.5 sm:gap-1 whitespace-nowrap shrink-0 transition-all ${
                     screenMode === 'world'
-                      ? 'bg-[#d97b84] text-white shadow-xs'
+                      ? 'bg-[#d97b84] text-white shadow-sm'
                       : 'text-[#7d6e65] hover:text-[#3b2f2f]'
                   }`}
                 >
@@ -978,6 +984,9 @@ export function App() {
       {/* Pavilion Modal (when exploring Pixel Garden Mode) */}
       {screenMode === 'world' && activeQuest && currentBuildingMeta && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={currentBuildingMeta.name}
           onClick={() => {
             soundEngine.playBlip(440);
             closeActiveQuest();
@@ -1059,7 +1068,7 @@ export function App() {
                   soundEngine.playBlip(520);
                   closeActiveQuest();
                 }}
-                className="px-4 py-1.5 rounded-full bg-[#d97b84] text-white text-xs font-bold shadow-xs"
+                className="px-4 py-1.5 rounded-full bg-[#d97b84] text-white text-xs font-bold shadow-sm"
               >
                 🌿 정원으로 돌아가기
               </button>

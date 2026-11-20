@@ -78,7 +78,54 @@ body {
   border-radius: 9999px;
 }
 
+/* Hide scrollbars cleanly on horizontal chip bars */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Warm accessible keyboard focus ring */
+:focus-visible {
+  outline: 2px solid #d97b84;
+  outline-offset: 2px;
+}
+
+/* Gentle ambient spring petals for Classic Hero cover */
+@keyframes petalDrift {
+  0% {
+    transform: translate3d(0, -12%, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.72;
+  }
+  85% {
+    opacity: 0.58;
+  }
+  100% {
+    transform: translate3d(26px, 115%, 0) rotate(220deg);
+    opacity: 0;
+  }
+}
+
+.hero-petal {
+  position: absolute;
+  top: -8%;
+  border-radius: 65% 35% 65% 35% / 55% 45% 55% 45%;
+  background: linear-gradient(135deg, rgba(255, 240, 243, 0.92), rgba(232, 165, 174, 0.72));
+  box-shadow: 0 1px 3px rgba(184, 93, 103, 0.14);
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: petalDrift var(--petal-duration, 9s) linear var(--petal-delay, 0s) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .hero-petal {
+    display: none;
+  }
   *,
   *::before,
   *::after {

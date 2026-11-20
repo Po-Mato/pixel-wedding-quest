@@ -2494,7 +2494,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             soundEngine.playSelect();
             setShowWorldMapSheet(true);
           }}
-          className="px-2.5 py-1 rounded-lg bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] text-[11px] font-bold flex items-center gap-1 shrink-0 shadow-xs"
+          className="px-2.5 py-1 rounded-lg bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] text-[11px] font-bold flex items-center gap-1 shrink-0 shadow-sm"
         >
           <span>🗺️ 전체맵</span>
           <span className="text-[#e6d5b8] text-[10px]">{exploredMapCount}/9</span>
@@ -2517,7 +2517,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 }}
                 className={`px-2 py-1 rounded-full border text-[10px] shrink-0 flex items-center gap-1 transition-all ${
                   isActive
-                    ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-xs'
+                    ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-sm'
                     : isVisited
                     ? 'bg-[#faf5ec] text-[#3b2f2f] border-[#c59b6d] font-semibold'
                     : 'bg-[#fcfaf5] text-[#8c7a70] border-[#e2d4c0]'
@@ -2583,13 +2583,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 soundEngine.playSelect();
                 setShowWorldMapSheet(true);
               }}
-              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#fffdf9] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[11px] text-[#3b2f2f] font-bold flex items-center gap-1.5 shadow-xs truncate"
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#fffdf9] border border-[#d4b48c] px-2.5 py-1 rounded-full text-[11px] text-[#3b2f2f] font-bold flex items-center gap-1.5 shadow-sm truncate"
             >
               <span className="inline-block w-2 h-2 rounded-full bg-[#d97b84] animate-pulse shrink-0" />
               <span>
                 {activeMapConfig.icon} {activeMapConfig.tabLabel}
               </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#faf5ec] text-[#c59b6d] border border-[#e6d5b8]">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#faf5ec] text-[#c59b6d] border border-[#e6d5b8]">
                 미션 {completedMiniQuestCount}/{activeMiniQuest.steps.length} ▾
               </span>
             </button>
@@ -2603,7 +2603,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 setCameraZoomMode((z) => (z === 'follow' ? 'overview' : 'follow'));
               }}
               title="산책 확대 카메라 / 전체 맵 보기 전환"
-              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#faf5ec] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#5c4d47] shadow-xs shrink-0 whitespace-nowrap"
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#faf5ec] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#5c4d47] shadow-sm shrink-0 whitespace-nowrap"
             >
               {cameraZoomMode === 'follow' ? '🗺️ 전체보기' : '🔍 산책확대'}
             </button>
@@ -2614,7 +2614,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 soundEngine.playSelect();
                 setWalkMode((m) => (m === 'guest' ? 'couple' : 'guest'));
               }}
-              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#fcf0f1] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#3b2f2f] shadow-xs shrink-0 whitespace-nowrap"
+              className="pointer-events-auto bg-[#fffdf9]/90 backdrop-blur-sm hover:bg-[#fcf0f1] border border-[#d4b48c] px-2 py-1 rounded-full text-[10px] font-bold text-[#3b2f2f] shadow-sm shrink-0 whitespace-nowrap"
             >
               {walkMode === 'guest' ? '👫 커플 산책' : '🎒 하객 모드'}
             </button>
@@ -2820,14 +2820,15 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                 <MessageCircle className="w-3 h-3 shrink-0" />
                 <span>대화·축복 ♥{blessingCount}</span>
               </button>
-              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0">
                 {REACTION_EMOJIS.map((item) => (
                   <button
                     key={item.emoji}
                     type="button"
                     onClick={() => spawnFloatingReaction(item.emoji)}
                     title={`${item.label} 축복 보내기`}
-                    className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full bg-[#fffdf9] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] flex items-center justify-center text-[10px] sm:text-[11px] transition-transform shrink-0"
+                    aria-label={`${item.label} 축복 보내기`}
+                    className="w-7 h-7 rounded-full bg-[#fffdf9] hover:bg-[#fcf0f1] active:scale-90 border border-[#e2d4c0] flex items-center justify-center text-xs transition-transform shrink-0 shadow-sm"
                   >
                     {item.emoji}
                   </button>
@@ -2846,7 +2847,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                     nearbyPortal.spawnY
                   )
                 }
-                className="w-full bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] border border-[#c59b6d] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-xs active:scale-95 transition-all"
+                className="w-full bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] border border-[#c59b6d] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
               >
                 <div className="min-w-0 text-left">
                   <div className="text-[9px] text-[#e6d5b8] font-bold tracking-wider">
@@ -2864,7 +2865,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               <button
                 type="button"
                 onClick={() => activateSecretProp(nearbySecret)}
-                className="w-full bg-[#fff8e7] hover:bg-[#faefd4] text-[#3b2f2f] border-2 border-[#d4af37] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-xs active:scale-95 transition-all"
+                className="w-full bg-[#fff8e7] hover:bg-[#faefd4] text-[#3b2f2f] border-2 border-[#d4af37] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
               >
                 <div className="min-w-0 text-left">
                   <div className="text-[9px] text-[#b8860b] font-bold tracking-wider truncate">
@@ -2882,7 +2883,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               <button
                 type="button"
                 onClick={() => activateLandmark(nearbyLandmark)}
-                className="w-full bg-[#fcf0f1] hover:bg-[#f9dfe2] text-[#3b2f2f] border border-[#d97b84] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-xs active:scale-95 transition-all"
+                className="w-full bg-[#fcf0f1] hover:bg-[#f9dfe2] text-[#3b2f2f] border border-[#d97b84] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-sm active:scale-95 transition-all"
               >
                 <div className="min-w-0 text-left">
                   <div className="text-[9px] text-[#b85d67] font-bold tracking-wider truncate">
@@ -2913,7 +2914,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                     soundEngine.playSelect();
                     onOpenQuest('story');
                   }}
-                  className="py-1.5 px-2 rounded-xl bg-[#d97b84] hover:bg-[#c56871] border border-[#b85d67] text-white text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform shadow-xs"
+                  className="py-1.5 px-2 rounded-xl bg-[#d97b84] hover:bg-[#c56871] border border-[#b85d67] text-white text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform shadow-sm"
                 >
                   <BookOpen className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">초대장 열기</span>
