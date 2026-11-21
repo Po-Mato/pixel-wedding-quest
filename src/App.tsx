@@ -834,22 +834,52 @@ export function App() {
           )}
 
           {!isConfigReady ? (
-            <div className="pixel-card p-10 bg-[#fffdf9] text-center space-y-2.5 animate-fadeIn">
-              <div className="text-[11px] tracking-[0.28em] text-[#c59b6d] font-engSerif uppercase">
-                WEDDING INVITATION
+            <div
+              aria-busy="true"
+              aria-live="polite"
+              className="pixel-card px-5 py-7 sm:px-7 bg-[#fffdf9] text-center space-y-4 animate-fadeIn"
+            >
+              <div className="space-y-1">
+                <div className="text-[11px] tracking-[0.3em] text-[#c59b6d] font-engSerif uppercase">
+                  WEDDING INVITATION
+                </div>
+                <div className="h-3.5 w-32 mx-auto rounded-full bg-[#efe6d8] animate-pulse" />
               </div>
-              <div className="text-base font-bold text-[#3b2f2f]">
-                {joinCoupleNames(config, defaultGuestSide, 'fullName', ' ♥ ')}
+
+              {/* Arched Cover Silhouette Skeleton */}
+              <div className="mx-auto max-w-[210px] aspect-[4/3.6] rounded-t-full rounded-b-2xl border-2 border-[#e6d5b8] bg-[#faf5ec] p-1.5">
+                <div className="w-full h-full rounded-t-full rounded-b-xl bg-[#efe6d8] animate-pulse" />
               </div>
-              <p className="text-xs font-sans text-[#8c7a70]">
-                최신 청첩장 정보를 불러오는 중입니다...
-              </p>
+
+              <div className="space-y-1.5 pt-1">
+                <div className="text-lg font-bold tracking-[0.16em] text-[#3b2f2f]">
+                  {joinCoupleNames(config, defaultGuestSide, 'fullName', ' ♥ ')}
+                </div>
+                <p className="text-xs font-sans text-[#8c7a70]">
+                  최신 청첩장 정보를 불러오는 중입니다...
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-[#efe6d8] space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="h-16 rounded-2xl bg-[#efe6d8]/80 animate-pulse" />
+                  <div className="h-16 rounded-2xl bg-[#f5e1e4]/75 animate-pulse" />
+                </div>
+                <div className="h-14 rounded-2xl bg-[#faf5ec] border border-[#e6d5b8] animate-pulse" />
+                <div className="h-14 rounded-2xl bg-[#fcf4f5] border border-[#ebd2d4] animate-pulse" />
+              </div>
             </div>
           ) : (
             <Suspense
               fallback={
-                <div className="pixel-card p-8 bg-[#fffdf9] text-center text-xs font-sans text-[#8c7a70]">
-                  청첩장 화면을 불러오는 중입니다...
+                <div
+                  aria-busy="true"
+                  className="pixel-card p-7 bg-[#fffdf9] text-center space-y-3"
+                >
+                  <div className="mx-auto max-w-[180px] aspect-[4/3.4] rounded-t-full rounded-b-2xl bg-[#efe6d8] animate-pulse" />
+                  <div className="text-xs font-sans text-[#8c7a70]">
+                    청첩장 화면을 불러오는 중입니다...
+                  </div>
                 </div>
               }
             >

@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   ArrowUp,
   CheckCircle2,
+  Send,
 } from 'lucide-react';
 import { WeddingConfig, GuestbookEntry, BankAccount } from '../data/weddingConfig';
 import {
@@ -44,11 +45,19 @@ import {
   getTmapDeepLink,
   openNaverMap,
   openTmap,
+  openTossTransfer,
 } from '../utils/navigation';
 import { showToast } from '../utils/toast';
 
 export type ParentsSideFilter = 'all' | 'groom' | 'bride';
 type FontScaleMode = 'normal' | 'large' | 'xlarge';
+const STORAGE_PARENTS_FONT_KEY = 'pixel_wedding_quest_parents_font_v1';
+const PARENTS_QUICK_BLESSING_CHIPS = [
+  '결혼을 진심으로 축하드립니다. 늘 행복하세요.',
+  '두 사람의 아름다운 앞날을 축복합니다.',
+  '예식 날 기쁜 마음으로 참석하여 축하드리겠습니다.',
+  '멀리서나마 두 분의 새 출발을 진심으로 응원합니다.',
+];
 const PARENTS_NAV_IDS = [
   'parents-greeting',
   'parents-contact',
@@ -72,11 +81,30 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   onAddGuestbook,
   onDeleteGuestbook,
 }) => {
-  const [fontScale, setFontScale] = useState<FontScaleMode>('large');
+  const [fontScale, setFontScale] = useState<FontScaleMode>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_PARENTS_FONT_KEY);
+      if (saved === 'normal' || saved === 'large' || saved === 'xlarge') {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'large';
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_PARENTS_FONT_KEY, fontScale);
+    } catch {
+      // ignore
+    }
+  }, [fontScale]);
+
   // 신랑측 링크 → 신랑 우선 / 신부측 링크 → 신부 우선 / 일반 링크 → 기기별 무작위(고정)
   const { primary } = useCoupleOrder();
   const [activeAccountSide, setActiveAccountSide] = useState<'groom' | 'bride'>(primary);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [copiedPhoneKey, setCopiedPhoneKey] = useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
@@ -250,6 +278,24 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     setCopiedAddress(true);
     showToast('예식장 주소가 복사되었습니다');
     setTimeout(() => setCopiedAddress(false), 3000);
+  };
+
+  const handleCopyPhone = async (role: string, name: string, phone: string, key: string) => {
+    await copyTextToClipboard(phone.trim());
+    setCopiedPhoneKey(key);
+    showToast(`${role} ${name}님 연락처가 복사되었습니다`);
+    window.setTimeout(() => {
+      setCopiedPhoneKey((prev) => (prev === key ? null : prev));
+    }, 2500);
+  };
+
+  const handleOpenTossAccount = async (acc: BankAccount, key: string) => {
+    const res = await openTossTransfer(acc);
+    if (!res) return;
+    setCopiedKey(key);
+    setTimeout(() => {
+      setCopiedKey((prev) => (prev === key ? null : prev));
+    }, 3500);
   };
 
   const handleCopyAccount = async (acc: BankAccount, key: string) => {
@@ -637,21 +683,40 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                         </div>
 
                         {dialHref && (
-                          <div className="grid grid-cols-2 gap-2 shrink-0">
+                          <div className="grid grid-cols-3 gap-1.5 shrink-0">
                             <a
                               href={`tel:${dialHref}`}
-                              className="px-4 py-3 rounded-xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
+                              className="px-2.5 sm:px-3.5 py-3 rounded-xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold text-xs sm:text-sm flex items-center justify-center gap-1 whitespace-nowrap"
                             >
                               <Phone className="w-4 h-4 shrink-0" />
                               <span>전화걸기</span>
                             </a>
                             <a
                               href={`sms:${dialHref}`}
-                              className="px-4 py-3 rounded-xl bg-[#faf5ec] hover:bg-[#efe5d4] border border-[#c9b69c] text-[#2d221e] font-bold text-sm sm:text-base flex items-center justify-center gap-1.5"
+                              className="px-2.5 sm:px-3.5 py-3 rounded-xl bg-[#faf5ec] hover:bg-[#efe5d4] border border-[#c9b69c] text-[#2d221e] font-bold text-xs sm:text-sm flex items-center justify-center gap-1 whitespace-nowrap"
                             >
                               <MessageSquare className="w-4 h-4 shrink-0 text-[#8c6747]" />
                               <span>문자하기</span>
                             </a>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCopyPhone(c.role, c.name, c.phone, `${side}-${c.role}`)
+                              }
+                              className="px-2.5 sm:px-3.5 py-3 rounded-xl bg-[#fffdf9] hover:bg-[#faf5ec] border border-[#c9b69c] text-[#2d221e] font-bold text-xs sm:text-sm flex items-center justify-center gap-1 whitespace-nowrap"
+                            >
+                              {copiedPhoneKey === `${side}-${c.role}` ? (
+                                <>
+                                  <Check className="w-4 h-4 shrink-0 text-[#355e40]" />
+                                  <span className="text-[#355e40]">복사됨</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-4 h-4 shrink-0 text-[#8c6747]" />
+                                  <span>번호복사</span>
+                                </>
+                              )}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1016,7 +1081,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 </div>
 
                 {hasNumber && (
-                  <div className={`grid ${acc.kakaoPayUrl ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                  <div className="space-y-2">
                     <button
                       type="button"
                       onClick={() => handleCopyAccount(acc, key)}
@@ -1039,17 +1104,28 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                       )}
                     </button>
 
-                    {acc.kakaoPayUrl && (
-                      <a
-                        href={acc.kakaoPayUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`w-full ${textScale.btn} rounded-xl font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-2 transition-colors`}
+                    <div className={`grid ${acc.kakaoPayUrl ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenTossAccount(acc, key)}
+                        className={`w-full ${textScale.btn} rounded-xl font-bold border bg-[#eef4ff] hover:bg-[#dfeaff] text-[#1b64da] border-[#bdd4ff] flex items-center justify-center gap-2 transition-colors`}
                       >
-                        <ExternalLink className="w-5 h-5 shrink-0" />
-                        <span>카카오페이 송금</span>
-                      </a>
-                    )}
+                        <Send className="w-4 h-4 shrink-0" />
+                        <span>토스 송금</span>
+                      </button>
+
+                      {acc.kakaoPayUrl && (
+                        <a
+                          href={acc.kakaoPayUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`w-full ${textScale.btn} rounded-xl font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-2 transition-colors`}
+                        >
+                          <ExternalLink className="w-4 h-4 shrink-0" />
+                          <span>카카오페이</span>
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1312,6 +1388,28 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 ({message.length} / 120)
               </span>
             </div>
+
+            {/* Senior-Friendly 1-Tap Quick Blessing Chips */}
+            <div className="flex flex-wrap gap-1.5 mb-2.5">
+              {PARENTS_QUICK_BLESSING_CHIPS.map((chip) => {
+                const selected = message === chip;
+                return (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => setMessage(chip)}
+                    className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border text-left transition-colors ${
+                      selected
+                        ? 'bg-[#fcf0f1] border-[#b35c66] text-[#9e3f4a] font-bold'
+                        : 'bg-[#fffdf9] hover:bg-[#f5efe6] border-[#d8c7b0] text-[#4a3a33]'
+                    }`}
+                  >
+                    {chip}
+                  </button>
+                );
+              })}
+            </div>
+
             <textarea
               rows={3}
               required

@@ -59,6 +59,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [privacyError, setPrivacyError] = useState(false);
   const [avatar, setAvatar] = useState<AvatarClassId>('knight');
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [side, setSide] = useState<'groom' | 'bride' | 'both'>(initialSide);
   const [attendance, setAttendance] = useState<'attend' | 'maybe' | 'unable'>('attend');
   const [companions, setCompanions] = useState<number>(1);
@@ -193,36 +194,63 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
         onSubmit={handleSubmit}
         className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 sm:p-5 space-y-4 font-sans"
       >
-        {/* Avatar Picker */}
-        <div>
-          <label className="block text-xs font-bold text-[#5c4d47] mb-2">
-            방명록 아이콘 선택 (픽셀 가든 광장에도 함께 산책합니다)
-          </label>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {AVATAR_CLASSES.map((cls) => {
-              const isSelected = avatar === cls.id;
-              return (
-                <button
-                  type="button"
-                  key={cls.id}
-                  onClick={() => {
-                    soundEngine.playBlip(660);
-                    setAvatar(cls.id);
-                  }}
-                  className={`p-2 rounded-lg border flex flex-col items-center gap-1 transition-all ${
-                    isSelected
-                      ? 'bg-[#fffdf9] border-[#d97b84] ring-1 ring-[#d97b84] shadow-sm scale-105'
-                      : 'bg-[#f4efe6] border-[#e2d4c0] opacity-75 hover:opacity-100'
-                  }`}
-                >
-                  <GuestAvatarSprite avatar={cls.id} size={48} />
-                  <span className="text-[10px] font-semibold text-[#3b2f2f] text-center leading-tight">
-                    {cls.name}
-                  </span>
-                </button>
-              );
-            })}
+        {/* Compact Collapsible Avatar Picker (keeps RSVP form concise) */}
+        <div className="bg-[#fffdf9] border border-[#e2d4c0] rounded-xl p-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-lg bg-[#faf5ec] border border-[#e6d5b8] flex items-center justify-center shrink-0 overflow-hidden">
+                <GuestAvatarSprite avatar={avatar} size={38} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-[#3b2f2f] truncate">
+                  방명록 아이콘 · {selectedClassInfo.name}
+                </div>
+                <div className="text-[10px] text-[#8c7a70] truncate">
+                  픽셀 가든 광장에도 함께 산책합니다
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playBlip(620);
+                setShowAvatarPicker((prev) => !prev);
+              }}
+              aria-expanded={showAvatarPicker}
+              className="px-2.5 py-1.5 rounded-full bg-[#faf5ec] hover:bg-[#f2e8d8] border border-[#d4b48c] text-[11px] font-bold text-[#5c4d47] shrink-0 transition-colors"
+            >
+              {showAvatarPicker ? '접기 ▲' : '아이콘 변경 ▾'}
+            </button>
           </div>
+
+          {showAvatarPicker && (
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-2.5 pt-2.5 border-t border-[#efe6d8] animate-fadeIn">
+              {AVATAR_CLASSES.map((cls) => {
+                const isSelected = avatar === cls.id;
+                return (
+                  <button
+                    type="button"
+                    key={cls.id}
+                    onClick={() => {
+                      soundEngine.playBlip(660);
+                      setAvatar(cls.id);
+                      setShowAvatarPicker(false);
+                    }}
+                    className={`p-2 rounded-lg border flex flex-col items-center gap-1 transition-all ${
+                      isSelected
+                        ? 'bg-[#fcf0f1] border-[#d97b84] ring-1 ring-[#d97b84] shadow-sm'
+                        : 'bg-[#faf5ec] border-[#e2d4c0] opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <GuestAvatarSprite avatar={cls.id} size={42} />
+                    <span className="text-[10px] font-semibold text-[#3b2f2f] text-center leading-tight">
+                      {cls.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* RSVP Details */}

@@ -5,6 +5,7 @@ import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
 import { fireCelebrationConfetti } from '../../utils/motion';
 import { showToast } from '../../utils/toast';
+import { openTossTransfer } from '../../utils/navigation';
 
 interface GiftSectionProps {
   config: WeddingConfig;
@@ -46,22 +47,14 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
   };
 
   const handleOpenToss = async (acc: BankAccount, key: string) => {
-    const digitsOnly = acc.accountNumber.replace(/[^0-9]/g, '');
-    const cleanAccountNumber =
-      acc.accountNumber.replace(/[^0-9-]/g, '').trim() || acc.accountNumber.trim();
-    if (!cleanAccountNumber) return;
-
     soundEngine.playCoin();
-    await copyTextToClipboard(cleanAccountNumber);
+    const res = await openTossTransfer(acc);
+    if (!res) return;
     setCopiedKey(key);
-    setCopiedSummary(`${acc.bank} ${cleanAccountNumber} (예금주: ${acc.name})`);
-    showToast(`계좌번호 복사 완료 · 토스 송금 앱을 연결합니다`, 'info');
-
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isMobile && digitsOnly) {
-      const tossUrl = `supertoss://send?bank=${encodeURIComponent(acc.bank)}&accountNo=${digitsOnly}`;
-      window.location.href = tossUrl;
-    }
+    setCopiedSummary(`${acc.bank} ${res.cleanAccountNumber} (예금주: ${acc.name})`);
+    setTimeout(() => {
+      setCopiedKey((prev) => (prev === key ? null : prev));
+    }, 3500);
   };
 
   const accounts =

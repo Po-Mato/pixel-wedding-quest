@@ -1,4 +1,6 @@
-import { WeddingConfig } from '../data/weddingConfig';
+import { BankAccount, WeddingConfig } from '../data/weddingConfig';
+import { copyTextToClipboard } from './clipboard';
+import { showToast } from './toast';
 
 export function isMobileDevice(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -77,4 +79,30 @@ export function openTmap(
     e?.preventDefault();
     window.open(getNaverMapWebUrl(wedding), '_blank', 'noopener,noreferrer');
   }
+}
+
+export async function openTossTransfer(acc: BankAccount): Promise<{
+  cleanAccountNumber: string;
+  openedApp: boolean;
+} | null> {
+  const digitsOnly = acc.accountNumber.replace(/[^0-9]/g, '');
+  const cleanAccountNumber =
+    acc.accountNumber.replace(/[^0-9-]/g, '').trim() || acc.accountNumber.trim();
+  if (!cleanAccountNumber) return null;
+
+  await copyTextToClipboard(cleanAccountNumber);
+
+  if (isMobileDevice() && digitsOnly) {
+    showToast('계좌번호 복사 완료 · 토스 송금 앱을 연결합니다', 'info');
+    const tossUrl = `supertoss://send?bank=${encodeURIComponent(acc.bank)}&accountNo=${digitsOnly}`;
+    window.location.href = tossUrl;
+    return { cleanAccountNumber, openedApp: true };
+  }
+
+  showToast(
+    `${acc.bank} 계좌번호가 복사되었습니다 (토스 바로 송금은 모바일에서 지원)`,
+    'info',
+    3600
+  );
+  return { cleanAccountNumber, openedApp: false };
 }
