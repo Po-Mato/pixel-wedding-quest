@@ -30,6 +30,7 @@ import { PIXEL_ASSETS, GUEST_SPRITES } from './PixelSprites';
 import { soundEngine } from '../utils/soundEngine';
 import { fillCoupleText } from '../utils/coupleText';
 import { fireCelebrationConfetti, prefersReducedMotion } from '../utils/motion';
+import { showToast } from '../utils/toast';
 import {
   incrementReactionCounter,
   getConfiguredApiBase,
@@ -110,10 +111,25 @@ const STORAGE_AFFINITY_KEY = 'pixel_wedding_quest_affinity_v2';
 const STORAGE_WALK_MODE_KEY = 'pixel_wedding_quest_walk_mode_v1';
 const STORAGE_GUEST_AVATAR_KEY = 'pixel_wedding_quest_guest_avatar_v1';
 const STORAGE_GUEST_NAME_KEY = 'pixel_wedding_quest_guest_name_v1';
+const STORAGE_VISITED_MAPS_KEY = 'pixel_wedding_quest_visited_maps_v1';
+const STORAGE_VISITED_MEMORIES_KEY = 'pixel_wedding_quest_visited_memories_v1';
+const STORAGE_DONE_MISSIONS_KEY = 'pixel_wedding_quest_done_missions_v1';
 
 export type WalkMode = 'guest' | 'couple';
 
 const STORAGE_WALK_HINT_KEY = 'pixel_wedding_quest_walk_hint_seen_v1';
+
+const DEFAULT_VISITED_MAPS: Record<GardenMapId, boolean> = {
+  home: true,
+  neighborhood: false,
+  station: false,
+  train: false,
+  garden: false,
+  bridal: false,
+  chapel: false,
+  memory: false,
+  reception: false,
+};
 
 interface OffscreenPortalIndicator {
   portal: MapPortal;
@@ -135,19 +151,72 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   // Start at 'home' (우리 집) by default so the guest departs from home!
   const [currentMapId, setCurrentMapId] = useState<GardenMapId>('home');
   const currentMapRef = useRef<GardenMapId>('home');
-  const [visitedMaps, setVisitedMaps] = useState<Record<GardenMapId, boolean>>({
-    home: true,
-    neighborhood: false,
-    station: false,
-    train: false,
-    garden: false,
-    bridal: false,
-    chapel: false,
-    memory: false,
-    reception: false,
+  const [visitedMaps, setVisitedMaps] = useState<Record<GardenMapId, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_VISITED_MAPS_KEY);
+      if (saved) {
+        return { ...DEFAULT_VISITED_MAPS, ...JSON.parse(saved), home: true };
+      }
+    } catch {
+      // ignore
+    }
+    return { ...DEFAULT_VISITED_MAPS };
   });
-  const [visitedMemories, setVisitedMemories] = useState<Record<string, boolean>>({});
+  const [visitedMemories, setVisitedMemories] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_VISITED_MEMORIES_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return {};
+  });
+  const [completedZoneMissions, setCompletedZoneMissions] = useState<
+    Partial<Record<GardenMapId, boolean>>
+  >(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_DONE_MISSIONS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return {};
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_VISITED_MAPS_KEY, JSON.stringify(visitedMaps));
+    } catch {
+      // ignore
+    }
+  }, [visitedMaps]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_VISITED_MEMORIES_KEY, JSON.stringify(visitedMemories));
+    } catch {
+      // ignore
+    }
+  }, [visitedMemories]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_DONE_MISSIONS_KEY,
+        JSON.stringify(completedZoneMissions)
+      );
+    } catch {
+      // ignore
+    }
+  }, [completedZoneMissions]);
+
   const [mapTransitionFade, setMapTransitionFade] = useState<boolean>(false);
+  const [arrivalBanner, setArrivalBanner] = useState<{
+    icon: string;
+    title: string;
+    subtitle: string;
+  } | null>(null);
+  const arrivalTimerRef = useRef<number | null>(null);
+  const mapChipRefs = useRef<Partial<Record<GardenMapId, HTMLButtonElement | null>>>({});
+  const tapRippleRef = useRef<{ x: number; y: number; life: number } | null>(null);
+  const ambientNpcIdRef = useRef<string | null>(null);
   const [showPhotoBooth, setShowPhotoBooth] = useState<boolean>(false);
   const [showSecretBook, setShowSecretBook] = useState<boolean>(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState<boolean>(false);
@@ -582,9 +651,44 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       setNearbySecret(null);
       setActiveStoryToast(null);
       setActiveDialogueNpc(null);
+      tapRippleRef.current = null;
+
+      // Show RPG-style area arrival banner briefly
+      if (arrivalTimerRef.current !== null) {
+        window.clearTimeout(arrivalTimerRef.current);
+      }
+      setArrivalBanner({
+        icon: destConfig.icon,
+        title: destConfig.title,
+        subtitle: destConfig.subtitle,
+      });
+      arrivalTimerRef.current = window.setTimeout(() => {
+        setArrivalBanner(null);
+        arrivalTimerRef.current = null;
+      }, 1900);
     },
     []
   );
+
+  // Auto-center active map pill in top 9-map strip on map change
+  useEffect(() => {
+    const chip = mapChipRefs.current[currentMapId];
+    if (chip) {
+      chip.scrollIntoView({
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  }, [currentMapId]);
+
+  useEffect(() => {
+    return () => {
+      if (arrivalTimerRef.current !== null) {
+        window.clearTimeout(arrivalTimerRef.current);
+      }
+    };
+  }, []);
 
   // Trigger a landmark's special interaction or open its linked invitation modal
   const activateLandmark = useCallback(
@@ -930,6 +1034,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
     } else {
       soundEngine.playBlip(560);
+      tapRippleRef.current = { x: clickX, y: clickY, life: 1.0 };
       pathQueueRef.current = findWalkablePath(
         posRef.current.x,
         posRef.current.y,
@@ -1511,41 +1616,68 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       );
 
       if (pathQueueRef.current.length > 0) {
-        pathQueueRef.current.forEach((tile, idx) => {
-          const tx = (tile.x / 100) * W;
-          const ty = (tile.y / 100) * H;
-          const isFinal = idx === pathQueueRef.current.length - 1;
-
-          ctx.fillStyle = isFinal
-            ? 'rgba(217, 123, 132, 0.34)'
-            : 'rgba(255, 253, 249, 0.38)';
-          ctx.fillRect(
-            Math.round(tx - TILE_PX_W / 2 + 3),
-            Math.round(ty - TILE_PX_H / 2 + 3),
-            Math.round(TILE_PX_W - 6),
-            Math.round(TILE_PX_H - 6)
-          );
-
-          ctx.strokeStyle = isFinal
-            ? '#d97b84'
-            : 'rgba(217, 123, 132, 0.72)';
-          ctx.lineWidth = isFinal ? 2.5 : 1.8;
-          ctx.strokeRect(
-            Math.round(tx - TILE_PX_W / 2 + 3),
-            Math.round(ty - TILE_PX_H / 2 + 3),
-            Math.round(TILE_PX_W - 6),
-            Math.round(TILE_PX_H - 6)
-          );
-
-          ctx.fillStyle = '#d97b84';
-          if (isFinal) {
-            ctx.font = 'bold 12px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('♥', Math.round(tx), Math.round(ty + 4));
-          } else {
-            ctx.fillRect(Math.round(tx - 2), Math.round(ty - 2), 4, 4);
-          }
+        // Dashed rose-gold walking route from player's feet through remaining A* path
+        ctx.save();
+        ctx.strokeStyle = 'rgba(217, 123, 132, 0.62)';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([7, 7]);
+        ctx.beginPath();
+        ctx.moveTo((posRef.current.x / 100) * W, (posRef.current.y / 100) * H);
+        pathQueueRef.current.forEach((tile) => {
+          ctx.lineTo((tile.x / 100) * W, (tile.y / 100) * H);
         });
+        ctx.stroke();
+        ctx.restore();
+
+        const finalTile = pathQueueRef.current[pathQueueRef.current.length - 1];
+        const ftx = (finalTile.x / 100) * W;
+        const fty = (finalTile.y / 100) * H;
+        const destPulse = Math.sin(tick * 0.16) * 2.5;
+        ctx.save();
+        ctx.fillStyle = 'rgba(217, 123, 132, 0.24)';
+        ctx.beginPath();
+        ctx.arc(ftx, fty, 14 + destPulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#d97b84';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(ftx, fty, 14 + destPulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#d97b84';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('♥', ftx, fty + 0.5);
+        ctx.restore();
+      }
+
+      // Ground Tap Ripple Feedback (when user taps to walk)
+      if (tapRippleRef.current) {
+        const rip = tapRippleRef.current;
+        const rx = (rip.x / 100) * W;
+        const ry = (rip.y / 100) * H;
+        const progress = 1 - rip.life;
+        const outerR = 10 + progress * 34;
+        const innerR = 6 + progress * 18;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, rip.life * 0.85);
+        ctx.strokeStyle = '#d97b84';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(rx, ry, outerR, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = '#c59b6d';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(rx, ry, innerR, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        rip.life -= 0.045;
+        if (rip.life <= 0) {
+          tapRippleRef.current = null;
+        }
       }
       ctx.restore();
 
@@ -2335,7 +2467,33 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       depthList.sort((a, b) => a.footY - b.footY);
       depthList.forEach((actor) => actor.draw());
 
-      // 8. Ambient NPC speech is now rendered cleanly in the bottom HUD overlay (no overlap on map)
+      // 8. Minimal floating 💬 badge above the currently speaking ambient NPC (links map sprite <-> bottom chatter bar)
+      if (ambientNpcIdRef.current) {
+        const speaker = currentFrameNpcs.find((n) => n.id === ambientNpcIdRef.current);
+        if (speaker) {
+          const sx = Math.round((speaker.x / 100) * W);
+          const isPet =
+            speaker.avatar === 'cream' ||
+            speaker.avatar === 'kkomi' ||
+            speaker.avatar === 'mochi' ||
+            speaker.avatar === 'cat';
+          const floatOffset = Math.sin(tick * 0.1) * 3;
+          const sy = Math.round((speaker.y / 100) * H - (isPet ? 54 : 88) + floatOffset);
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 253, 249, 0.96)';
+          ctx.beginPath();
+          ctx.arc(sx, sy, 13, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#d97b84';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('💬', sx, sy + 1);
+          ctx.restore();
+        }
+      }
       void guestHeads;
 
       // 9. Live Floating Emoji Reactions
@@ -2483,6 +2641,40 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     isMiniQuestStepDone(s)
   ).length;
 
+  // Keep canvas ref synced with active ambient NPC
+  useEffect(() => {
+    ambientNpcIdRef.current = ambientNpc?.id ?? null;
+  }, [ambientNpc]);
+
+  // Celebrate when guest completes all mini-quest steps in a zone for the first time
+  useEffect(() => {
+    if (
+      activeMiniQuest.steps.length > 0 &&
+      completedMiniQuestCount >= activeMiniQuest.steps.length &&
+      !completedZoneMissions[currentMapId]
+    ) {
+      setCompletedZoneMissions((prev) => ({ ...prev, [currentMapId]: true }));
+      soundEngine.playFanfare();
+      fireCelebrationConfetti({
+        particleCount: 38,
+        spread: 60,
+        origin: { y: 0.62 },
+        colors: ['#d97b84', '#d4b48c', '#6b9071'],
+      });
+      showToast(
+        `🎉 ${activeMapConfig.tabLabel} 구역 미션 완료! 다음 맵으로 산책해 보세요`,
+        'success',
+        3400
+      );
+    }
+  }, [
+    completedMiniQuestCount,
+    activeMiniQuest.steps.length,
+    completedZoneMissions,
+    currentMapId,
+    activeMapConfig.tabLabel,
+  ]);
+
   return (
     <div className="w-full min-w-0 flex flex-col gap-1.5">
       {/* ULTRA-SLIM 1-ROW WORLD HUD BAR: Map Drawer + 9-Map Strip + Utility Icons */}
@@ -2509,6 +2701,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             return (
               <button
                 key={mapId}
+                ref={(el) => {
+                  mapChipRefs.current[mapId] = el;
+                }}
                 type="button"
                 onClick={() => {
                   if (currentMapId !== mapId) {
@@ -2620,6 +2815,21 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             </button>
           </div>
         </div>
+
+        {/* RPG Area Arrival Title Banner when traveling between maps */}
+        {arrivalBanner && !activeDialogueNpc && !activeStoryToast && (
+          <div className="pointer-events-none absolute top-14 inset-x-3 z-10 flex justify-center">
+            <div className="bg-[#3b2f2f]/90 backdrop-blur-sm border border-[#d4b48c] rounded-2xl px-4 py-2 text-center shadow-lg animate-fadeIn">
+              <div className="text-xs font-serif font-bold text-[#fffdf9] flex items-center justify-center gap-1.5">
+                <span>{arrivalBanner.icon}</span>
+                <span>{arrivalBanner.title}</span>
+              </div>
+              <div className="text-[10px] font-sans text-[#e6d5b8] mt-0.5">
+                {arrivalBanner.subtitle}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* First-Visit Gentle Walk Controls Hint (auto-dismissed on first movement) */}
         {showWalkHint && !activeDialogueNpc && !activeStoryToast && (
@@ -2980,6 +3190,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             setShowWorldMapSheet(false);
             handleMiniQuestClick(step);
           }}
+          onOpenQuest={onOpenQuest}
           onClose={() => setShowWorldMapSheet(false)}
         />
       )}

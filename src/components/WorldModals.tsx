@@ -6,6 +6,7 @@ import {
   AVATAR_CLASSES,
   GardenMapId,
   AvatarClassId,
+  QuestBuildingId,
   WeddingConfig,
 } from '../data/weddingConfig';
 import {
@@ -31,6 +32,7 @@ interface WorldMapSheetModalProps {
   isMiniQuestStepDone: (step: ZoneMiniQuestItem) => boolean;
   onSelectMap: (mapId: GardenMapId) => void;
   onSelectMiniQuestStep: (step: ZoneMiniQuestItem) => void;
+  onOpenQuest: (questId: QuestBuildingId) => void;
   onClose: () => void;
 }
 
@@ -43,6 +45,7 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
   isMiniQuestStepDone,
   onSelectMap,
   onSelectMiniQuestStep,
+  onOpenQuest,
   onClose,
 }) => {
   useBodyScrollLock(true);
@@ -78,6 +81,42 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
       </div>
 
       <div className="p-3.5 space-y-3.5 max-h-[75vh] overflow-y-auto">
+        {/* Quick Invitation Essentials (4-Card Bar) */}
+        <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-2.5 space-y-1.5">
+          <div className="text-[11px] font-bold text-[#3b2f2f] flex items-center justify-between">
+            <span>📌 청첩장 필수 정보 바로열기</span>
+            <span className="text-[10px] text-[#8c7a70] font-normal">
+              이동 없이 1탭 확인
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {(
+              [
+                { id: 'story' as const, icon: '💌', label: '모시는 글' },
+                { id: 'location' as const, icon: '📍', label: '오시는 길' },
+                { id: 'gift' as const, icon: '💳', label: '계좌 안내' },
+                { id: 'rsvp' as const, icon: '✍️', label: '참석·방명록' },
+              ] as const
+            ).map((q) => (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => {
+                  soundEngine.playSelect();
+                  onClose();
+                  onOpenQuest(q.id);
+                }}
+                className="py-2 px-1 rounded-lg bg-[#fffdf9] hover:bg-[#fcf0f1] border border-[#d4b48c] hover:border-[#d97b84] text-[#3b2f2f] flex flex-col items-center gap-0.5 shadow-sm transition-colors active:scale-95"
+              >
+                <span className="text-sm leading-none">{q.icon}</span>
+                <span className="text-[10px] font-bold truncate w-full text-center">
+                  {q.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Stage 1: Commute Maps */}
         <div className="space-y-1.5">
           <div className="text-xs font-bold text-[#3b2f2f] flex items-center justify-between">
