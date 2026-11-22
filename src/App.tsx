@@ -255,6 +255,27 @@ export function App() {
     lastTap: 0,
   });
 
+  // Pause music-box BGM cleanly when switching tabs/apps or locking phone screen
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        soundEngine.pauseForBackground();
+      } else {
+        soundEngine.resumeFromBackground();
+      }
+    };
+    const handlePageHide = () => {
+      soundEngine.pauseForBackground();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handlePageHide);
+      soundEngine.stopBgm();
+    };
+  }, []);
+
   // Hidden Admin Page Trigger via URL hash (#admin) or Keyboard Shortcut (Ctrl/Cmd + Shift + A)
   useEffect(() => {
     const checkHash = () => {

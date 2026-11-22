@@ -4,6 +4,7 @@ class RetroSoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
   private isBgmPlaying: boolean = false;
+  private pausedByBackground: boolean = false;
   private bgmTimer: number | null = null;
   private noteIndex: number = 0;
 
@@ -59,6 +60,7 @@ class RetroSoundEngine {
   }
 
   public toggleBgm(): boolean {
+    this.pausedByBackground = false;
     if (this.isBgmPlaying) {
       this.stopBgm();
       return false;
@@ -70,6 +72,7 @@ class RetroSoundEngine {
   }
 
   public startBgm() {
+    this.pausedByBackground = false;
     if (this.isBgmPlaying || this.isMuted) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
@@ -78,11 +81,34 @@ class RetroSoundEngine {
   }
 
   public stopBgm() {
+    this.pausedByBackground = false;
     this.isBgmPlaying = false;
     if (this.bgmTimer !== null) {
       window.clearTimeout(this.bgmTimer);
       this.bgmTimer = null;
     }
+  }
+
+  public pauseForBackground() {
+    if (!this.isBgmPlaying) return;
+    this.pausedByBackground = true;
+    this.isBgmPlaying = false;
+    if (this.bgmTimer !== null) {
+      window.clearTimeout(this.bgmTimer);
+      this.bgmTimer = null;
+    }
+    if (this.ctx && this.ctx.state === 'running') {
+      this.ctx.suspend().catch(() => {});
+    }
+  }
+
+  public resumeFromBackground() {
+    if (!this.pausedByBackground || this.isMuted) return;
+    this.pausedByBackground = false;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    this.isBgmPlaying = true;
+    this.scheduleNextNote();
   }
 
   private scheduleNextNote() {

@@ -4,6 +4,9 @@ import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { fillCoupleText } from '../../utils/coupleText';
 import { fireCelebrationConfetti } from '../../utils/motion';
+import { showToast } from '../../utils/toast';
+
+const STORAGE_MINIGAME_HIGH_SCORE_KEY = 'pixel_wedding_quest_bouquet_highscore_v1';
 
 interface MiniGameSectionProps {
   config: WeddingConfig;
@@ -29,7 +32,14 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  const [highScore, setHighScore] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem(STORAGE_MINIGAME_HIGH_SCORE_KEY));
+      return Number.isFinite(saved) && saved > 0 ? saved : 0;
+    } catch {
+      return 0;
+    }
+  });
   const [timeLeft, setTimeLeft] = useState(20);
 
   const playerXRef = useRef<number>(150);
@@ -57,7 +67,15 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
           soundEngine.playFanfare();
 
           const finalScore = scoreRef.current;
-          setHighScore((hs) => Math.max(hs, finalScore));
+          setHighScore((hs) => {
+            const nextBest = Math.max(hs, finalScore);
+            try {
+              localStorage.setItem(STORAGE_MINIGAME_HIGH_SCORE_KEY, String(nextBest));
+            } catch {
+              // ignore
+            }
+            return nextBest;
+          });
 
           let badge = '🌸 봄날의 하객';
           if (finalScore >= 200) {
@@ -66,6 +84,7 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
             badge = '💍 축복의 메신저';
           }
           onUnlockTitle(badge);
+          showToast(`${badge} 칭호 획득! 방명록 작성 시 자동 표시됩니다`);
 
           fireCelebrationConfetti({
             particleCount: 40,
@@ -338,6 +357,7 @@ export const MiniGameSection: React.FC<MiniGameSectionProps> = ({
                           if (idx === q.correctIndex) {
                             soundEngine.playFanfare();
                             onUnlockTitle('🌿 두 사람의 지기');
+                            showToast('🌿 두 사람의 지기 칭호 획득! 방명록에 자동 표시됩니다');
                           } else {
                             soundEngine.playBlip(360);
                           }

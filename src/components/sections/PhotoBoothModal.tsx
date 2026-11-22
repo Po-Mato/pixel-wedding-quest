@@ -14,6 +14,8 @@ import { soundEngine } from '../../utils/soundEngine';
 import { useCoupleOrder } from '../../utils/coupleOrder';
 import { useBodyScrollLock } from '../../utils/useBodyScrollLock';
 import { useEscapeKey } from '../../utils/useEscapeKey';
+import { isInAppBrowser, isIOSDevice } from '../../utils/calendar';
+import { showToast } from '../../utils/toast';
 import { incrementReactionCounter } from '../../utils/weddingCloudSync';
 
 interface PhotoBoothModalProps {
@@ -87,7 +89,6 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { names } = useCoupleOrder();
   useBodyScrollLock(true);
-  useEscapeKey(true, onClose);
 
   const [selectedMap, setSelectedMap] = useState<GardenMapId>('garden');
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarClassId>('mage');
@@ -100,6 +101,15 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   const [flashActive, setFlashActive] = useState<boolean>(false);
   const [snappedCount, setSnappedCount] = useState<number>(0);
   const [downloadedToast, setDownloadedToast] = useState<boolean>(false);
+  const [savePreviewDataUrl, setSavePreviewDataUrl] = useState<string | null>(null);
+
+  useEscapeKey(true, () => {
+    if (savePreviewDataUrl) {
+      setSavePreviewDataUrl(null);
+    } else {
+      onClose();
+    }
+  });
 
   const loadedImagesRef = useRef<{
     maps: Partial<Record<GardenMapId, HTMLImageElement>>;
@@ -397,23 +407,63 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     });
   };
 
-  const handleDownloadPolaroid = () => {
+  const handleDownloadPolaroid = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     handleTakeSnap();
 
+    const fileName = `pixel-wedding-polaroid-${config.groom.name}-${config.bride.name}.png`;
     try {
       const dataUrl = canvas.toDataURL('image/png');
+
+      // 1. Mobile Web Share API (saves directly to Photos / shares to KakaoTalk cleanly)
+      if (typeof navigator.share === 'function' && typeof File !== 'undefined') {
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob((b) => resolve(b), 'image/png')
+        );
+        if (blob) {
+          const file = new File([blob], fileName, { type: 'image/png' });
+          const navWithFiles = navigator as Navigator & {
+            canShare?: (data: { files?: File[] }) => boolean;
+          };
+          if (navWithFiles.canShare && navWithFiles.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: `${names(config, 'name')} 웨딩 포토부스 기념사진`,
+              });
+              setDownloadedToast(true);
+              showToast('폴라로이드 사진 공유·저장 화면을 열었습니다');
+              window.setTimeout(() => setDownloadedToast(false), 3000);
+              return;
+            } catch (err) {
+              if (err instanceof Error && err.name === 'AbortError') {
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      // 2. iOS Safari or In-App Browser (KakaoTalk/Naver/Instagram): open long-press save preview
+      if (isInAppBrowser() || isIOSDevice()) {
+        setSavePreviewDataUrl(dataUrl);
+        showToast('이미지를 길게 눌러 사진첩에 저장해 주세요', 'info', 3600);
+        return;
+      }
+
+      // 3. Desktop & standard browsers: immediate PNG file download
       const link = document.createElement('a');
-      link.download = `pixel-wedding-polaroid-${config.groom.name}-${config.bride.name}.png`;
+      link.download = fileName;
       link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       setDownloadedToast(true);
+      showToast('폴라로이드 사진이 저장되었습니다');
       window.setTimeout(() => setDownloadedToast(false), 3000);
     } catch {
-      // fallback
+      showToast('저장에 실패했습니다. 화면을 캡처해 간직해 주세요', 'info');
     }
   };
 
@@ -657,6 +707,50 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Long-Press Save Fallback Sheet for iOS / KakaoTalk In-App Browsers */}
+      {savePreviewDataUrl && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="폴라로이드 사진 길게 눌러 저장하기"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSavePreviewDataUrl(null);
+          }}
+          className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center p-4 font-sans animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[360px] bg-[#fffdf9] border-2 border-[#d4b48c] rounded-2xl p-4 space-y-3 text-center shadow-2xl"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[#3b2f2f]">
+                📸 사진 길게 눌러 저장하기
+              </span>
+              <button
+                type="button"
+                onClick={() => setSavePreviewDataUrl(null)}
+                aria-label="닫기"
+                className="px-2.5 py-1 rounded-full bg-[#faf5ec] border border-[#d4b48c] text-[11px] font-bold text-[#5c4d47]"
+              >
+                닫기 ✕
+              </button>
+            </div>
+            <p className="text-[11px] text-[#7d6e65] leading-relaxed break-keep">
+              아래 완성된 폴라로이드 이미지를 <strong>길게 눌러 [사진 저장]</strong>을 선택하시면
+              휴대폰 사진첩에 바로 보관됩니다.
+            </p>
+            <div className="rounded-xl overflow-hidden border border-[#e6d5b8] bg-[#faf5ec]">
+              <img
+                src={savePreviewDataUrl}
+                alt="완성된 웨딩 폴라로이드 사진"
+                className="w-full h-auto block"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
