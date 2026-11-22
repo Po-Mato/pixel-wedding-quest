@@ -7,6 +7,7 @@ import { cleanPhoneForHref } from '../../utils/phone';
 import { showToast } from '../../utils/toast';
 import {
   hasValidWeddingCoords,
+  getOsmEmbedUrl,
   getKakaoMapUrl,
   getNaverMapWebUrl,
   getTmapDeepLink,
@@ -252,13 +253,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
             <>
               <iframe
                 title={`${config.wedding.venueName} 지도 미리보기`}
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                  config.wedding.lng - 0.0045
-                }%2C${config.wedding.lat - 0.0028}%2C${
-                  config.wedding.lng + 0.0045
-                }%2C${config.wedding.lat + 0.0028}&layer=mapnik&marker=${
-                  config.wedding.lat
-                }%2C${config.wedding.lng}`}
+                src={getOsmEmbedUrl(config.wedding)}
                 loading="lazy"
                 className="w-full h-full border-0"
               />

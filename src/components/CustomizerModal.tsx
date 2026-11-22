@@ -30,6 +30,7 @@ import { syncAccountHolderNames } from '../utils/configSync';
 import { getSampleDataChecklist, WeddingPhase } from '../utils/weddingPhase';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { useEscapeKey } from '../utils/useEscapeKey';
+import { resolveWeddingCoords } from '../utils/navigation';
 import {
   adminLogin,
   fetchAdminOverview,
@@ -67,7 +68,17 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
 
   const [activeTab, setActiveTab] = useState<AdminTabId>('couple');
-  const [draft, setDraft] = useState<WeddingConfig>(config);
+  const [draft, setDraft] = useState<WeddingConfig>(() => {
+    const resolved = resolveWeddingCoords(config.wedding);
+    return {
+      ...config,
+      wedding: {
+        ...config.wedding,
+        lat: resolved.lat,
+        lng: resolved.lng,
+      },
+    };
+  });
   const [copiedJson, setCopiedJson] = useState(false);
   const [isSavingCloud, setIsSavingCloud] = useState(false);
   const [cloudSaveMessage, setCloudSaveMessage] = useState<string>('');
@@ -1238,6 +1249,45 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                         })
                       }
                       className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="block text-[10px] text-[#8c7a70]">지도 위도 (lat)</label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      value={draft.wedding.lat}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          wedding: {
+                            ...draft.wedding,
+                            lat: Number(e.target.value) || 0,
+                          },
+                        })
+                      }
+                      className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5 tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#8c7a70]">지도 경도 (lng)</label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      value={draft.wedding.lng}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          wedding: {
+                            ...draft.wedding,
+                            lng: Number(e.target.value) || 0,
+                          },
+                        })
+                      }
+                      className="w-full bg-[#fffdf9] border border-[#d4b48c] rounded px-2 py-1 mt-0.5 tabular-nums"
                     />
                   </div>
                 </div>

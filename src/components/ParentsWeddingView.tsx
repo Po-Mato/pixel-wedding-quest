@@ -40,6 +40,7 @@ import { joinCoupleNames, orderedSides, useCoupleOrder } from '../utils/coupleOr
 import { openGoogleCalendar, downloadWeddingIcs } from '../utils/calendar';
 import {
   hasValidWeddingCoords,
+  getOsmEmbedUrl,
   getKakaoMapUrl,
   getNaverMapWebUrl,
   getTmapDeepLink,
@@ -894,13 +895,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden border-2 border-[#dfd2be] bg-[#e9f0e8]">
               <iframe
                 title={`${config.wedding.venueName} 약도`}
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                  config.wedding.lng - 0.0045
-                }%2C${config.wedding.lat - 0.0028}%2C${
-                  config.wedding.lng + 0.0045
-                }%2C${config.wedding.lat + 0.0028}&layer=mapnik&marker=${
-                  config.wedding.lat
-                }%2C${config.wedding.lng}`}
+                src={getOsmEmbedUrl(config.wedding)}
                 loading="lazy"
                 className="w-full h-full border-0"
               />

@@ -14,6 +14,7 @@ import { WeddingConfig, QuestBuildingId } from '../data/weddingConfig';
 import { WeddingPhase } from '../utils/weddingPhase';
 import { soundEngine } from '../utils/soundEngine';
 import { useCoupleOrder } from '../utils/coupleOrder';
+import { getKakaoMapUrl } from '../utils/navigation';
 
 interface WeddingPhaseBannerProps {
   config: WeddingConfig;
@@ -33,17 +34,7 @@ export const WeddingPhaseBanner: React.FC<WeddingPhaseBannerProps> = ({
   const { names } = useCoupleOrder();
   if (phase === 'upcoming') return null;
 
-  const encodedAddr = encodeURIComponent(config.wedding.addressRoad);
-  const encodedVenue = encodeURIComponent(config.wedding.venueName);
-  const hasValidCoords =
-    Number.isFinite(config.wedding.lat) &&
-    Number.isFinite(config.wedding.lng) &&
-    config.wedding.lat !== 0 &&
-    config.wedding.lng !== 0;
-
-  const kakaoNavUrl = hasValidCoords
-    ? `https://map.kakao.com/link/to/${encodedVenue},${config.wedding.lat},${config.wedding.lng}`
-    : `https://map.kakao.com/link/search/${encodedAddr}`;
+  const kakaoNavUrl = getKakaoMapUrl(config.wedding);
 
   if (phase === 'dday') {
     return (

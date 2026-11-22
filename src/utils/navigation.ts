@@ -7,13 +7,44 @@ export function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+const LEGACY_SOSA_STATION_LAT = 37.4828;
+const LEGACY_SOSA_STATION_LNG = 126.7956;
+const MJ_CONVENTION_LAT = 37.481793;
+const MJ_CONVENTION_LNG = 126.798484;
+
+export function resolveWeddingCoords(wedding: WeddingConfig['wedding']): {
+  lat: number;
+  lng: number;
+} {
+  const lat = Number(wedding.lat);
+  const lng = Number(wedding.lng);
+  const isMjVenue =
+    /MJ\s*컨벤션/i.test(wedding.venueName || '') ||
+    /경인로\s*386/.test(wedding.addressRoad || '');
+  const isLegacySosaPin =
+    Math.abs(lat - LEGACY_SOSA_STATION_LAT) < 0.0002 &&
+    Math.abs(lng - LEGACY_SOSA_STATION_LNG) < 0.0002;
+
+  if (isMjVenue && isLegacySosaPin) {
+    return { lat: MJ_CONVENTION_LAT, lng: MJ_CONVENTION_LNG };
+  }
+  return { lat, lng };
+}
+
 export function hasValidWeddingCoords(wedding: WeddingConfig['wedding']): boolean {
-  return (
-    Number.isFinite(wedding.lat) &&
-    Number.isFinite(wedding.lng) &&
-    wedding.lat !== 0 &&
-    wedding.lng !== 0
-  );
+  const { lat, lng } = resolveWeddingCoords(wedding);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+}
+
+export function getOsmEmbedUrl(wedding: WeddingConfig['wedding']): string {
+  const { lat, lng } = resolveWeddingCoords(wedding);
+  const deltaLng = 0.0028;
+  const deltaLat = 0.0018;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${
+    lng - deltaLng
+  }%2C${lat - deltaLat}%2C${lng + deltaLng}%2C${
+    lat + deltaLat
+  }&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
 export function getNaverMapWebUrl(wedding: WeddingConfig['wedding']): string {
@@ -25,7 +56,8 @@ export function getKakaoMapUrl(wedding: WeddingConfig['wedding']): string {
   const encodedVenue = encodeURIComponent(wedding.venueName);
   const encodedAddr = encodeURIComponent(wedding.addressRoad || wedding.venueName);
   if (hasValidWeddingCoords(wedding)) {
-    return `https://map.kakao.com/link/to/${encodedVenue},${wedding.lat},${wedding.lng}`;
+    const { lat, lng } = resolveWeddingCoords(wedding);
+    return `https://map.kakao.com/link/to/${encodedVenue},${lat},${lng}`;
   }
   return `https://map.kakao.com/link/search/${encodedAddr}`;
 }
@@ -33,7 +65,8 @@ export function getKakaoMapUrl(wedding: WeddingConfig['wedding']): string {
 export function getTmapDeepLink(wedding: WeddingConfig['wedding']): string {
   const encodedVenue = encodeURIComponent(wedding.venueName);
   if (hasValidWeddingCoords(wedding)) {
-    return `tmap://route?goalname=${encodedVenue}&goalx=${wedding.lng}&goaly=${wedding.lat}`;
+    const { lat, lng } = resolveWeddingCoords(wedding);
+    return `tmap://route?goalname=${encodedVenue}&goalx=${lng}&goaly=${lat}`;
   }
   return `tmap://search?name=${encodedVenue}`;
 }
@@ -50,8 +83,9 @@ export function openNaverMap(
   e?.preventDefault();
   const encodedVenue = encodeURIComponent(wedding.venueName);
   const appName = encodeURIComponent(window.location.origin);
+  const { lat, lng } = resolveWeddingCoords(wedding);
   const appUrl = hasValidWeddingCoords(wedding)
-    ? `nmap://place?lat=${wedding.lat}&lng=${wedding.lng}&name=${encodedVenue}&appname=${appName}`
+    ? `nmap://place?lat=${lat}&lng=${lng}&name=${encodedVenue}&appname=${appName}`
     : `nmap://search?query=${encodeURIComponent(wedding.addressRoad || wedding.venueName)}&appname=${appName}`;
 
   const startedAt = Date.now();
