@@ -33,6 +33,23 @@ export interface AdminGuestbookRow extends GuestbookEntry {
 const DEFAULT_WORKER_URL = 'https://pixel-wedding-quest-api.happyugn.workers.dev';
 const STORAGE_EDIT_TOKENS_KEY = 'pixel_wedding_quest_edit_tokens_v1';
 
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  if (typeof AbortController === 'undefined') {
+    return fetch(input, init);
+  }
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 const VALID_AVATARS: AvatarClassId[] = [
   'knight',
   'mage',
@@ -126,10 +143,14 @@ export async function fetchSyncedGuestbook(
   });
 
   try {
-    const res = await fetch(`${apiBase}/api/guestbook`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
+    const res = await fetchWithTimeout(
+      `${apiBase}/api/guestbook`,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+      5500
+    );
     if (!res.ok) throw new Error('Non-200 response');
     const data = (await res.json()) as {
       entries?: Record<string, unknown>[];
@@ -261,10 +282,14 @@ export async function incrementReactionCounter(
 export async function fetchCloudWeddingConfig(): Promise<WeddingConfig | null> {
   const apiBase = getConfiguredApiBase();
   try {
-    const res = await fetch(`${apiBase}/api/config`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
+    const res = await fetchWithTimeout(
+      `${apiBase}/api/config`,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+      4000
+    );
     if (!res.ok) return null;
     const data = (await res.json()) as { config: WeddingConfig | null };
     return data.config || null;

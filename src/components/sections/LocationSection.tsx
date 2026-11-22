@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { MapPin, Copy, Check, Train, Bus, Car, Navigation, Phone } from 'lucide-react';
+import {
+  MapPin,
+  Copy,
+  Check,
+  Train,
+  Bus,
+  Car,
+  Navigation,
+  Phone,
+  Lock,
+  Hand,
+} from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
 import { copyTextToClipboard } from '../../utils/clipboard';
@@ -74,6 +85,7 @@ function buildVenueSummaryBadges(wedding: WeddingConfig['wedding']) {
 export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
   const [copied, setCopied] = useState(false);
   const [mapMode, setMapMode] = useState<'real' | 'pixel'>('real');
+  const [mapInteractive, setMapInteractive] = useState(false);
   const venueSummary = buildVenueSummaryBadges(config.wedding);
 
   const handleCopyAddress = async () => {
@@ -248,60 +260,142 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ config }) => {
           )}
         </div>
 
-        <div className="relative w-full aspect-[16/10] bg-[#e9f0e8] rounded-lg border border-[#d4b48c] overflow-hidden">
+        <div
+          className={`relative w-full aspect-[16/10] bg-[#e9f0e8] rounded-lg border-2 overflow-hidden transition-colors ${
+            mapMode === 'real' && mapInteractive
+              ? 'border-[#d97b84]'
+              : 'border-[#d4b48c]'
+          }`}
+        >
           {mapMode === 'real' && hasValidCoords ? (
             <>
               <iframe
                 title={`${config.wedding.venueName} 지도 미리보기`}
                 src={getOsmEmbedUrl(config.wedding)}
                 loading="lazy"
-                className="w-full h-full border-0"
+                className={`w-full h-full border-0 ${
+                  mapInteractive ? 'pointer-events-auto' : 'pointer-events-none'
+                }`}
               />
+              {!mapInteractive && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEngine.playBlip(640);
+                    setMapInteractive(true);
+                  }}
+                  aria-label="지도 확대 및 이동 활성화"
+                  className="absolute inset-0 bg-transparent cursor-pointer"
+                />
+              )}
               <div className="pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 text-[#3b2f2f] border border-[#d97b84] px-3 py-0.5 rounded-full text-[11px] font-bold shadow-sm whitespace-nowrap">
                 📍 {config.wedding.venueName} ({config.wedding.hallName})
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playBlip(mapInteractive ? 520 : 680);
+                  setMapInteractive((prev) => !prev);
+                }}
+                className={`absolute bottom-2.5 right-2.5 z-10 px-2.5 py-1.5 rounded-full text-[11px] font-sans font-bold shadow-md border flex items-center gap-1 backdrop-blur-sm transition-colors ${
+                  mapInteractive
+                    ? 'bg-[#3b2f2f]/90 text-[#fffdf9] border-[#d4b48c]'
+                    : 'bg-[#fffdf9]/95 text-[#3b2f2f] border-[#d4b48c] hover:bg-[#faf5ec]'
+                }`}
+              >
+                {mapInteractive ? (
+                  <>
+                    <Lock className="w-3 h-3 text-[#f0d29c]" />
+                    <span>스크롤 고정</span>
+                  </>
+                ) : (
+                  <>
+                    <Hand className="w-3 h-3 text-[#d97b84]" />
+                    <span>지도 움직이기</span>
+                  </>
+                )}
+              </button>
             </>
           ) : (
             <>
+              {/* Authentic Sosa Station (Line 1 + Seohae Line) -> Gyeongin-ro -> MJ Convention Pixel Map */}
               <svg
-                viewBox="0 0 160 90"
+                viewBox="0 0 180 112"
                 shapeRendering="crispEdges"
                 className="w-full h-full pixelated"
               >
-                {/* Soft Sage Park Background */}
-                <rect x="0" y="0" width="160" height="90" fill="#dce7dc" />
-                <rect x="12" y="10" width="42" height="28" fill="#cde0cd" />
-                <rect x="104" y="54" width="44" height="24" fill="#cde0cd" />
+                {/* Warm Pastel Neighborhood Base */}
+                <rect x="0" y="0" width="180" height="112" fill="#edf2e9" />
+                <rect x="6" y="76" width="44" height="28" fill="#dfead8" />
+                <rect x="136" y="10" width="38" height="22" fill="#dfead8" />
 
-                {/* Warm Stone Roads */}
-                <rect x="0" y="50" width="160" height="14" fill="#e6dfd5" />
-                <rect x="72" y="18" width="16" height="72" fill="#e6dfd5" />
+                {/* Seohae Line (Soft Green #72b844) Vertical Rail at Sosa Station */}
+                <rect x="34" y="0" width="4" height="112" fill="#72b844" />
+                <rect x="35" y="0" width="2" height="112" fill="#9cd474" />
 
-                {/* White Crosswalk Lines */}
-                <rect x="75" y="45" width="10" height="2" fill="#ffffff" />
-                <rect x="75" y="48" width="10" height="2" fill="#ffffff" />
+                {/* Line 1 Gyeongin Rail (Navy #263c96) Horizontal Track */}
+                <rect x="0" y="28" width="180" height="6" fill="#263c96" />
+                <rect x="0" y="30" width="180" height="2" fill="#4f67c2" />
 
-                {/* Subway Line 2 (Soft Sage Green) */}
-                <rect x="0" y="76" width="160" height="5" fill="#6b9071" />
-                <rect x="64" y="71" width="32" height="12" fill="#fffdf9" />
-                <rect x="66" y="73" width="28" height="8" fill="#6b9071" />
+                {/* Sosa Station Building (Line 1 & Seohae Transfer) */}
+                <rect x="20" y="21" width="32" height="18" fill="#fffdf9" />
+                <rect x="21" y="22" width="30" height="16" fill="#eef2ff" />
+                <rect x="20" y="21" width="32" height="3" fill="#263c96" />
+                <rect x="20" y="36" width="32" height="3" fill="#72b844" />
 
-                {/* Walking Path Dots */}
-                <rect x="84" y="42" width="2" height="2" fill="#d97b84" />
-                <rect x="84" y="36" width="2" height="2" fill="#d97b84" />
-                <rect x="84" y="30" width="2" height="2" fill="#d97b84" />
+                {/* Exit 1 Marker */}
+                <rect x="48" y="40" width="8" height="8" fill="#d97b84" />
+                <rect x="50" y="42" width="4" height="4" fill="#fffdf9" />
 
-                {/* Glasshouse Chapel Building */}
-                <rect x="62" y="10" width="36" height="18" fill="#fffdf9" />
-                <rect x="64" y="5" width="32" height="5" fill="#d97b84" />
-                <rect x="76" y="17" width="8" height="11" fill="#e6d5b8" />
+                {/* Sosa-ro Vertical Road & Gyeongin-ro Main Boulevard */}
+                <rect x="30" y="44" width="12" height="68" fill="#e6dfd5" />
+                <rect x="0" y="46" width="180" height="16" fill="#e6dfd5" />
+                <rect x="0" y="53" width="180" height="2" fill="#fffdf9" />
+
+                {/* Sosa Eoulmadang 3-Way Junction South Branch */}
+                <rect x="132" y="62" width="10" height="50" fill="#e6dfd5" />
+
+                {/* Crosswalk Stripes near Sosa Station */}
+                <rect x="46" y="48" width="2" height="12" fill="#ffffff" />
+                <rect x="50" y="48" width="2" height="12" fill="#ffffff" />
+
+                {/* 3-Min Straight Walking Path Dots (Exit 1 -> East along Gyeongin-ro -> MJ Convention) */}
+                <rect x="60" y="64" width="4" height="2" fill="#d97b84" />
+                <rect x="68" y="64" width="4" height="2" fill="#d97b84" />
+                <rect x="76" y="64" width="4" height="2" fill="#d97b84" />
+                <rect x="84" y="64" width="4" height="2" fill="#d97b84" />
+                <rect x="92" y="64" width="4" height="2" fill="#d97b84" />
+                <rect x="100" y="64" width="4" height="2" fill="#d97b84" />
+                <rect x="108" y="64" width="4" height="2" fill="#d97b84" />
+
+                {/* MJ Convention Wedding Hall Building (South side of Gyeongin-ro, West of Junction) */}
+                <rect x="102" y="67" width="28" height="26" fill="#d4b48c" />
+                <rect x="104" y="69" width="24" height="22" fill="#fffdf9" />
+                <rect x="104" y="67" width="24" height="5" fill="#d97b84" />
+                {/* Windows & Entrance */}
+                <rect x="107" y="75" width="4" height="4" fill="#d7e8f5" />
+                <rect x="114" y="75" width="4" height="4" fill="#d7e8f5" />
+                <rect x="121" y="75" width="4" height="4" fill="#d7e8f5" />
+                <rect x="112" y="83" width="8" height="8" fill="#e6d5b8" />
+                {/* Heart Pin above MJ Convention */}
+                <rect x="114" y="58" width="4" height="4" fill="#d97b84" />
+                <rect x="115" y="62" width="2" height="2" fill="#d97b84" />
               </svg>
 
-              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 text-[#3b2f2f] border border-[#d97b84] px-3 py-0.5 rounded-full text-[11px] font-bold shadow-sm">
-                🕊️ {config.wedding.venueName}
+              {/* Crisp HTML Map Labels Overlay */}
+              <div className="pointer-events-none absolute top-[18%] left-[11%] bg-[#fffdf9]/95 border border-[#263c96] text-[#263c96] px-2 py-0.5 rounded-full text-[9px] font-sans font-extrabold shadow-sm">
+                1·서해 소사역
               </div>
-
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 border border-[#6b9071] text-[#4d6b53] px-2.5 py-0.5 rounded-full text-[10px] font-sans font-semibold max-w-[92%] truncate">
+              <div className="pointer-events-none absolute top-[41%] left-[25%] bg-[#d97b84] text-white px-1.5 py-0.5 rounded text-[8px] font-sans font-bold shadow-sm">
+                1번출구
+              </div>
+              <div className="pointer-events-none absolute top-[55%] left-[44%] -translate-x-1/2 bg-[#fffdf9]/95 border border-[#e2a3a9] text-[#b85d67] px-2 py-0.5 rounded-full text-[9px] font-sans font-bold shadow-sm">
+                경인로 직진 도보 3분 →
+              </div>
+              <div className="pointer-events-none absolute top-[35%] right-[12%] bg-[#fffdf9]/95 border-2 border-[#d97b84] text-[#3b2f2f] px-2.5 py-0.5 rounded-full text-[10px] font-sans font-extrabold shadow-sm">
+                💐 {config.wedding.venueName}
+              </div>
+              <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 border border-[#6b9071] text-[#4d6b53] px-2.5 py-0.5 rounded-full text-[10px] font-sans font-semibold max-w-[92%] truncate">
                 🚇 {config.wedding.subwayGuide[0] || config.wedding.addressRoad}
               </div>
             </>

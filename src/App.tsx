@@ -951,6 +951,9 @@ export function App() {
                 config={config}
                 guestbook={guestbook}
                 initialSide={parentsSide}
+                phase={activePhase}
+                isPreviewPhase={Boolean(phaseOverride)}
+                onResetPhasePreview={() => setPhaseOverride(null)}
                 onAddGuestbook={handleAddGuestbook}
                 onDeleteGuestbook={handleDeleteGuestbook}
               />

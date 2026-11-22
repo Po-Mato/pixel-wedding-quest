@@ -23,8 +23,16 @@ import {
   ArrowUp,
   CheckCircle2,
   Send,
+  Lock,
+  Hand,
 } from 'lucide-react';
-import { WeddingConfig, GuestbookEntry, BankAccount } from '../data/weddingConfig';
+import {
+  WeddingConfig,
+  GuestbookEntry,
+  BankAccount,
+  QuestBuildingId,
+} from '../data/weddingConfig';
+import { WeddingPhaseBanner } from './WeddingPhaseBanner';
 import {
   canEditOwnGuestbookEntry,
   deleteOwnGuestbookEntry,
@@ -32,7 +40,7 @@ import {
 import { copyTextToClipboard } from '../utils/clipboard';
 import { fillCoupleText } from '../utils/coupleText';
 import { fireCelebrationConfetti, prefersReducedMotion } from '../utils/motion';
-import { getWeddingDayDiff } from '../utils/weddingPhase';
+import { getWeddingDayDiff, WeddingPhase } from '../utils/weddingPhase';
 import { formatKoreanPhoneInput, cleanPhoneForHref } from '../utils/phone';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { shareViaKakaoTalk } from '../utils/kakaoShare';
@@ -71,6 +79,9 @@ interface ParentsWeddingViewProps {
   config: WeddingConfig;
   guestbook: GuestbookEntry[];
   initialSide?: ParentsSideFilter;
+  phase?: WeddingPhase;
+  isPreviewPhase?: boolean;
+  onResetPhasePreview?: () => void;
   onAddGuestbook: (entry: GuestbookEntry) => Promise<boolean> | boolean | void;
   onDeleteGuestbook?: (id: string) => void;
 }
@@ -79,6 +90,9 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   config,
   guestbook,
   initialSide = 'all',
+  phase = 'upcoming',
+  isPreviewPhase = false,
+  onResetPhasePreview,
   onAddGuestbook,
   onDeleteGuestbook,
 }) => {
@@ -111,7 +125,24 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [activeNavId, setActiveNavId] = useState<ParentsNavId | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [mapInteractive, setMapInteractive] = useState(false);
   const [imgLoadedMap, setImgLoadedMap] = useState<Record<string, boolean>>({});
+
+  const jumpToParentsSection = (sectionId: QuestBuildingId) => {
+    const idMap: Record<QuestBuildingId, string> = {
+      story: 'parents-greeting',
+      ceremony: 'parents-ceremony',
+      gallery: 'parents-gallery',
+      minigame: 'parents-greeting',
+      location: 'parents-location',
+      gift: 'parents-gift',
+      rsvp: 'parents-rsvp',
+    };
+    const targetId = idMap[sectionId] || 'parents-greeting';
+    document.getElementById(targetId)?.scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+  };
   const lightboxTouchStartRef = useRef<{ x: number; y: number } | null>(null);
   useBodyScrollLock(lightboxIdx !== null && Boolean(config.gallery[lightboxIdx]));
 
@@ -504,6 +535,17 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
       </div>
 
+      {/* Wedding Day / Post-Wedding Banner for Parents & Elders */}
+      {phase !== 'upcoming' && (
+        <WeddingPhaseBanner
+          config={config}
+          phase={phase}
+          isPreviewOverride={isPreviewPhase}
+          onResetPreview={onResetPhasePreview}
+          onJumpToSection={jumpToParentsSection}
+        />
+      )}
+
       {/* 1. Dignified Formal Hero Cover */}
       <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl overflow-hidden shadow-[0_12px_32px_-14px_rgba(45,34,30,0.12)] text-center">
         <div className="pt-8 pb-5 px-6 bg-gradient-to-b from-[#faf4ea] to-[#fffdf9] border-b border-[#efe6d8]">
@@ -731,7 +773,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       </section>
 
       {/* 4. High-Contrast Wedding Date & Large Calendar */}
-      <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 text-center">
+      <section
+        id="parents-ceremony"
+        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 text-center"
+      >
         <div className="border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-bold text-[#2d221e]`}>예식 일시 안내</h2>
           <p className={`${textScale.nameLarge} font-bold text-[#b35c66] mt-2 tabular-nums`}>
@@ -889,19 +934,54 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </div>
         </div>
 
-        {/* Interactive Map Preview & Large 1-Tap Navigation Buttons */}
+        {/* Interactive Map Preview (Scroll-Safe Toggle) & Large 1-Tap Navigation Buttons */}
         <div className="space-y-3">
           {hasValidCoords && (
-            <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden border-2 border-[#dfd2be] bg-[#e9f0e8]">
+            <div
+              className={`relative w-full aspect-[16/9] rounded-2xl overflow-hidden border-2 bg-[#e9f0e8] transition-colors ${
+                mapInteractive ? 'border-[#b35c66]' : 'border-[#dfd2be]'
+              }`}
+            >
               <iframe
                 title={`${config.wedding.venueName} 약도`}
                 src={getOsmEmbedUrl(config.wedding)}
                 loading="lazy"
-                className="w-full h-full border-0"
+                className={`w-full h-full border-0 ${
+                  mapInteractive ? 'pointer-events-auto' : 'pointer-events-none'
+                }`}
               />
+              {!mapInteractive && (
+                <button
+                  type="button"
+                  onClick={() => setMapInteractive(true)}
+                  aria-label="지도 확대 및 이동 활성화"
+                  className="absolute inset-0 bg-transparent cursor-pointer"
+                />
+              )}
               <div className="pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 bg-[#fffdf9]/95 text-[#2d221e] border border-[#b35c66] px-3.5 py-1 rounded-full text-xs sm:text-sm font-bold shadow-sm whitespace-nowrap">
                 📍 {config.wedding.venueName} ({config.wedding.hallName})
               </div>
+              <button
+                type="button"
+                onClick={() => setMapInteractive((prev) => !prev)}
+                className={`absolute bottom-2.5 right-2.5 z-10 px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-md border flex items-center gap-1.5 backdrop-blur-sm transition-colors ${
+                  mapInteractive
+                    ? 'bg-[#2d221e]/95 text-[#fffdf9] border-[#d4b48c]'
+                    : 'bg-[#fffdf9]/95 text-[#2d221e] border-[#c9b69c] hover:bg-[#faf5ec]'
+                }`}
+              >
+                {mapInteractive ? (
+                  <>
+                    <Lock className="w-3.5 h-3.5 text-[#f0d29c]" />
+                    <span>스크롤 고정</span>
+                  </>
+                ) : (
+                  <>
+                    <Hand className="w-3.5 h-3.5 text-[#b35c66]" />
+                    <span>지도 움직이기</span>
+                  </>
+                )}
+              </button>
             </div>
           )}
 
@@ -1130,7 +1210,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       </section>
 
       {/* 7. Easy-to-Browse Wedding Photo Album */}
-      <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-5">
+      <section
+        id="parents-gallery"
+        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-5"
+      >
         <div className="text-center border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-bold text-[#2d221e]`}>
             신랑 · 신부 웨딩 사진
@@ -1177,7 +1260,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       </section>
 
       {/* 8. Simple Senior-Friendly RSVP & Guestbook (D1 Synced) */}
-      <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans">
+      <section
+        id="parents-rsvp"
+        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans"
+      >
         <div className="text-center border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-serif font-bold text-[#2d221e]`}>
             참석 의사 전달 및 축하 말씀
