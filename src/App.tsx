@@ -81,7 +81,6 @@ type AppScreenMode = 'title' | 'world' | 'classic' | 'parents';
 
 const STORAGE_GUESTBOOK_KEY = 'pixel_wedding_quest_guestbook_v2';
 const STORAGE_CLOUD_CONFIG_KEY = 'pixel_wedding_quest_cloud_config_v3';
-const STORAGE_ENTRY_PREF_KEY = 'pixel_wedding_quest_entry_pref_v1';
 const STORAGE_VISITED_QUESTS_KEY = 'pixel_wedding_quest_visited_quests_v1';
 const STORAGE_EARNED_TITLE_KEY = 'pixel_wedding_quest_earned_title_v1';
 
@@ -94,36 +93,6 @@ const DEFAULT_VISITED_QUESTS: Record<QuestBuildingId, boolean> = {
   gift: false,
   rsvp: false,
 };
-
-interface SavedEntryPref {
-  mode: 'classic' | 'parents';
-  side: CoupleSide;
-}
-
-function loadSavedEntryPref(): SavedEntryPref | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_ENTRY_PREF_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<SavedEntryPref>;
-    if (
-      (parsed.mode === 'classic' || parsed.mode === 'parents') &&
-      (parsed.side === 'groom' || parsed.side === 'bride')
-    ) {
-      return { mode: parsed.mode, side: parsed.side };
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
-function saveEntryPref(mode: 'classic' | 'parents', side: CoupleSide): void {
-  try {
-    localStorage.setItem(STORAGE_ENTRY_PREF_KEY, JSON.stringify({ mode, side }));
-  } catch {
-    // ignore
-  }
-}
 
 function loadCachedCloudConfig(): WeddingConfig | null {
   try {
@@ -177,11 +146,7 @@ function detectInitialRoute(): { mode: AppScreenMode; side: ParentsSideFilter } 
     // ignore
   }
 
-  // 기본 링크 재방문 시 이전에 고른 맞춤 모드로 바로 진입, 최초 방문 시 4버튼 선택 화면 표시
-  const saved = loadSavedEntryPref();
-  if (saved) {
-    return { mode: saved.mode, side: saved.side };
-  }
+  // 기본 링크 접속 시(최초·재방문 모두) 항상 4버튼 모드 선택 화면 표시
   return { mode: 'title', side: 'all' };
 }
 
@@ -426,13 +391,14 @@ export function App() {
   ) => {
     const url = new URL(window.location.href);
     if (nextMode === 'title') {
-      url.searchParams.set('mode', 'title');
+      url.searchParams.delete('mode');
       url.searchParams.delete('side');
     } else if (nextMode === 'classic') {
-      url.searchParams.delete('mode');
       if (nextSide === 'groom' || nextSide === 'bride') {
+        url.searchParams.delete('mode');
         url.searchParams.set('side', nextSide);
       } else {
+        url.searchParams.set('mode', 'classic');
         url.searchParams.delete('side');
       }
     } else {
@@ -624,7 +590,6 @@ export function App() {
   };
 
   const handleSelectEntry = (mode: 'classic' | 'parents', side: CoupleSide) => {
-    saveEntryPref(mode, side);
     if (mode === 'parents') {
       soundEngine.stopBgm();
       setBgmPlaying(false);
