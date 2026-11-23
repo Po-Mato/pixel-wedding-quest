@@ -56,6 +56,7 @@ export const PIXEL_SPRITE_SHEETS: {
     knight: `${PIXEL_SHEET_BASE}/guest-knight-sheet.webp`,
     archer: `${PIXEL_SHEET_BASE}/guest-archer-sheet.webp`,
     bard: `${PIXEL_SHEET_BASE}/guest-bard-sheet.webp`,
+    healer: `${PIXEL_SHEET_BASE}/guest-healer-sheet.webp`,
     cat: `${PIXEL_SHEET_BASE}/dog-kkomi-sheet.webp`,
   },
 };
