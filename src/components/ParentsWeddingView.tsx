@@ -72,6 +72,7 @@ const PARENTS_NAV_IDS = [
   'parents-contact',
   'parents-location',
   'parents-gift',
+  'parents-rsvp',
 ] as const;
 type ParentsNavId = (typeof PARENTS_NAV_IDS)[number];
 
@@ -126,6 +127,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [activeNavId, setActiveNavId] = useState<ParentsNavId | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [mapInteractive, setMapInteractive] = useState(false);
+  const [showSideShareLinks, setShowSideShareLinks] = useState(false);
   const [imgLoadedMap, setImgLoadedMap] = useState<Record<string, boolean>>({});
 
   const jumpToParentsSection = (sectionId: QuestBuildingId) => {
@@ -501,14 +503,15 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </div>
         </div>
 
-        {/* Big Quick-Jump Anchor Buttons with Active Scroll Spy */}
-        <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-[#efe6d8] text-center">
+        {/* Big Quick-Jump Anchor Buttons with Active Scroll Spy (5 Sections) */}
+        <div className="grid grid-cols-5 gap-1 pt-1 border-t border-[#efe6d8] text-center">
           {(
             [
               { id: 'parents-greeting', label: '모시는 글' },
-              { id: 'parents-contact', label: '혼주 연락처' },
+              { id: 'parents-contact', label: '연락처' },
               { id: 'parents-location', label: '오시는 길' },
-              { id: 'parents-gift', label: '마음 전할 곳' },
+              { id: 'parents-gift', label: '계좌' },
+              { id: 'parents-rsvp', label: '참석전달' },
             ] as const
           ).map((nav) => {
             const isActive = activeNavId === nav.id;
@@ -522,7 +525,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                     behavior: prefersReducedMotion() ? 'auto' : 'smooth',
                   });
                 }}
-                className={`py-2 px-1 rounded-xl border text-xs sm:text-sm font-bold transition-colors ${
+                className={`py-2 px-0.5 rounded-xl border text-[11px] sm:text-sm font-bold whitespace-nowrap transition-colors ${
                   isActive
                     ? 'bg-[#2d221e] text-[#fffdf9] border-[#2d221e] shadow-sm'
                     : 'bg-[#faf5ec] hover:bg-[#f1e7d6] border-[#e2d4c0] text-[#3b2f2f]'
@@ -1024,7 +1027,11 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           <div className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-5 space-y-2.5">
             <div className={`${textScale.nameLarge} font-bold text-[#355e40] flex items-center gap-2`}>
               <Train className="w-5 h-5 shrink-0" />
-              <span>지하철 및 셔틀버스 안내</span>
+              <span>
+                {/셔틀/.test(config.wedding.shuttleGuide || '')
+                  ? '지하철 및 셔틀버스 안내'
+                  : '지하철 및 도보 안내'}
+              </span>
             </div>
             <ul className={`${textScale.body} space-y-2 text-[#2d221e] break-keep`}>
               {config.wedding.subwayGuide.map((line, i) => (
@@ -1371,19 +1378,19 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-4">
             <div>
               <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
                 어느 측 하객이신가요?
               </label>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setGuestSide('groom')}
                   style={{ order: groomOrder }}
-                  className={`py-3 rounded-xl font-bold border text-sm sm:text-base ${
+                  className={`py-3 rounded-xl font-bold border-2 text-sm sm:text-base transition-colors ${
                     guestSide === 'groom'
-                      ? 'bg-[#2d221e] text-white border-[#2d221e]'
+                      ? 'bg-[#2d221e] text-white border-[#2d221e] shadow-sm'
                       : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
                   }`}
                 >
@@ -1393,9 +1400,9 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                   type="button"
                   onClick={() => setGuestSide('bride')}
                   style={{ order: brideOrder }}
-                  className={`py-3 rounded-xl font-bold border text-sm sm:text-base ${
+                  className={`py-3 rounded-xl font-bold border-2 text-sm sm:text-base transition-colors ${
                     guestSide === 'bride'
-                      ? 'bg-[#b35c66] text-white border-[#b35c66]'
+                      ? 'bg-[#b35c66] text-white border-[#b35c66] shadow-sm'
                       : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
                   }`}
                 >
@@ -1408,54 +1415,92 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
                 참석 여부
               </label>
-              <select
-                value={attendance}
-                onChange={(e) =>
-                  setAttendance(e.target.value as 'attend' | 'unable' | 'maybe')
-                }
-                className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-base text-[#2d221e]"
-              >
-                <option value="attend">참석합니다</option>
-                <option value="maybe">미정입니다</option>
-                <option value="unable">마음만 전합니다</option>
-              </select>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(
+                  [
+                    { id: 'attend', label: '참석합니다' },
+                    { id: 'maybe', label: '미정입니다' },
+                    { id: 'unable', label: '마음만 전함' },
+                  ] as const
+                ).map((opt) => {
+                  const active = attendance === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setAttendance(opt.id)}
+                      className={`py-3 px-1.5 rounded-xl font-bold border-2 text-xs sm:text-sm transition-colors ${
+                        active
+                          ? opt.id === 'attend'
+                            ? 'bg-[#b35c66] text-white border-[#b35c66] shadow-sm'
+                            : 'bg-[#2d221e] text-white border-[#2d221e] shadow-sm'
+                          : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
           {attendance !== 'unable' && (
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-4">
               <div>
                 <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
                   방문 인원 (본인 포함)
                 </label>
-                <select
-                  value={companions}
-                  onChange={(e) => setCompanions(Number(e.target.value))}
-                  className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-base text-[#2d221e]"
-                >
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      {n}명
-                    </option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  {[1, 2, 3, 4, 5, 6].map((n) => {
+                    const active = companions === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setCompanions(n)}
+                        className={`py-2.5 rounded-xl font-bold border-2 text-sm sm:text-base tabular-nums transition-colors ${
+                          active
+                            ? 'bg-[#2d221e] text-white border-[#2d221e] shadow-sm'
+                            : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
+                        }`}
+                      >
+                        {n}명
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>
                 <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
                   식사 여부
                 </label>
-                <select
-                  value={meal}
-                  onChange={(e) =>
-                    setMeal(e.target.value as 'yes' | 'no' | 'undecided')
-                  }
-                  className="w-full bg-[#fffdf9] border-2 border-[#c9b69c] rounded-xl px-3 py-3 font-bold text-base text-[#2d221e]"
-                >
-                  <option value="yes">식사 예정</option>
-                  <option value="no">식사 안 함</option>
-                  <option value="undecided">미정</option>
-                </select>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(
+                    [
+                      { id: 'yes', label: '식사 예정' },
+                      { id: 'no', label: '식사 안 함' },
+                      { id: 'undecided', label: '미정' },
+                    ] as const
+                  ).map((opt) => {
+                    const active = meal === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setMeal(opt.id)}
+                        className={`py-3 px-1.5 rounded-xl font-bold border-2 text-xs sm:text-sm transition-colors ${
+                          active
+                            ? 'bg-[#2d221e] text-white border-[#2d221e] shadow-sm'
+                            : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -1696,27 +1741,42 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           )}
         </button>
 
-        <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="pt-1">
           <button
             type="button"
-            onClick={() => handleShareParentsPage('groom', 'groom')}
-            style={{ order: groomOrder }}
-            className="py-2.5 px-3 rounded-xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#d8c7b0] text-xs sm:text-sm font-bold text-[#3b2f2f]"
+            onClick={() => setShowSideShareLinks((prev) => !prev)}
+            aria-expanded={showSideShareLinks}
+            className="text-xs sm:text-sm font-bold text-[#69584f] hover:text-[#2d221e] underline underline-offset-4 py-1"
           >
-            {copiedShare === 'groom'
-              ? '✓ 신랑측 혼주용 복사됨'
-              : '🤵 신랑측 혼주용 링크 복사'}
+            {showSideShareLinks
+              ? '혼주별 전용 링크 접기 ▲'
+              : '혼주별 전용 링크 복사 (신랑측 · 신부측) ▾'}
           </button>
-          <button
-            type="button"
-            onClick={() => handleShareParentsPage('bride', 'bride')}
-            style={{ order: brideOrder }}
-            className="py-2.5 px-3 rounded-xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#d8c7b0] text-xs sm:text-sm font-bold text-[#b35c66]"
-          >
-            {copiedShare === 'bride'
-              ? '✓ 신부측 혼주용 복사됨'
-              : '👰 신부측 혼주용 링크 복사'}
-          </button>
+
+          {showSideShareLinks && (
+            <div className="grid grid-cols-2 gap-2 pt-2.5 animate-fadeIn">
+              <button
+                type="button"
+                onClick={() => handleShareParentsPage('groom', 'groom')}
+                style={{ order: groomOrder }}
+                className="py-2.5 px-3 rounded-xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#d8c7b0] text-xs sm:text-sm font-bold text-[#3b2f2f]"
+              >
+                {copiedShare === 'groom'
+                  ? '✓ 신랑측 혼주용 복사됨'
+                  : '🤵 신랑측 혼주용 링크 복사'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleShareParentsPage('bride', 'bride')}
+                style={{ order: brideOrder }}
+                className="py-2.5 px-3 rounded-xl bg-[#faf5ec] hover:bg-[#f0e5d4] border border-[#d8c7b0] text-xs sm:text-sm font-bold text-[#b35c66]"
+              >
+                {copiedShare === 'bride'
+                  ? '✓ 신부측 혼주용 복사됨'
+                  : '👰 신부측 혼주용 링크 복사'}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
