@@ -26,7 +26,18 @@ import {
   ZONE_MINI_QUESTS,
   ZoneMiniQuestItem,
 } from '../data/worldExtras';
-import { PIXEL_ASSETS, GUEST_SPRITES } from './PixelSprites';
+import { PIXEL_ASSETS, PIXEL_SPRITE_SHEETS, GUEST_SPRITES } from './PixelSprites';
+import {
+  SpriteFacing,
+  CharacterActionKind,
+  CharacterActionState,
+  resolveFacingFromDelta,
+  resolveFacingToward,
+  getWalkFrameCol,
+  createCharacterAction,
+  getActionForReactionEmoji,
+  drawCharacterSprite,
+} from '../utils/spriteAnimator';
 import { soundEngine } from '../utils/soundEngine';
 import { fillCoupleText } from '../utils/coupleText';
 import { fireCelebrationConfetti, prefersReducedMotion } from '../utils/motion';
@@ -397,7 +408,30 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   });
   const currentTileRef = useRef<TileCoord>(initialSpawnTile);
   const pathQueueRef = useRef<TileCoord[]>([]);
-  const facingDirRef = useRef<1 | -1>(1);
+  const playerFacingRef = useRef<SpriteFacing>('down');
+  const walkPhaseRef = useRef<number>(0);
+  const playerActionRef = useRef<CharacterActionState | null>(null);
+  const companionActionsRef = useRef<{
+    bride: CharacterActionState | null;
+    cream: CharacterActionState | null;
+    kkomi: CharacterActionState | null;
+  }>({ bride: null, cream: null, kkomi: null });
+  const npcActionRef = useRef<{ npcId: string; action: CharacterActionState } | null>(null);
+  const selfActionCycleRef = useRef<number>(0);
+  const activeDialogueNpcRef = useRef<ActiveNpcTarget | null>(null);
+  useEffect(() => {
+    activeDialogueNpcRef.current = activeDialogueNpc;
+  }, [activeDialogueNpc]);
+
+  const triggerPlayerAction = useCallback((kind: CharacterActionKind) => {
+    const now = performance.now();
+    playerActionRef.current = createCharacterAction(kind, now, 0);
+    companionActionsRef.current = {
+      bride: createCharacterAction(kind, now, 70),
+      cream: createCharacterAction(kind, now, 130),
+      kkomi: createCharacterAction(kind, now, 190),
+    };
+  }, []);
   const pendingLandmarkRef = useRef<MapLandmark | null>(null);
   const pendingPortalRef = useRef<MapPortal | null>(null);
   const pendingSecretRef = useRef<SecretPropItem | null>(null);
@@ -456,7 +490,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   });
   const snapCameraRef = useRef<boolean>(true);
 
-  // Preload all 9 Map Backgrounds + Chibi Character Sprites + Bichon Dogs (Cream & Kkomi)
+  // Preload all 9 Map Backgrounds + Chibi Character Sprites + 3x4 Animated Sprite Sheets + Bichon Dogs
   const assetsRef = useRef<{
     maps: Partial<Record<GardenMapId, HTMLImageElement>>;
     groom: HTMLImageElement | null;
@@ -465,6 +499,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     dogKkomi: HTMLImageElement | null;
     cat: HTMLImageElement | null;
     guests: Partial<Record<AvatarClassId, HTMLImageElement>>;
+    sheets: {
+      groom: HTMLImageElement | null;
+      bride: HTMLImageElement | null;
+      dogCream: HTMLImageElement | null;
+      dogKkomi: HTMLImageElement | null;
+      guests: Partial<Record<AvatarClassId, HTMLImageElement>>;
+    };
   }>({
     maps: {},
     groom: null,
@@ -473,6 +514,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     dogKkomi: null,
     cat: null,
     guests: {},
+    sheets: {
+      groom: null,
+      bride: null,
+      dogCream: null,
+      dogKkomi: null,
+      guests: {},
+    },
   });
 
   const ensureMapAssetLoaded = useCallback((mapId: GardenMapId) => {
@@ -501,7 +549,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       img.src = src;
       img.onload = () => onLoad(img);
     };
-    // Priority 1: Character Sprites & Initial Starting Map ('home') + Immediate Neighbor ('neighborhood') & Main Venue ('garden')
+    // Priority 1: Static Fallback Sprites + Core Animated Sheets + Starting Maps
     loadImg(PIXEL_ASSETS.groomSprite, (img) => (assetsRef.current.groom = img));
     loadImg(PIXEL_ASSETS.brideSprite, (img) => (assetsRef.current.bride = img));
     loadImg(PIXEL_ASSETS.dogCreamSprite, (img) => (assetsRef.current.dogCream = img));
@@ -510,6 +558,18 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     (Object.keys(GUEST_SPRITES) as AvatarClassId[]).forEach((id) =>
       loadImg(GUEST_SPRITES[id].sprite, (img) => (assetsRef.current.guests[id] = img))
     );
+
+    // 3x4 4-Direction + Walk + Action Sprite Sheets
+    loadImg(PIXEL_SPRITE_SHEETS.groom, (img) => (assetsRef.current.sheets.groom = img));
+    loadImg(PIXEL_SPRITE_SHEETS.bride, (img) => (assetsRef.current.sheets.bride = img));
+    loadImg(PIXEL_SPRITE_SHEETS.dogCream, (img) => (assetsRef.current.sheets.dogCream = img));
+    loadImg(PIXEL_SPRITE_SHEETS.dogKkomi, (img) => (assetsRef.current.sheets.dogKkomi = img));
+    (Object.keys(PIXEL_SPRITE_SHEETS.guests) as AvatarClassId[]).forEach((id) => {
+      const sheetUrl = PIXEL_SPRITE_SHEETS.guests[id];
+      if (sheetUrl) {
+        loadImg(sheetUrl, (img) => (assetsRef.current.sheets.guests[id] = img));
+      }
+    });
     ensureMapAssetLoaded('home');
     ensureMapAssetLoaded('neighborhood');
     ensureMapAssetLoaded('garden');
@@ -550,6 +610,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     (emoji: string, fromBroadcast = false, customOrigin?: { x: number; y: number }) => {
       if (!fromBroadcast) {
         soundEngine.playCoin();
+        if (!customOrigin) {
+          triggerPlayerAction(getActionForReactionEmoji(emoji));
+        }
         incrementReactionCounter('blessing')
           .then((res) => {
             if (res && typeof res.blessingCount === 'number') {
@@ -587,7 +650,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         }
       }
     },
-    []
+    [triggerPlayerAction]
   );
 
   useEffect(() => {
@@ -616,6 +679,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   const activateSecretProp = useCallback(
     (prop: SecretPropItem) => {
       soundEngine.playFanfare();
+      triggerPlayerAction('cheer');
       setActiveStoryToast({
         badge: `SECRET DISCOVERED · ${prop.icon}`,
         title: prop.title,
@@ -733,6 +797,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   // Trigger a landmark's special interaction or open its linked invitation modal
   const activateLandmark = useCallback(
     (landmark: MapLandmark) => {
+      triggerPlayerAction('wave');
       if (landmark.storySnippet) {
         setActiveStoryToast({
           badge: landmark.badge,
@@ -869,6 +934,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         } else if (nearbyLandmark) {
           e.preventDefault();
           activateLandmark(nearbyLandmark);
+        } else if (e.key === ' ') {
+          e.preventDefault();
+          const cycle: CharacterActionKind[] = ['wave', 'cheer', 'pose', 'spin'];
+          const nextKind = cycle[selfActionCycleRef.current % cycle.length];
+          selfActionCycleRef.current += 1;
+          soundEngine.playBlip(680);
+          triggerPlayerAction(nextKind);
         }
       }
     };
@@ -961,9 +1033,20 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     [dismissWalkHint]
   );
 
-  // Open 3-Choice Dialogue Modal with a Guest NPC, Pet Cat '모찌', Groom, or Bride
+  // Open 3-Choice Dialogue Modal with a Guest NPC, Pet Dog, Groom, or Bride
   const openNpcDialogue = useCallback((npc: ActiveNpcTarget) => {
     soundEngine.playSelect();
+    playerFacingRef.current = resolveFacingToward(
+      posRef.current.x,
+      posRef.current.y,
+      npc.x,
+      npc.y,
+      playerFacingRef.current
+    );
+    npcActionRef.current = {
+      npcId: npc.id,
+      action: createCharacterAction('wave', performance.now()),
+    };
     setActiveDialogueNpc(npc);
     setDialogueReplyText(`“${npc.initialMessage}”`);
     setTalkedToAnyNpc(true);
@@ -987,6 +1070,12 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       config
     );
     setDialogueReplyText(reply);
+
+    npcActionRef.current = {
+      npcId: activeDialogueNpc.id,
+      action: createCharacterAction('cheer', performance.now()),
+    };
+    triggerPlayerAction('wave');
 
     spawnFloatingReaction(choiceMeta.emoji, false, {
       x: activeDialogueNpc.x,
@@ -1112,6 +1201,32 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       } else {
         walkToLandmark(tappedLandmark);
       }
+    } else if (
+      Math.hypot(clickX - posRef.current.x, clickY - (posRef.current.y - 4)) < 7.5
+    ) {
+      // Tapping directly on the player character triggers a playful action emote!
+      const cycle: CharacterActionKind[] = ['wave', 'cheer', 'pose', 'spin'];
+      const nextKind = cycle[selfActionCycleRef.current % cycle.length];
+      selfActionCycleRef.current += 1;
+      soundEngine.playCoin();
+      triggerPlayerAction(nextKind);
+      const emojisByAction: Record<CharacterActionKind, string> = {
+        wave: '👋',
+        cheer: '🎉',
+        pose: '💖',
+        spin: '✨',
+        jump: '✨',
+      };
+      reactionsRef.current.push({
+        id: Date.now() + Math.random(),
+        emoji: emojisByAction[nextKind],
+        x: posRef.current.x,
+        y: posRef.current.y - 10,
+        vx: (Math.random() - 0.5) * 0.16,
+        vy: -0.45,
+        alpha: 1,
+        scale: 1.15,
+      });
     } else {
       soundEngine.playBlip(560);
       setActiveDialogueNpc(null);
@@ -1410,6 +1525,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       let isMoving = false;
 
       if (Math.hypot(dx, dy) > 0.14) {
+        // Always orient character toward joystick/keyboard direction (even if blocked)
+        playerFacingRef.current = resolveFacingFromDelta(
+          dx,
+          dy,
+          playerFacingRef.current,
+          0.14
+        );
         pendingLandmarkRef.current = null;
         pendingPortalRef.current = null;
         pendingSecretRef.current = null;
@@ -1447,9 +1569,13 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             x: posRef.current.x + stepX,
             y: posRef.current.y + stepY,
           };
-          if (Math.abs(stepX) > 0.03) {
-            facingDirRef.current = stepX < 0 ? -1 : 1;
-          }
+          playerFacingRef.current = resolveFacingFromDelta(
+            stepX,
+            stepY,
+            playerFacingRef.current,
+            0.015
+          );
+          walkPhaseRef.current += Math.hypot(stepX, stepY) * 0.62;
           isMoving = true;
         } else {
           posRef.current = { x: targetTile.x, y: targetTile.y };
@@ -1839,6 +1965,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         footY: number;
         draw: () => void;
       }
+      const nowMs = performance.now();
       const depthList: DepthRenderable[] = [];
 
       // Helper to render Groom / Bride / Cream / Kkomi as Host NPCs when player is in Guest Protagonist mode ('guest')
@@ -1855,7 +1982,24 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       ) => {
         const fx = (wx / 100) * W;
         const fy = (wy / 100) * H;
-        const bob = Math.sin(tick * 0.07 + wx) * 2.5;
+        const distToPlayer = Math.hypot(posRef.current.x - wx, posRef.current.y - wy);
+        const isTalkingToThis = activeDialogueNpcRef.current?.id === id;
+        const hostFacing: SpriteFacing =
+          isTalkingToThis || distToPlayer < 16
+            ? resolveFacingToward(wx, wy, posRef.current.x, posRef.current.y, 'down')
+            : 'down';
+        const hostSheet =
+          avatar === 'groom'
+            ? assetsRef.current.sheets.groom
+            : avatar === 'bride'
+            ? assetsRef.current.sheets.bride
+            : avatar === 'cream'
+            ? assetsRef.current.sheets.dogCream
+            : avatar === 'kkomi'
+            ? assetsRef.current.sheets.dogKkomi
+            : assetsRef.current.sheets.dogCream;
+        const hostAction =
+          npcActionRef.current?.npcId === id ? npcActionRef.current.action : null;
 
         currentFrameNpcs.push({
           id,
@@ -1869,7 +2013,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
         guestHeads.push({
           x: fx,
-          y: fy - spriteH - bob,
+          y: fy - spriteH,
           name,
           msg,
         });
@@ -1882,16 +2026,20 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             ctx.ellipse(fx, fy, spriteH > 60 ? 18 : 13, 6, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            if (img) {
-              const w = Math.round((spriteH * img.naturalWidth) / img.naturalHeight);
-              ctx.drawImage(
-                img,
-                Math.round(fx - w / 2),
-                Math.round(fy - spriteH - bob),
-                w,
-                spriteH
-              );
-            }
+            const { drawTopY } = drawCharacterSprite(ctx, {
+              sheetImg: hostSheet,
+              fallbackImg: img,
+              footX: fx,
+              footY: fy,
+              targetH: spriteH,
+              facing: hostFacing,
+              walkCol: 0,
+              isMoving: false,
+              action: hostAction,
+              nowMs,
+              tick,
+              phaseOffset: wx,
+            });
 
             // Host Crown/Heart Nameplate above Groom & Bride
             if (avatar === 'groom' || avatar === 'bride') {
@@ -1901,7 +2049,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                   : `👰 신부 ${config.bride.name}`;
               ctx.font = 'bold 13px "Gowun Batang", sans-serif';
               const tw = ctx.measureText(badgeText).width + 16;
-              const ty = Math.round(fy - spriteH - bob - 26);
+              const ty = Math.round(drawTopY - 26);
               ctx.fillStyle = '#fffdf9';
               ctx.fillRect(fx - tw / 2, ty, tw, 21);
               ctx.strokeStyle = '#d97b84';
@@ -2098,6 +2246,25 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             msg: npcMsg,
           });
 
+          const npcId = `chapel-npc-${idx}`;
+          const chapelSheet = assetsRef.current.sheets.guests[spot.avatar];
+          const isTalkingHere = activeDialogueNpcRef.current?.id === npcId;
+          const chapelFacing: SpriteFacing = isTalkingHere
+            ? resolveFacingToward(spot.x, spot.y, posRef.current.x, posRef.current.y, 'down')
+            : spot.x < 50
+            ? 'right'
+            : 'left';
+          const chapelAction: CharacterActionState | null =
+            npcActionRef.current?.npcId === npcId
+              ? npcActionRef.current.action
+              : onVirginRoad
+              ? {
+                  kind: idx % 2 === 0 ? 'cheer' : 'wave',
+                  startedAt: nowMs - ((tick * 16 + idx * 140) % 900),
+                  durationMs: 900,
+                }
+              : null;
+
           depthList.push({
             footY: fy,
             draw: () => {
@@ -2106,23 +2273,20 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               ctx.ellipse(fx, fy, 14, 5, 0, 0, Math.PI * 2);
               ctx.fill();
 
-              if (img) {
-                const w = Math.round((h * img.naturalWidth) / img.naturalHeight);
-                ctx.save();
-                if (spot.x > 50) {
-                  ctx.translate(fx, 0);
-                  ctx.scale(-1, 1);
-                  ctx.translate(-fx, 0);
-                }
-                ctx.drawImage(
-                  img,
-                  Math.round(fx - w / 2),
-                  Math.round(fy - h - cheerJump),
-                  w,
-                  h
-                );
-                ctx.restore();
-              }
+              drawCharacterSprite(ctx, {
+                sheetImg: chapelSheet,
+                fallbackImg: img,
+                footX: fx,
+                footY: fy,
+                targetH: h,
+                facing: chapelFacing,
+                walkCol: 0,
+                isMoving: false,
+                action: chapelAction,
+                nowMs,
+                tick,
+                phaseOffset: idx * 1.5,
+              });
             },
           });
         });
@@ -2195,6 +2359,16 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             msg: fillCoupleText(g.message, config),
           });
 
+          const guestNpcId = `guest-npc-${activeMapId}-${g.id}`;
+          const guestSheet = assetsRef.current.sheets.guests[g.avatar];
+          const distToPlayer = Math.hypot(posRef.current.x - spot.x, posRef.current.y - spot.y);
+          const guestFacing: SpriteFacing =
+            activeDialogueNpcRef.current?.id === guestNpcId || distToPlayer < 16
+              ? resolveFacingToward(spot.x, spot.y, posRef.current.x, posRef.current.y, 'down')
+              : 'down';
+          const guestNpcAction =
+            npcActionRef.current?.npcId === guestNpcId ? npcActionRef.current.action : null;
+
           depthList.push({
             footY: fy,
             draw: () => {
@@ -2202,33 +2376,30 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               ctx.beginPath();
               ctx.ellipse(fx, fy, 15, 5, 0, 0, Math.PI * 2);
               ctx.fill();
-              if (img) {
-                const w = Math.round((h * img.naturalWidth) / img.naturalHeight);
-                ctx.save();
-                if (spot.x > 50) {
-                  ctx.translate(fx, 0);
-                  ctx.scale(-1, 1);
-                  ctx.translate(-fx, 0);
-                }
-                ctx.drawImage(
-                  img,
-                  Math.round(fx - w / 2),
-                  Math.round(fy - h - bob),
-                  w,
-                  h
-                );
-                ctx.restore();
-              }
+              drawCharacterSprite(ctx, {
+                sheetImg: guestSheet,
+                fallbackImg: img,
+                footX: fx,
+                footY: fy,
+                targetH: h,
+                facing: guestFacing,
+                walkCol: 0,
+                isMoving: false,
+                action: guestNpcAction,
+                nowMs,
+                tick,
+                phaseOffset: idx * 1.7,
+              });
             },
           });
         });
       }
 
       // Render Controlled Player Character(s): either Guest Protagonist ('guest') OR Groom & Bride Couple ('couple')
-      const walkBob = isMoving
-        ? Math.abs(Math.sin(tick * 0.26)) * 5.2
-        : Math.sin(tick * 0.06) * 1.5;
-      const strideTilt = isMoving ? Math.sin(tick * 0.26) * 0.038 : 0;
+      const playerWalkCol = getWalkFrameCol(walkPhaseRef.current, isMoving);
+      const companionWalkCol = getWalkFrameCol(walkPhaseRef.current + 1.0, isMoving);
+      const dogWalkCol = getWalkFrameCol(walkPhaseRef.current + 0.5, isMoving);
+      const playerFacing = playerFacingRef.current;
 
       const playerFootX = (posRef.current.x / 100) * W;
       const playerFootY = (posRef.current.y / 100) * H;
@@ -2241,6 +2412,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           footY: playerFootY,
           draw: () => {
             const avatarId = guestAvatarRef.current;
+            const guestSheet = assetsRef.current.sheets.guests[avatarId];
             const guestImg =
               assetsRef.current.guests[avatarId] || assetsRef.current.guests.mage;
             const playerH = avatarId === 'cat' ? 56 : 82;
@@ -2270,23 +2442,19 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             ctx.ellipse(playerFootX, playerFootY, 18, 6, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            if (guestImg) {
-              const w = Math.round(
-                (playerH * guestImg.naturalWidth) / guestImg.naturalHeight
-              );
-              ctx.save();
-              ctx.translate(playerFootX, playerFootY - playerH / 2 - walkBob);
-              ctx.scale(facingDirRef.current, 1);
-              ctx.rotate(strideTilt);
-              ctx.drawImage(
-                guestImg,
-                Math.round(-w / 2),
-                Math.round(-playerH / 2),
-                w,
-                playerH
-              );
-              ctx.restore();
-            }
+            const { drawTopY } = drawCharacterSprite(ctx, {
+              sheetImg: guestSheet,
+              fallbackImg: guestImg,
+              footX: playerFootX,
+              footY: playerFootY,
+              targetH: playerH,
+              facing: playerFacing,
+              walkCol: playerWalkCol,
+              isMoving,
+              action: playerActionRef.current,
+              nowMs,
+              tick,
+            });
 
             if (activeAura === 'petal_aura') {
               ctx.save();
@@ -2305,7 +2473,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               ctx.save();
               ctx.font = 'bold 15px sans-serif';
               ctx.textAlign = 'center';
-              ctx.fillText('👑', playerFootX, playerFootY - playerH - 6 - walkBob);
+              ctx.fillText('👑', playerFootX, drawTopY - 4);
               ctx.restore();
             }
 
@@ -2329,12 +2497,24 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         const groomFootX = playerFootX;
         const groomFootY = playerFootY;
 
-        const brideTrail =
-          trailRef.current[Math.min(7, trailRef.current.length - 1)] || posRef.current;
-        const creamTrail =
-          trailRef.current[Math.min(15, trailRef.current.length - 1)] || posRef.current;
-        const kkomiTrail =
-          trailRef.current[Math.min(22, trailRef.current.length - 1)] || posRef.current;
+        const trail = trailRef.current;
+        const getTrailPoint = (idx: number) =>
+          trail[Math.min(idx, trail.length - 1)] || posRef.current;
+
+        const brideTrail = getTrailPoint(7);
+        const creamTrail = getTrailPoint(15);
+        const kkomiTrail = getTrailPoint(22);
+
+        // Individual 4-way facing for Bride, Cream, and Kkomi along their trailing paths
+        const resolveTrailFacing = (fromIdx: number, toIdx: number): SpriteFacing => {
+          if (!isMoving) return playerFacing;
+          const a = getTrailPoint(fromIdx);
+          const b = getTrailPoint(toIdx);
+          return resolveFacingFromDelta(b.x - a.x, b.y - a.y, playerFacing, 0.08);
+        };
+        const brideFacing = resolveTrailFacing(7, 2);
+        const creamFacing = resolveTrailFacing(15, 9);
+        const kkomiFacing = resolveTrailFacing(22, 16);
 
         const brideFootX = (brideTrail.x / 100) * W + 42;
         const brideFootY = (brideTrail.y / 100) * H + 2;
@@ -2376,25 +2556,23 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             ctx.ellipse(creamFootX, creamFootY, 14, 5, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            const creamImg = assetsRef.current.dogCream || assetsRef.current.cat;
-            if (creamImg) {
-              const dogH = 48;
-              const dogW = Math.round(
-                (dogH * creamImg.naturalWidth) / creamImg.naturalHeight
-              );
-              ctx.save();
-              ctx.translate(creamFootX, creamFootY - dogH / 2 - walkBob * 0.8);
-              ctx.scale(facingDirRef.current, 1);
-              ctx.rotate(strideTilt * 0.8);
-              ctx.drawImage(
-                creamImg,
-                Math.round(-dogW / 2),
-                Math.round(-dogH / 2),
-                dogW,
-                dogH
-              );
-              ctx.restore();
-            }
+            drawCharacterSprite(ctx, {
+              sheetImg: assetsRef.current.sheets.dogCream,
+              fallbackImg: assetsRef.current.dogCream || assetsRef.current.cat,
+              footX: creamFootX,
+              footY: creamFootY,
+              targetH: 48,
+              facing: creamFacing,
+              walkCol: dogWalkCol,
+              isMoving,
+              action:
+                npcActionRef.current?.npcId === 'companion-cream'
+                  ? npcActionRef.current.action
+                  : companionActionsRef.current.cream,
+              nowMs,
+              tick,
+              phaseOffset: 1.1,
+            });
           },
         });
 
@@ -2407,25 +2585,23 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             ctx.ellipse(kkomiFootX, kkomiFootY, 12, 4.5, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            const kkomiImg = assetsRef.current.dogKkomi || assetsRef.current.cat;
-            if (kkomiImg) {
-              const dogH = 42;
-              const dogW = Math.round(
-                (dogH * kkomiImg.naturalWidth) / kkomiImg.naturalHeight
-              );
-              ctx.save();
-              ctx.translate(kkomiFootX, kkomiFootY - dogH / 2 - walkBob * 0.9);
-              ctx.scale(facingDirRef.current, 1);
-              ctx.rotate(-strideTilt * 0.85);
-              ctx.drawImage(
-                kkomiImg,
-                Math.round(-dogW / 2),
-                Math.round(-dogH / 2),
-                dogW,
-                dogH
-              );
-              ctx.restore();
-            }
+            drawCharacterSprite(ctx, {
+              sheetImg: assetsRef.current.sheets.dogKkomi,
+              fallbackImg: assetsRef.current.dogKkomi || assetsRef.current.cat,
+              footX: kkomiFootX,
+              footY: kkomiFootY,
+              targetH: 42,
+              facing: kkomiFacing,
+              walkCol: companionWalkCol,
+              isMoving,
+              action:
+                npcActionRef.current?.npcId === 'companion-kkomi'
+                  ? npcActionRef.current.action
+                  : companionActionsRef.current.kkomi,
+              nowMs,
+              tick,
+              phaseOffset: 2.3,
+            });
           },
         });
 
@@ -2462,45 +2638,47 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             ctx.ellipse(brideFootX, brideFootY, 24, 7, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            const drawChibiDirectional = (
-              img: HTMLImageElement,
-              footX: number,
-              footY: number,
-              bob: number,
-              tilt: number
-            ) => {
-              const w = Math.round((CHIBI_H * img.naturalWidth) / img.naturalHeight);
-              ctx.save();
-              ctx.translate(footX, footY - CHIBI_H / 2 - bob);
-              ctx.scale(facingDirRef.current, 1);
-              ctx.rotate(tilt);
-              ctx.drawImage(
-                img,
-                Math.round(-w / 2),
-                Math.round(-CHIBI_H / 2),
-                w,
-                CHIBI_H
-              );
-              ctx.restore();
-            };
+            const drawGroom = () =>
+              drawCharacterSprite(ctx, {
+                sheetImg: assetsRef.current.sheets.groom,
+                fallbackImg: assetsRef.current.groom,
+                footX: groomFootX - 6,
+                footY: groomFootY,
+                targetH: CHIBI_H,
+                facing: playerFacing,
+                walkCol: playerWalkCol,
+                isMoving,
+                action: playerActionRef.current,
+                nowMs,
+                tick,
+                phaseOffset: 0,
+              });
 
-            if (assetsRef.current.groom) {
-              drawChibiDirectional(
-                assetsRef.current.groom,
-                groomFootX - 6,
-                groomFootY,
-                walkBob,
-                strideTilt
-              );
-            }
-            if (assetsRef.current.bride) {
-              drawChibiDirectional(
-                assetsRef.current.bride,
-                brideFootX,
-                brideFootY,
-                walkBob * 0.9,
-                -strideTilt * 0.85
-              );
+            const drawBride = () =>
+              drawCharacterSprite(ctx, {
+                sheetImg: assetsRef.current.sheets.bride,
+                fallbackImg: assetsRef.current.bride,
+                footX: brideFootX,
+                footY: brideFootY,
+                targetH: CHIBI_H,
+                facing: brideFacing,
+                walkCol: companionWalkCol,
+                isMoving,
+                action: companionActionsRef.current.bride,
+                nowMs,
+                tick,
+                phaseOffset: 0.7,
+              });
+
+            // Draw back-to-front so vertical walking layers Groom & Bride naturally
+            let groomTopY = groomFootY - CHIBI_H;
+            let brideTopY = brideFootY - CHIBI_H;
+            if (groomFootY <= brideFootY) {
+              groomTopY = drawGroom().drawTopY;
+              brideTopY = drawBride().drawTopY;
+            } else {
+              brideTopY = drawBride().drawTopY;
+              groomTopY = drawGroom().drawTopY;
             }
 
             if (activeAura === 'petal_aura') {
@@ -2520,23 +2698,22 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               ctx.save();
               ctx.font = 'bold 15px sans-serif';
               ctx.textAlign = 'center';
-              ctx.fillText('👑', groomFootX - 6, groomFootY - CHIBI_H - 6 - walkBob);
-              ctx.fillText('👑', brideFootX, brideFootY - CHIBI_H - 6 - walkBob * 0.9);
+              ctx.fillText('👑', groomFootX - 6, groomTopY - 4);
+              ctx.fillText('👑', brideFootX, brideTopY - 4);
               ctx.restore();
             }
 
+            const topAnchor = Math.min(groomTopY, brideTopY);
             ctx.fillStyle = '#d97b84';
             ctx.font = 'bold 15px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(
               '♥',
               Math.round(centerCoupleX),
-              Math.round(
-                groomFootY - CHIBI_H - 4 - walkBob + Math.sin(tick * 0.1) * 2
-              )
+              Math.round(topAnchor - 4 + Math.sin(tick * 0.1) * 2)
             );
 
-            const tagY = groomFootY - CHIBI_H - 36 - walkBob;
+            const tagY = Math.round(topAnchor - 36);
             ctx.fillStyle = 'rgba(255, 253, 249, 0.94)';
             ctx.fillRect(centerCoupleX - 58, tagY, 116, 23);
             ctx.strokeStyle = '#d97b84';
@@ -2747,6 +2924,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     ) {
       setCompletedZoneMissions((prev) => ({ ...prev, [currentMapId]: true }));
       soundEngine.playFanfare();
+      triggerPlayerAction('spin');
       fireCelebrationConfetti({
         particleCount: 38,
         spread: 60,
@@ -2780,6 +2958,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       onUnlockTitle('🗺️ 웨딩 월드 완주자');
     }
     soundEngine.playFanfare();
+    triggerPlayerAction('spin');
     fireCelebrationConfetti({
       particleCount: 55,
       spread: 75,

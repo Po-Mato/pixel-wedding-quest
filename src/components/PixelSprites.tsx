@@ -34,6 +34,32 @@ const guestAsset = (id: string) => ({
   portrait: `${PIXEL_ASSET_BASE}/guest-${id}-portrait.png`,
 });
 
+const PIXEL_SHEET_BASE = `${PIXEL_ASSET_BASE}/sheets`;
+
+/**
+ * 3×4 Animated Sprite Sheets (Row 0: Down, Row 1: Up, Row 2: Right [mirror for Left], Row 3: Action [wave/cheer/pose])
+ * Characters without a sheet yet gracefully fall back to their static sprite PNG.
+ */
+export const PIXEL_SPRITE_SHEETS: {
+  groom: string;
+  bride: string;
+  dogCream: string;
+  dogKkomi: string;
+  guests: Partial<Record<AvatarClassId, string>>;
+} = {
+  groom: `${PIXEL_SHEET_BASE}/groom-sheet.webp`,
+  bride: `${PIXEL_SHEET_BASE}/bride-sheet.webp`,
+  dogCream: `${PIXEL_SHEET_BASE}/dog-cream-sheet.webp`,
+  dogKkomi: `${PIXEL_SHEET_BASE}/dog-kkomi-sheet.webp`,
+  guests: {
+    mage: `${PIXEL_SHEET_BASE}/guest-mage-sheet.webp`,
+    knight: `${PIXEL_SHEET_BASE}/guest-knight-sheet.webp`,
+    archer: `${PIXEL_SHEET_BASE}/guest-archer-sheet.webp`,
+    bard: `${PIXEL_SHEET_BASE}/guest-bard-sheet.webp`,
+    cat: `${PIXEL_SHEET_BASE}/dog-kkomi-sheet.webp`,
+  },
+};
+
 interface CharacterSpriteProps {
   size?: number;
   className?: string;
