@@ -82,6 +82,18 @@ type AppScreenMode = 'title' | 'world' | 'classic' | 'parents';
 const STORAGE_GUESTBOOK_KEY = 'pixel_wedding_quest_guestbook_v2';
 const STORAGE_CLOUD_CONFIG_KEY = 'pixel_wedding_quest_cloud_config_v3';
 const STORAGE_ENTRY_PREF_KEY = 'pixel_wedding_quest_entry_pref_v1';
+const STORAGE_VISITED_QUESTS_KEY = 'pixel_wedding_quest_visited_quests_v1';
+const STORAGE_EARNED_TITLE_KEY = 'pixel_wedding_quest_earned_title_v1';
+
+const DEFAULT_VISITED_QUESTS: Record<QuestBuildingId, boolean> = {
+  story: false,
+  ceremony: false,
+  gallery: false,
+  minigame: false,
+  location: false,
+  gift: false,
+  rsvp: false,
+};
 
 interface SavedEntryPref {
   mode: 'classic' | 'parents';
@@ -210,18 +222,45 @@ export function App() {
   // 신랑측 링크 → 신랑 우선, 신부측 링크 → 신부 우선, 일반 링크 → 무작위(전 섹션 동일 순서)
   const defaultGuestSide = resolvePrimarySide(parentsSide, randomSide);
   const [activeQuest, setActiveQuest] = useState<QuestBuildingId | null>(null);
-  const [visitedQuests, setVisitedQuests] = useState<Record<QuestBuildingId, boolean>>({
-    story: false,
-    ceremony: false,
-    gallery: false,
-    minigame: false,
-    location: false,
-    gift: false,
-    rsvp: false,
+  const [visitedQuests, setVisitedQuests] = useState<Record<QuestBuildingId, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_VISITED_QUESTS_KEY);
+      if (saved) {
+        return { ...DEFAULT_VISITED_QUESTS, ...JSON.parse(saved) };
+      }
+    } catch {
+      // ignore
+    }
+    return { ...DEFAULT_VISITED_QUESTS };
   });
 
   const [bgmPlaying, setBgmPlaying] = useState(false);
-  const [earnedTitle, setEarnedTitle] = useState<string | null>(null);
+  const [earnedTitle, setEarnedTitle] = useState<string | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_EARNED_TITLE_KEY);
+      return saved && saved.trim() ? saved : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_VISITED_QUESTS_KEY, JSON.stringify(visitedQuests));
+    } catch {
+      // ignore
+    }
+  }, [visitedQuests]);
+
+  useEffect(() => {
+    try {
+      if (earnedTitle) {
+        localStorage.setItem(STORAGE_EARNED_TITLE_KEY, earnedTitle);
+      }
+    } catch {
+      // ignore
+    }
+  }, [earnedTitle]);
   const [showCustomizer, setShowCustomizer] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);

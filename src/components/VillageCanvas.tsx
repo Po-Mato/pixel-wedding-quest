@@ -829,9 +829,34 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   }, [currentMapId, walkMode]);
 
   useEffect(() => {
+    const ARROW_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+    const MOVE_KEYS = new Set([
+      'ArrowUp',
+      'ArrowDown',
+      'ArrowLeft',
+      'ArrowRight',
+      'w',
+      'a',
+      's',
+      'd',
+      'W',
+      'A',
+      'S',
+      'D',
+    ]);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (ARROW_KEYS.has(e.key)) {
+        e.preventDefault();
+      }
+      if (MOVE_KEYS.has(e.key)) {
+        dismissWalkHint();
+        setActiveDialogueNpc(null);
+        setActiveWalkTargetId(null);
+      }
 
       keysRef.current[e.key] = true;
       if (e.key === ' ' || e.key === 'Enter') {
@@ -850,11 +875,16 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     const handleKeyUp = (e: KeyboardEvent) => {
       keysRef.current[e.key] = false;
     };
+    const handleWindowBlur = () => {
+      keysRef.current = {};
+    };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
     };
   }, [
     nearbyLandmark,
@@ -863,6 +893,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     activateLandmark,
     activateSecretProp,
     travelToMap,
+    dismissWalkHint,
   ]);
 
   const walkToLandmark = useCallback(
