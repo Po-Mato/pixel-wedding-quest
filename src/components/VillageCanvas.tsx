@@ -31,6 +31,7 @@ import { soundEngine } from '../utils/soundEngine';
 import { fillCoupleText } from '../utils/coupleText';
 import { fireCelebrationConfetti, prefersReducedMotion } from '../utils/motion';
 import { showToast } from '../utils/toast';
+import { useEscapeKey } from '../utils/useEscapeKey';
 import {
   incrementReactionCounter,
   getConfiguredApiBase,
@@ -114,6 +115,7 @@ const STORAGE_GUEST_NAME_KEY = 'pixel_wedding_quest_guest_name_v1';
 const STORAGE_VISITED_MAPS_KEY = 'pixel_wedding_quest_visited_maps_v1';
 const STORAGE_VISITED_MEMORIES_KEY = 'pixel_wedding_quest_visited_memories_v1';
 const STORAGE_DONE_MISSIONS_KEY = 'pixel_wedding_quest_done_missions_v1';
+const STORAGE_WORLD_COMPLETE_KEY = 'pixel_wedding_quest_world_complete_v1';
 
 export type WalkMode = 'guest' | 'couple';
 
@@ -342,6 +344,42 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     null
   );
   const [dialogueReplyText, setDialogueReplyText] = useState<string>('');
+  const [typedDialogueText, setTypedDialogueText] = useState<string>('');
+  const [activeWalkTargetId, setActiveWalkTargetId] = useState<string | null>(null);
+  const [secretRadarNear, setSecretRadarNear] = useState<boolean>(false);
+
+  // Escape key closes open NPC dialogue or story toast
+  useEscapeKey(Boolean(activeDialogueNpc || activeStoryToast), () => {
+    if (activeDialogueNpc) {
+      setActiveDialogueNpc(null);
+    } else if (activeStoryToast) {
+      setActiveStoryToast(null);
+    }
+  });
+
+  // Gentle RPG Typewriter effect for NPC dialogue text
+  useEffect(() => {
+    if (!activeDialogueNpc || !dialogueReplyText) {
+      setTypedDialogueText('');
+      return;
+    }
+    if (prefersReducedMotion()) {
+      setTypedDialogueText(dialogueReplyText);
+      return;
+    }
+    setTypedDialogueText('');
+    let idx = 0;
+    const timer = window.setInterval(() => {
+      idx += 2;
+      if (idx >= dialogueReplyText.length) {
+        setTypedDialogueText(dialogueReplyText);
+        window.clearInterval(timer);
+      } else {
+        setTypedDialogueText(dialogueReplyText.slice(0, idx));
+      }
+    }, 24);
+    return () => window.clearInterval(timer);
+  }, [activeDialogueNpc, dialogueReplyText]);
 
   useEffect(() => {
     try {
@@ -651,6 +689,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       setNearbySecret(null);
       setActiveStoryToast(null);
       setActiveDialogueNpc(null);
+      setActiveWalkTargetId(null);
+      setSecretRadarNear(false);
       tapRippleRef.current = null;
 
       // Show RPG-style area arrival banner briefly
@@ -841,6 +881,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       pendingLandmarkRef.current = lm;
       pendingPortalRef.current = null;
       pendingSecretRef.current = null;
+      setActiveWalkTargetId(lm.id);
+      setActiveDialogueNpc(null);
+      tapRippleRef.current = { x: goalX, y: goalY, life: 1.0 };
     },
     [dismissWalkHint]
   );
@@ -859,6 +902,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       pendingPortalRef.current = portal;
       pendingLandmarkRef.current = null;
       pendingSecretRef.current = null;
+      setActiveWalkTargetId(portal.id);
+      setActiveDialogueNpc(null);
+      tapRippleRef.current = { x: portal.x, y: portal.y, life: 1.0 };
     },
     [dismissWalkHint]
   );
@@ -877,6 +923,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       pendingSecretRef.current = prop;
       pendingLandmarkRef.current = null;
       pendingPortalRef.current = null;
+      setActiveWalkTargetId(prop.id);
+      setActiveDialogueNpc(null);
+      tapRippleRef.current = { x: prop.x, y: prop.y, life: 1.0 };
     },
     [dismissWalkHint]
   );
@@ -1034,6 +1083,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
     } else {
       soundEngine.playBlip(560);
+      setActiveDialogueNpc(null);
+      setActiveWalkTargetId(null);
       tapRippleRef.current = { x: clickX, y: clickY, life: 1.0 };
       pathQueueRef.current = findWalkablePath(
         posRef.current.x,
@@ -1411,6 +1462,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           }
 
           if (pathQueueRef.current.length === 0) {
+            setActiveWalkTargetId(null);
             if (pendingPortalRef.current) {
               const p = pendingPortalRef.current;
               pendingPortalRef.current = null;
@@ -1460,18 +1512,25 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         );
       }
 
-      // Check proximity to Secret Props on current map
+      // Check proximity to Secret Props on current map (+ subtle 30-unit radar cue)
       let closestSecret: SecretPropItem | null = null;
       let minSecretDist = 11.5;
+      let hasNearUndiscoveredSecret = false;
       for (const s of WORLD_SECRET_PROPS) {
         if (s.mapId !== activeMapId) continue;
         const d = Math.hypot(posRef.current.x - s.x, posRef.current.y - s.y);
+        if (!discoveredSecretsRef.current[s.id] && d < 30) {
+          hasNearUndiscoveredSecret = true;
+        }
         if (d < minSecretDist) {
           minSecretDist = d;
           closestSecret = s;
         }
       }
       setNearbySecret((prev) => (prev?.id !== closestSecret?.id ? closestSecret : prev));
+      setSecretRadarNear((prev) =>
+        prev !== hasNearUndiscoveredSecret ? hasNearUndiscoveredSecret : prev
+      );
 
       // Check proximity to Landmarks
       let closestLandmark: MapLandmark | null = null;
@@ -2566,6 +2625,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     (dx: number, dy: number) => {
       if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
         dismissWalkHint();
+        setActiveDialogueNpc(null);
+        setActiveWalkTargetId(null);
       }
       dpadDirRef.current = { dx, dy };
     },
@@ -2675,6 +2736,32 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     activeMapConfig.tabLabel,
   ]);
 
+  // Special reward when guest finishes exploring all 9 maps
+  useEffect(() => {
+    if (exploredMapCount < 9) return;
+    try {
+      if (localStorage.getItem(STORAGE_WORLD_COMPLETE_KEY) === '1') return;
+      localStorage.setItem(STORAGE_WORLD_COMPLETE_KEY, '1');
+    } catch {
+      // ignore
+    }
+    if (onUnlockTitle) {
+      onUnlockTitle('🗺️ 웨딩 월드 완주자');
+    }
+    soundEngine.playFanfare();
+    fireCelebrationConfetti({
+      particleCount: 55,
+      spread: 75,
+      origin: { y: 0.55 },
+      colors: ['#d97b84', '#d4af37', '#6b9071', '#fffdf9'],
+    });
+    showToast(
+      '🏆 9개 웨딩 월드 완주! [🗺️ 웨딩 월드 완주자] 칭호를 획득했습니다',
+      'success',
+      4200
+    );
+  }, [exploredMapCount, onUnlockTitle]);
+
   return (
     <div className="w-full min-w-0 flex flex-col gap-1.5">
       {/* ULTRA-SLIM 1-ROW WORLD HUD BAR: Map Drawer + 9-Map Strip + Utility Icons */}
@@ -2698,6 +2785,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
             const m = GARDEN_MAPS[mapId];
             const isActive = currentMapId === mapId;
             const isVisited = visitedMaps[mapId];
+            const hasSecretLeft = WORLD_SECRET_PROPS.some(
+              (s) => s.mapId === mapId && !discoveredSecrets[s.id]
+            );
             return (
               <button
                 key={mapId}
@@ -2710,7 +2800,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
                     travelToMap(mapId);
                   }
                 }}
-                className={`px-2 py-1 rounded-full border text-[10px] shrink-0 flex items-center gap-1 transition-all ${
+                className={`relative px-2 py-1 rounded-full border text-[10px] shrink-0 flex items-center gap-1 transition-all ${
                   isActive
                     ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-sm'
                     : isVisited
@@ -2720,6 +2810,14 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               >
                 <span className="leading-none">{m.icon}</span>
                 <span>{m.tabLabel}</span>
+                {hasSecretLeft && (
+                  <span
+                    aria-hidden="true"
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      isActive ? 'bg-[#ffe999]' : 'bg-[#d4af37]'
+                    }`}
+                  />
+                )}
               </button>
             );
           })}
@@ -2746,10 +2844,22 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               soundEngine.playSelect();
               setShowSecretBook(true);
             }}
-            title="반짝이는 비밀 소품 도감"
-            className="px-2 py-1 rounded-full bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#c59b6d] text-[#5c4d47] text-[10px] font-bold flex items-center gap-0.5"
+            title={
+              secretRadarNear
+                ? '근처에 반짝이는 비밀 소품이 있습니다!'
+                : '반짝이는 비밀 소품 도감'
+            }
+            className={`px-2 py-1 rounded-full border text-[10px] font-bold flex items-center gap-0.5 transition-all ${
+              secretRadarNear
+                ? 'bg-[#fff7dc] border-[#d4af37] text-[#8a6220] ring-1 ring-[#d4af37] animate-pulse shadow-sm'
+                : 'bg-[#faf5ec] hover:bg-[#f3e9d8] border-[#c59b6d] text-[#5c4d47]'
+            }`}
           >
-            <Sparkles className="w-3 h-3 text-[#d97b84]" />
+            <Sparkles
+              className={`w-3 h-3 ${
+                secretRadarNear ? 'text-[#d4af37]' : 'text-[#d97b84]'
+              }`}
+            />
             <span>{discoveredCount}/9</span>
           </button>
 
@@ -2969,8 +3079,15 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
               </div>
             </div>
 
-            <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl px-3 py-2 text-xs text-[#3b2f2f] font-serif leading-relaxed">
-              {dialogueReplyText}
+            <div
+              onClick={() => setTypedDialogueText(dialogueReplyText)}
+              title="탭하면 대사를 바로 모두 표시합니다"
+              className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl px-3 py-2 text-xs text-[#3b2f2f] font-serif leading-relaxed cursor-pointer min-h-[44px]"
+            >
+              {typedDialogueText || dialogueReplyText}
+              {typedDialogueText.length < dialogueReplyText.length && (
+                <span className="inline-block w-1.5 h-3 ml-0.5 bg-[#d97b84] align-middle animate-pulse" />
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-1.5">
@@ -3134,42 +3251,65 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           </div>
         </div>
 
-        {/* Ultra-Slim 1-Line Spot & Portal Quick-Jump Strip */}
+        {/* Ultra-Slim 1-Line Recommended Course + Spot & Portal Quick-Jump Strip */}
         <div className="pt-1 border-t border-[#efe6d8] flex items-center gap-1 overflow-x-auto no-scrollbar">
-          <span className="text-[10px] font-bold text-[#8c7a70] shrink-0 mr-0.5">
-            {activeMapConfig.icon} 스팟:
-          </span>
+          <button
+            type="button"
+            onClick={handleGuideNextSpot}
+            className="px-2 py-0.5 rounded-full bg-[#3b2f2f] hover:bg-[#2a2020] text-[#fffdf9] border border-[#c59b6d] text-[10px] font-bold shrink-0 flex items-center gap-1 shadow-sm active:scale-95 transition-transform"
+          >
+            <Compass className="w-3 h-3 text-[#f4acb7] shrink-0" />
+            <span>추천코스</span>
+          </button>
+
           {activeMapConfig.landmarks.map((lm) => {
             const done = lm.questId
               ? !!visitedQuests[lm.questId]
               : !!visitedMemories[lm.id];
+            const isWalkingHere = activeWalkTargetId === lm.id;
             return (
               <button
                 key={lm.id}
                 type="button"
                 onClick={() => walkToLandmark(lm)}
-                className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold shrink-0 flex items-center gap-1 transition-all ${
-                  done
-                    ? 'bg-[#edf3ee] text-[#4d6b53] border-[#a3bfa8]'
-                    : 'bg-[#faf5ec] text-[#4a3b32] border-[#e2d4c0] hover:border-[#c59b6d]'
+                className={`px-2 py-0.5 rounded-full border text-[10px] shrink-0 flex items-center gap-1 transition-all ${
+                  isWalkingHere
+                    ? 'bg-[#fcf0f1] text-[#b85d67] border-[#d97b84] ring-1 ring-[#d97b84] font-bold'
+                    : done
+                    ? 'bg-[#edf3ee] text-[#3f6246] border-[#a3bfa8] font-semibold'
+                    : 'bg-[#faf5ec] text-[#4a3b32] border-[#e2d4c0] hover:border-[#c59b6d] font-semibold'
                 }`}
               >
-                <span>{lm.name.split(' ')[0]}</span>
+                {done ? (
+                  <span className="text-[#4d6b53] font-extrabold">✓</span>
+                ) : (
+                  <span>{lm.name.split(' ')[0]}</span>
+                )}
                 <span>{lm.shortName}</span>
+                {isWalkingHere && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#d97b84] animate-pulse" />
+                )}
               </button>
             );
           })}
-          {activeMapConfig.portals.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => walkToPortal(p)}
-              className="px-2 py-0.5 rounded-full border border-[#d97b84] bg-[#fcf3f3] hover:bg-[#f9e5e7] text-[#3b2f2f] text-[10px] font-bold shrink-0 flex items-center gap-1 transition-all"
-            >
-              <span>{p.label}</span>
-              <span className="text-[#d97b84]">▶</span>
-            </button>
-          ))}
+          {activeMapConfig.portals.map((p) => {
+            const isWalkingHere = activeWalkTargetId === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => walkToPortal(p)}
+                className={`px-2 py-0.5 rounded-full border text-[10px] font-bold shrink-0 flex items-center gap-1 transition-all ${
+                  isWalkingHere
+                    ? 'bg-[#d97b84] text-white border-[#b85d67] ring-1 ring-[#d97b84]'
+                    : 'border-[#d97b84] bg-[#fcf3f3] hover:bg-[#f9e5e7] text-[#3b2f2f]'
+                }`}
+              >
+                <span>{p.label}</span>
+                <span className={isWalkingHere ? 'text-white' : 'text-[#d97b84]'}>▶</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -3178,6 +3318,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         <WorldMapSheetModal
           currentMapId={currentMapId}
           visitedMaps={visitedMaps}
+          discoveredSecrets={discoveredSecrets}
           exploredMapCount={exploredMapCount}
           activeMiniQuest={activeMiniQuest}
           completedMiniQuestCount={completedMiniQuestCount}

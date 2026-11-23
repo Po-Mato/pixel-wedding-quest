@@ -26,6 +26,7 @@ import type { WalkMode } from './VillageCanvas';
 interface WorldMapSheetModalProps {
   currentMapId: GardenMapId;
   visitedMaps: Record<GardenMapId, boolean>;
+  discoveredSecrets: Record<string, boolean>;
   exploredMapCount: number;
   activeMiniQuest: { title: string; steps: ZoneMiniQuestItem[] };
   completedMiniQuestCount: number;
@@ -39,6 +40,7 @@ interface WorldMapSheetModalProps {
 export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
   currentMapId,
   visitedMaps,
+  discoveredSecrets,
   exploredMapCount,
   activeMiniQuest,
   completedMiniQuestCount,
@@ -50,6 +52,8 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
 }) => {
   useBodyScrollLock(true);
   useEscapeKey(true, onClose);
+  const hasMapSecretLeft = (mapId: GardenMapId) =>
+    WORLD_SECRET_PROPS.some((s) => s.mapId === mapId && !discoveredSecrets[s.id]);
   return (
   <div
     role="dialog"
@@ -130,12 +134,13 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
               const m = GARDEN_MAPS[mapId];
               const isActive = currentMapId === mapId;
               const isVisited = visitedMaps[mapId];
+              const hasSecret = hasMapSecretLeft(mapId);
               return (
                 <button
                   key={mapId}
                   type="button"
                   onClick={() => onSelectMap(mapId)}
-                  className={`p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
+                  className={`relative p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
                     isActive
                       ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-sm'
                       : isVisited
@@ -143,6 +148,14 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
                       : 'bg-[#fcfaf5] text-[#7d6e65] border-[#e2d4c0]'
                   }`}
                 >
+                  {hasSecret && (
+                    <span
+                      title="숨겨진 비밀 소품 있음"
+                      className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
+                        isActive ? 'bg-[#ffe999]' : 'bg-[#d4af37]'
+                      }`}
+                    />
+                  )}
                   <span className="text-base">{m.icon}</span>
                   <span className="text-[11px] truncate w-full">{m.tabLabel}</span>
                 </button>
@@ -153,20 +166,25 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
 
         {/* Stage 2: Venue Maps */}
         <div className="space-y-1.5">
-          <div className="text-xs font-bold text-[#3b2f2f]">
-            🏛️ 2막. 웨딩홀 도착·본식·피로연 (5맵)
+          <div className="text-xs font-bold text-[#3b2f2f] flex items-center justify-between">
+            <span>🏛️ 2막. 웨딩홀 도착·본식·피로연 (5맵)</span>
+            <span className="text-[10px] text-[#8a6220] font-normal flex items-center gap-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#d4af37]" />
+              비밀 소품 위치
+            </span>
           </div>
           <div className="grid grid-cols-5 gap-1.5">
             {VENUE_MAP_ORDER.map((mapId) => {
               const m = GARDEN_MAPS[mapId];
               const isActive = currentMapId === mapId;
               const isVisited = visitedMaps[mapId];
+              const hasSecret = hasMapSecretLeft(mapId);
               return (
                 <button
                   key={mapId}
                   type="button"
                   onClick={() => onSelectMap(mapId)}
-                  className={`p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
+                  className={`relative p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
                     isActive
                       ? 'bg-[#d97b84] text-white border-[#b85d67] font-bold shadow-sm'
                       : isVisited
@@ -174,6 +192,14 @@ export const WorldMapSheetModal: React.FC<WorldMapSheetModalProps> = ({
                       : 'bg-[#fcfaf5] text-[#7d6e65] border-[#e2d4c0]'
                   }`}
                 >
+                  {hasSecret && (
+                    <span
+                      title="숨겨진 비밀 소품 있음"
+                      className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
+                        isActive ? 'bg-[#ffe999]' : 'bg-[#d4af37]'
+                      }`}
+                    />
+                  )}
                   <span className="text-base">{m.icon}</span>
                   <span className="text-[10px] truncate w-full">{m.tabLabel}</span>
                 </button>
