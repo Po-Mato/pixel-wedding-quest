@@ -241,11 +241,16 @@ export function drawCharacterSprite(
     const cellW = sheetImg.naturalWidth / SPRITE_SHEET_COLS;
     const cellH = sheetImg.naturalHeight / SPRITE_SHEET_ROWS;
     const drawRow = useActionRow ? 3 : row;
-    const drawH = targetH;
+    // All v2 normalized sheets place the visible character at ~87.5% of cell height (4px bottom pad, ~20px top pad).
+    // Compensate slightly so visible character height matches targetH and crown/nameplate anchors hug the real head top!
+    const visibleFillRatio = cellH >= 180 ? 168 / cellH : 124 / cellH;
+    const bottomPadRatio = 4 / cellH;
+    const drawH = Math.round(targetH / visibleFillRatio);
     const drawW = Math.round((drawH * cellW) / cellH);
+    const footPadPx = Math.round(drawH * bottomPadRatio);
 
     ctx.save();
-    ctx.translate(Math.round(footX), Math.round(footY - jumpLift));
+    ctx.translate(Math.round(footX), Math.round(footY + footPadPx - jumpLift));
     ctx.scale(flipX * scaleX, scaleY);
     if (tilt !== 0) ctx.rotate(tilt);
     ctx.drawImage(
@@ -260,7 +265,7 @@ export function drawCharacterSprite(
       drawH
     );
     ctx.restore();
-    return { drawTopY: footY - drawH - jumpLift, jumpLift };
+    return { drawTopY: footY - targetH - jumpLift, jumpLift };
   }
 
   // Graceful fallback to static single sprite while sheet loads
