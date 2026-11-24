@@ -43,8 +43,9 @@ import { fireCelebrationConfetti, prefersReducedMotion } from '../utils/motion';
 import { getWeddingDayDiff, WeddingPhase } from '../utils/weddingPhase';
 import { formatKoreanPhoneInput, cleanPhoneForHref } from '../utils/phone';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { useEscapeKey } from '../utils/useEscapeKey';
 import { shareViaKakaoTalk } from '../utils/kakaoShare';
-import { joinCoupleNames, orderedSides, useCoupleOrder } from '../utils/coupleOrder';
+import { joinCoupleNames, useCoupleOrder } from '../utils/coupleOrder';
 import { openGoogleCalendar, downloadWeddingIcs } from '../utils/calendar';
 import {
   hasValidWeddingCoords,
@@ -118,17 +119,21 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
   // 신랑측 링크 → 신랑 우선 / 신부측 링크 → 신부 우선 / 일반 링크 → 기기별 무작위(고정)
   const { primary } = useCoupleOrder();
+  const [activeContactSide, setActiveContactSide] = useState<'groom' | 'bride'>(primary);
   const [activeAccountSide, setActiveAccountSide] = useState<'groom' | 'bride'>(primary);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [copiedPhoneKey, setCopiedPhoneKey] = useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [showTaxiCard, setShowTaxiCard] = useState(false);
+  const [showAllPhotos, setShowAllPhotos] = useState(false);
   const [activeNavId, setActiveNavId] = useState<ParentsNavId | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [mapInteractive, setMapInteractive] = useState(false);
   const [showSideShareLinks, setShowSideShareLinks] = useState(false);
   const [imgLoadedMap, setImgLoadedMap] = useState<Record<string, boolean>>({});
+  const guestNameInputRef = useRef<HTMLInputElement | null>(null);
 
   const jumpToParentsSection = (sectionId: QuestBuildingId) => {
     const idMap: Record<QuestBuildingId, string> = {
@@ -146,10 +151,13 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     });
   };
   const lightboxTouchStartRef = useRef<{ x: number; y: number } | null>(null);
-  useBodyScrollLock(lightboxIdx !== null && Boolean(config.gallery[lightboxIdx]));
+  const isLightboxOpen = lightboxIdx !== null && Boolean(config.gallery[lightboxIdx]);
+  useBodyScrollLock(isLightboxOpen || showTaxiCard);
+  useEscapeKey(showTaxiCard, () => setShowTaxiCard(false));
 
   // Simple Senior-Friendly RSVP + Guestbook Form State
   const [guestName, setGuestName] = useState('');
+  const [nameError, setNameError] = useState(false);
   const [guestPhone, setGuestPhone] = useState('');
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [privacyError, setPrivacyError] = useState(false);
@@ -165,6 +173,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [visibleGuestbookCount, setVisibleGuestbookCount] = useState<number>(5);
 
   useEffect(() => {
+    setActiveContactSide(primary);
     setActiveAccountSide(primary);
     setGuestSide(primary);
   }, [primary]);
@@ -254,7 +263,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const groomOrder = primary === 'bride' ? 3 : 1;
   const brideOrder = primary === 'bride' ? 1 : 3;
 
-  // Dynamic font-size classes tailored for senior readability
+  // Dynamic font-size classes tailored for senior readability across ALL interactive elements
   const textScale = {
     normal: {
       body: 'text-[16px] leading-[1.85]',
@@ -263,6 +272,9 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       heroTitle: 'text-[26px] sm:text-[30px] leading-[1.3]',
       nameLarge: 'text-[20px]',
       btn: 'text-[15px] py-3 px-4',
+      label: 'text-[13px] leading-[1.5]',
+      chip: 'text-[13px] sm:text-[14px] py-2.5 px-2',
+      caption: 'text-[13px] leading-[1.5]',
     },
     large: {
       body: 'text-[18px] leading-[1.9]',
@@ -271,6 +283,9 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       heroTitle: 'text-[28px] sm:text-[32px] leading-[1.3]',
       nameLarge: 'text-[22px]',
       btn: 'text-[17px] py-3.5 px-4',
+      label: 'text-[15px] leading-[1.5]',
+      chip: 'text-[15px] py-3 px-2.5',
+      caption: 'text-[15px] leading-[1.55]',
     },
     xlarge: {
       body: 'text-[20px] leading-[1.95]',
@@ -279,6 +294,9 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       heroTitle: 'text-[31px] sm:text-[35px] leading-[1.3]',
       nameLarge: 'text-[24px]',
       btn: 'text-[19px] py-4 px-5',
+      label: 'text-[17px] leading-[1.55]',
+      chip: 'text-[17px] py-3.5 px-3',
+      caption: 'text-[17px] leading-[1.6]',
     },
   }[fontScale];
 
@@ -415,13 +433,31 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const handleSubmitGuestbook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    if (!guestName.trim() || !message.trim()) return;
+    if (!guestName.trim()) {
+      setNameError(true);
+      showToast('성함을 먼저 입력해 주세요', 'info');
+      guestNameInputRef.current?.scrollIntoView({
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        block: 'center',
+      });
+      guestNameInputRef.current?.focus();
+      return;
+    }
+    setNameError(false);
     if (guestPhone.trim() && !privacyAgreed) {
       setPrivacyError(true);
+      showToast('연락처 수집·이용 동의란에 체크해 주세요', 'info');
       return;
     }
     setPrivacyError(false);
     setIsSubmitting(true);
+
+    const defaultBlessingByAttendance: Record<'attend' | 'unable' | 'maybe', string> = {
+      attend: '결혼을 진심으로 축하드립니다. 예식 날 기쁜 마음으로 참석하겠습니다.',
+      maybe: '결혼을 진심으로 축하드립니다. 두 사람의 앞날을 축복합니다.',
+      unable: '결혼을 진심으로 축하드립니다. 멀리서나마 두 분의 새 출발을 응원합니다.',
+    };
+    const finalMessage = message.trim() || defaultBlessingByAttendance[attendance];
 
     const newEntry: GuestbookEntry = {
       id: `gb-${Date.now()}`,
@@ -429,7 +465,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       avatar: 'healer',
       side: guestSide,
       titleBadge: guestSide === 'groom' ? '신랑측 귀빈' : '신부측 귀빈',
-      message: message.trim(),
+      message: finalMessage,
       createdAt: '방금 전',
       attendance,
       companions: attendance === 'unable' ? 0 : companions,
@@ -440,6 +476,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     try {
       await onAddGuestbook(newEntry);
       setGuestName('');
+      setNameError(false);
       setGuestPhone('');
       setPrivacyAgreed(false);
       setMessage('');
@@ -462,12 +499,33 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     }
   };
 
-  const orderedParentGroups = orderedSides(primary);
-
   const activeAccounts =
     activeAccountSide === 'groom'
       ? config.accounts.groomSide
       : config.accounts.brideSide;
+
+  const isContactGroom = activeContactSide === 'groom';
+  const activeContactPerson = isContactGroom ? config.groom : config.bride;
+  const activeContacts = [
+    {
+      role: isContactGroom ? '신랑 아버지' : '신부 아버지',
+      name: activeContactPerson.fatherName,
+      phone: activeContactPerson.fatherPhone,
+    },
+    {
+      role: isContactGroom ? '신랑 어머니' : '신부 어머니',
+      name: activeContactPerson.motherName,
+      phone: activeContactPerson.motherPhone,
+    },
+    {
+      role: isContactGroom ? '신랑 본인' : '신부 본인',
+      name: activeContactPerson.fullName,
+      phone: activeContactPerson.phone,
+    },
+  ];
+
+  const visibleGallery = showAllPhotos ? config.gallery : config.gallery.slice(0, 4);
+  const hiddenPhotoCount = Math.max(0, config.gallery.length - 4);
 
   return (
     <div className="w-full max-w-[540px] mx-auto space-y-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] font-serif text-[#2d221e]">
@@ -654,124 +712,133 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
       </section>
 
-      {/* 3. Large One-Touch Contact Buttons for Parents (혼주) & Couple */}
+      {/* 3. Large One-Touch Contact Buttons for Parents (혼주) & Couple (2-Tab Switcher) */}
       <section
         id="parents-contact"
-        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans"
+        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-5 font-sans"
       >
         <div className="text-center border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-serif font-bold text-[#2d221e]`}>
             혼주 및 신랑·신부 연락처
           </h2>
-          <p className={`${textScale.sub} text-[#69584f] mt-1`}>
-            버튼을 누르시면 바로 전화나 문자로 연결됩니다.
+          <p className={`${textScale.sub} text-[#69584f] mt-1 break-keep`}>
+            신랑측·신부측을 선택하신 뒤 버튼을 누르면 바로 연결됩니다.
           </p>
         </div>
 
-        <div className="space-y-5">
-          {orderedParentGroups.map((side) => {
-            const isGroom = side === 'groom';
-            const person = isGroom ? config.groom : config.bride;
-            const sideTitle = isGroom ? '신랑측 연락처' : '신부측 연락처';
-            const badgeColor = isGroom
-              ? 'bg-[#2d221e] text-[#fffdf9]'
-              : 'bg-[#b35c66] text-white';
+        {/* Groom / Bride Contact Side Tabs */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => setActiveContactSide('groom')}
+            style={{ order: groomOrder }}
+            className={`${textScale.btn} rounded-2xl font-bold border transition-colors ${
+              activeContactSide === 'groom'
+                ? 'bg-[#2d221e] text-white border-[#2d221e] shadow-sm'
+                : 'bg-[#faf5ec] text-[#56463f] border-[#dfd2be]'
+            }`}
+          >
+            신랑측 연락처
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveContactSide('bride')}
+            style={{ order: brideOrder }}
+            className={`${textScale.btn} rounded-2xl font-bold border transition-colors ${
+              activeContactSide === 'bride'
+                ? 'bg-[#b35c66] text-white border-[#b35c66] shadow-sm'
+                : 'bg-[#faf5ec] text-[#56463f] border-[#dfd2be]'
+            }`}
+          >
+            신부측 연락처
+          </button>
+        </div>
 
-            const contacts = [
-              {
-                role: isGroom ? '신랑 아버지' : '신부 아버지',
-                name: person.fatherName,
-                phone: person.fatherPhone,
-              },
-              {
-                role: isGroom ? '신랑 어머니' : '신부 어머니',
-                name: person.motherName,
-                phone: person.motherPhone,
-              },
-              {
-                role: isGroom ? '신랑 본인' : '신부 본인',
-                name: person.fullName,
-                phone: person.phone,
-              },
-            ];
+        <div className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-4 sm:p-5 space-y-3.5">
+          <div className="flex items-center justify-between border-b border-[#e5d8c5] pb-2.5">
+            <span
+              className={`px-3.5 py-1 rounded-full ${textScale.label} font-bold ${
+                isContactGroom
+                  ? 'bg-[#2d221e] text-[#fffdf9]'
+                  : 'bg-[#b35c66] text-white'
+              }`}
+            >
+              {isContactGroom ? '신랑측 연락처' : '신부측 연락처'}
+            </span>
+          </div>
 
-            return (
-              <div
-                key={side}
-                className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-4 sm:p-5 space-y-3.5"
-              >
-                <div className="flex items-center justify-between border-b border-[#e5d8c5] pb-2.5">
-                  <span
-                    className={`px-3.5 py-1 rounded-full text-sm font-bold ${badgeColor}`}
-                  >
-                    {sideTitle}
-                  </span>
-                </div>
+          <div className="space-y-3">
+            {activeContacts.map((c) => {
+              const dialHref = cleanPhoneForHref(c.phone);
+              const phoneKey = `${activeContactSide}-${c.role}`;
+              return (
+                <div
+                  key={phoneKey}
+                  className="bg-[#fffdf9] border border-[#e5d8c5] rounded-xl p-4 flex flex-col gap-3"
+                >
+                  <div>
+                    <div className={`${textScale.label} font-semibold text-[#69584f]`}>
+                      {c.role}
+                    </div>
+                    <div className={`${textScale.nameLarge} font-bold text-[#2d221e] mt-0.5`}>
+                      {c.name}
+                    </div>
+                    <div className={`${textScale.sub} text-[#56463f] tabular-nums mt-0.5`}>
+                      {c.phone || '연락처 확인 중'}
+                    </div>
+                  </div>
 
-                <div className="space-y-3">
-                  {contacts.map((c) => {
-                    const dialHref = cleanPhoneForHref(c.phone);
-                    return (
-                      <div
-                        key={c.role}
-                        className="bg-[#fffdf9] border border-[#e5d8c5] rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  {dialHref && (
+                    <div
+                      className={`grid gap-2 ${
+                        fontScale === 'xlarge'
+                          ? 'grid-cols-2'
+                          : 'grid-cols-3'
+                      }`}
+                    >
+                      <a
+                        href={`tel:${dialHref}`}
+                        className={`${textScale.chip} rounded-xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap`}
                       >
-                        <div>
-                          <div className="text-sm font-semibold text-[#69584f]">
-                            {c.role}
-                          </div>
-                          <div className={`${textScale.nameLarge} font-bold text-[#2d221e] mt-0.5`}>
-                            {c.name}
-                          </div>
-                          <div className="text-sm text-[#56463f] tabular-nums mt-0.5">
-                            {c.phone || '연락처 확인 중'}
-                          </div>
-                        </div>
-
-                        {dialHref && (
-                          <div className="grid grid-cols-3 gap-1.5 shrink-0">
-                            <a
-                              href={`tel:${dialHref}`}
-                              className="px-2.5 sm:px-3.5 py-3 rounded-xl bg-[#2d221e] hover:bg-[#1e1613] text-[#fffdf9] font-bold text-xs sm:text-sm flex items-center justify-center gap-1 whitespace-nowrap"
-                            >
-                              <Phone className="w-4 h-4 shrink-0" />
-                              <span>전화걸기</span>
-                            </a>
-                            <a
-                              href={`sms:${dialHref}`}
-                              className="px-2.5 sm:px-3.5 py-3 rounded-xl bg-[#faf5ec] hover:bg-[#efe5d4] border border-[#c9b69c] text-[#2d221e] font-bold text-xs sm:text-sm flex items-center justify-center gap-1 whitespace-nowrap"
-                            >
-                              <MessageSquare className="w-4 h-4 shrink-0 text-[#8c6747]" />
-                              <span>문자하기</span>
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleCopyPhone(c.role, c.name, c.phone, `${side}-${c.role}`)
-                              }
-                              className="px-2.5 sm:px-3.5 py-3 rounded-xl bg-[#fffdf9] hover:bg-[#faf5ec] border border-[#c9b69c] text-[#2d221e] font-bold text-xs sm:text-sm flex items-center justify-center gap-1 whitespace-nowrap"
-                            >
-                              {copiedPhoneKey === `${side}-${c.role}` ? (
-                                <>
-                                  <Check className="w-4 h-4 shrink-0 text-[#355e40]" />
-                                  <span className="text-[#355e40]">복사됨</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-4 h-4 shrink-0 text-[#8c6747]" />
-                                  <span>번호복사</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
+                        <Phone className="w-4 h-4 shrink-0" />
+                        <span>전화걸기</span>
+                      </a>
+                      <a
+                        href={`sms:${dialHref}`}
+                        className={`${textScale.chip} rounded-xl bg-[#faf5ec] hover:bg-[#efe5d4] border border-[#c9b69c] text-[#2d221e] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap`}
+                      >
+                        <MessageSquare className="w-4 h-4 shrink-0 text-[#8c6747]" />
+                        <span>문자하기</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCopyPhone(c.role, c.name, c.phone, phoneKey)
+                        }
+                        className={`${textScale.chip} rounded-xl bg-[#fffdf9] hover:bg-[#faf5ec] border border-[#c9b69c] text-[#2d221e] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                          fontScale === 'xlarge' ? 'col-span-2' : ''
+                        }`}
+                      >
+                        {copiedPhoneKey === phoneKey ? (
+                          <>
+                            <Check className="w-4 h-4 shrink-0 text-[#355e40]" />
+                            <span className="text-[#355e40]">복사됨</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 shrink-0 text-[#8c6747]" />
+                            <span>
+                              {fontScale === 'xlarge' ? '전화번호 복사하기' : '번호복사'}
+                            </span>
+                          </>
                         )}
-                      </div>
-                    );
-                  })}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -935,6 +1002,15 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               <span>예식장 전화걸기</span>
             </a>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowTaxiCard(true)}
+            className={`w-full mt-2.5 ${textScale.btn} rounded-2xl bg-[#fef3c7] hover:bg-[#fde68a] border-2 border-[#d97706] text-[#2d221e] font-extrabold flex items-center justify-center gap-2 shadow-sm transition-colors`}
+          >
+            <span aria-hidden="true">🚕</span>
+            <span>택시 기사님께 보여드리기 (큰 화면)</span>
+          </button>
         </div>
 
         {/* Interactive Map Preview (Scroll-Safe Toggle) & Large 1-Tap Navigation Buttons */}
@@ -1216,7 +1292,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
       </section>
 
-      {/* 7. Easy-to-Browse Wedding Photo Album */}
+      {/* 7. Easy-to-Browse Wedding Photo Album (Compact 2-Col Grid + Expand Toggle) */}
       <section
         id="parents-gallery"
         className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-5"
@@ -1226,17 +1302,17 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             신랑 · 신부 웨딩 사진
           </h2>
           <p className={`${textScale.sub} text-[#69584f] mt-1 font-sans`}>
-            사진을 누르시면 더 크게 보실 수 있습니다.
+            사진을 누르시면 화면 가득 크게 보실 수 있습니다.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {config.gallery.map((item, idx) => (
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+          {visibleGallery.map((item, idx) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setLightboxIdx(idx)}
-              className="group text-left bg-[#faf5ec] border border-[#dfd2be] rounded-2xl overflow-hidden shadow-sm"
+              className="group text-left bg-[#faf5ec] border border-[#dfd2be] rounded-2xl overflow-hidden shadow-sm flex flex-col"
             >
               <div className="relative aspect-[4/4.5] w-full overflow-hidden bg-[#efe6d8]">
                 {!imgLoadedMap[item.imageUrl] && (
@@ -1257,13 +1333,36 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                   }`}
                 />
               </div>
-              <div className="p-3.5 font-sans">
-                <div className="font-bold text-[#2d221e] text-base">{item.title}</div>
-                <div className="text-sm text-[#69584f] mt-0.5">{item.description}</div>
+              <div className="p-2.5 sm:p-3.5 font-sans">
+                <div className={`font-bold text-[#2d221e] ${textScale.label} line-clamp-1`}>
+                  {item.title}
+                </div>
+                <div className={`${textScale.caption} text-[#69584f] mt-0.5 line-clamp-2`}>
+                  {item.description}
+                </div>
               </div>
             </button>
           ))}
         </div>
+
+        {hiddenPhotoCount > 0 && (
+          <div className="pt-1 font-sans">
+            <button
+              type="button"
+              onClick={() => setShowAllPhotos((prev) => !prev)}
+              aria-expanded={showAllPhotos}
+              className={`w-full ${textScale.btn} rounded-2xl border-2 font-bold transition-colors ${
+                showAllPhotos
+                  ? 'bg-[#fffdf9] hover:bg-[#faf5ec] border-[#dfd2be] text-[#56463f]'
+                  : 'bg-[#faf5ec] hover:bg-[#f0e5d4] border-[#c9b69c] text-[#2d221e]'
+              }`}
+            >
+              {showAllPhotos
+                ? '대표 사진 4장만 간략히 보기 ▲'
+                : `웨딩 사진 모두 보기 (+${hiddenPhotoCount}장 더 보기)`}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* 8. Simple Senior-Friendly RSVP & Guestbook (D1 Synced) */}
@@ -1311,27 +1410,48 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmitGuestbook} className="space-y-4 bg-[#faf5ec] p-5 rounded-2xl border border-[#dfd2be]">
+        <form noValidate onSubmit={handleSubmitGuestbook} className="space-y-4 bg-[#faf5ec] p-5 rounded-2xl border border-[#dfd2be]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
+              <label
+                htmlFor="parents-guest-name"
+                className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}
+              >
                 성함 (또는 직함/모임명) *
               </label>
               <input
+                id="parents-guest-name"
+                ref={guestNameInputRef}
                 type="text"
-                required
                 value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
+                onChange={(e) => {
+                  setGuestName(e.target.value);
+                  if (e.target.value.trim()) setNameError(false);
+                }}
                 placeholder="예: 홍길동 (신랑 아버지 친구)"
-                className={`w-full bg-[#fffdf9] border-2 border-[#c9b69c] focus:border-[#b35c66] outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e]`}
+                aria-invalid={nameError}
+                className={`w-full bg-[#fffdf9] border-2 outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e] ${
+                  nameError
+                    ? 'border-[#b35c66] bg-[#fff5f6]'
+                    : 'border-[#c9b69c] focus:border-[#b35c66]'
+                }`}
               />
+              {nameError && (
+                <div role="alert" className={`${textScale.label} font-bold text-[#b35c66] mt-1.5`}>
+                  ⚠️ 성함을 입력해 주세요.
+                </div>
+              )}
             </div>
 
             <div>
-              <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
+              <label
+                htmlFor="parents-guest-phone"
+                className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}
+              >
                 연락처 (선택 · 혼주에게만 전달)
               </label>
               <input
+                id="parents-guest-phone"
                 type="tel"
                 inputMode="numeric"
                 maxLength={13}
@@ -1355,7 +1475,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                   : 'bg-[#fffdf9] border-[#c9b69c] text-[#2d221e]'
               }`}
             >
-              <label className="flex items-start gap-2.5 cursor-pointer font-bold text-sm sm:text-base">
+              <label className={`flex items-start gap-2.5 cursor-pointer font-bold ${textScale.sub}`}>
                 <input
                   type="checkbox"
                   checked={privacyAgreed}
@@ -1363,15 +1483,15 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                     setPrivacyAgreed(e.target.checked);
                     if (e.target.checked) setPrivacyError(false);
                   }}
-                  className="mt-1 w-4 h-4 accent-[#b35c66]"
+                  className="mt-1.5 w-5 h-5 accent-[#b35c66] shrink-0"
                 />
-                <span className="flex-1">
+                <span className="flex-1 break-keep">
                   <ShieldCheck className="w-4 h-4 inline-block mr-1 text-[#355e40] align-text-bottom" />
                   [필수] 예식 참석 확인을 위한 연락처 수집·이용에 동의합니다 (예식 종료 후 30일 이내 파기)
                 </span>
               </label>
               {privacyError && (
-                <div className="text-sm font-bold text-[#b35c66] pl-6">
+                <div role="alert" className={`${textScale.label} font-bold text-[#b35c66] pl-7`}>
                   ⚠️ 연락처를 함께 전달하시려면 위 동의란에 체크해 주세요.
                 </div>
               )}
@@ -1388,7 +1508,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                   type="button"
                   onClick={() => setGuestSide('groom')}
                   style={{ order: groomOrder }}
-                  className={`py-3 rounded-xl font-bold border-2 text-sm sm:text-base transition-colors ${
+                  className={`${textScale.chip} rounded-xl font-bold border-2 transition-colors ${
                     guestSide === 'groom'
                       ? 'bg-[#2d221e] text-white border-[#2d221e] shadow-sm'
                       : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
@@ -1400,7 +1520,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                   type="button"
                   onClick={() => setGuestSide('bride')}
                   style={{ order: brideOrder }}
-                  className={`py-3 rounded-xl font-bold border-2 text-sm sm:text-base transition-colors ${
+                  className={`${textScale.chip} rounded-xl font-bold border-2 transition-colors ${
                     guestSide === 'bride'
                       ? 'bg-[#b35c66] text-white border-[#b35c66] shadow-sm'
                       : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
@@ -1415,7 +1535,11 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
                 참석 여부
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div
+                className={`grid gap-2 ${
+                  fontScale === 'xlarge' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-3'
+                }`}
+              >
                 {(
                   [
                     { id: 'attend', label: '참석합니다' },
@@ -1429,7 +1553,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                       key={opt.id}
                       type="button"
                       onClick={() => setAttendance(opt.id)}
-                      className={`py-3 px-1.5 rounded-xl font-bold border-2 text-xs sm:text-sm transition-colors ${
+                      className={`${textScale.chip} rounded-xl font-bold border-2 transition-colors ${
                         active
                           ? opt.id === 'attend'
                             ? 'bg-[#b35c66] text-white border-[#b35c66] shadow-sm'
@@ -1451,7 +1575,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
                   방문 인원 (본인 포함)
                 </label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {[1, 2, 3, 4, 5, 6].map((n) => {
                     const active = companions === n;
                     return (
@@ -1459,7 +1583,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                         key={n}
                         type="button"
                         onClick={() => setCompanions(n)}
-                        className={`py-2.5 rounded-xl font-bold border-2 text-sm sm:text-base tabular-nums transition-colors ${
+                        className={`${textScale.chip} rounded-xl font-bold border-2 tabular-nums transition-colors ${
                           active
                             ? 'bg-[#2d221e] text-white border-[#2d221e] shadow-sm'
                             : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
@@ -1476,7 +1600,11 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 <label className={`block ${textScale.sub} font-bold text-[#2d221e] mb-1.5`}>
                   식사 여부
                 </label>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div
+                  className={`grid gap-2 ${
+                    fontScale === 'xlarge' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-3'
+                  }`}
+                >
                   {(
                     [
                       { id: 'yes', label: '식사 예정' },
@@ -1490,7 +1618,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                         key={opt.id}
                         type="button"
                         onClick={() => setMeal(opt.id)}
-                        className={`py-3 px-1.5 rounded-xl font-bold border-2 text-xs sm:text-sm transition-colors ${
+                        className={`${textScale.chip} rounded-xl font-bold border-2 transition-colors ${
                           active
                             ? 'bg-[#2d221e] text-white border-[#2d221e] shadow-sm'
                             : 'bg-[#fffdf9] text-[#56463f] border-[#c9b69c]'
@@ -1507,16 +1635,19 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
           <div>
             <div className="flex items-center justify-between gap-2 mb-1.5">
-              <label className={`block ${textScale.sub} font-bold text-[#2d221e]`}>
-                축하 말씀
+              <label
+                htmlFor="parents-guest-message"
+                className={`block ${textScale.sub} font-bold text-[#2d221e]`}
+              >
+                축하 말씀 <span className="font-normal text-[#69584f]">(선택 · 비워두셔도 등록됩니다)</span>
               </label>
-              <span className="text-xs text-[#69584f] tabular-nums">
-                ({message.length} / 120)
+              <span className={`${textScale.caption} text-[#69584f] tabular-nums shrink-0`}>
+                ({message.length}/120)
               </span>
             </div>
 
             {/* Senior-Friendly 1-Tap Quick Blessing Chips */}
-            <div className="flex flex-wrap gap-1.5 mb-2.5">
+            <div className="flex flex-wrap gap-2 mb-2.5">
               {PARENTS_QUICK_BLESSING_CHIPS.map((chip) => {
                 const selected = message === chip;
                 return (
@@ -1524,7 +1655,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                     key={chip}
                     type="button"
                     onClick={() => setMessage(chip)}
-                    className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border text-left transition-colors ${
+                    className={`px-3.5 py-2 rounded-xl ${textScale.label} font-semibold border text-left transition-colors break-keep ${
                       selected
                         ? 'bg-[#fcf0f1] border-[#b35c66] text-[#9e3f4a] font-bold'
                         : 'bg-[#fffdf9] hover:bg-[#f5efe6] border-[#d8c7b0] text-[#4a3a33]'
@@ -1537,12 +1668,12 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             </div>
 
             <textarea
+              id="parents-guest-message"
               rows={3}
-              required
               maxLength={120}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="두 사람의 앞날을 축복하는 따뜻한 말씀을 남겨주세요."
+              placeholder="따뜻한 말씀을 남겨주시거나, 비워두고 바로 등록하셔도 됩니다."
               className={`w-full bg-[#fffdf9] border-2 border-[#c9b69c] focus:border-[#b35c66] outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e]`}
             />
           </div>
@@ -1556,7 +1687,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </button>
 
           {submittedBanner && (
-            <div className="p-3.5 rounded-xl bg-[#eef7f0] border border-[#a9d1b2] text-[#285233] font-bold text-center text-base">
+            <div className={`p-3.5 rounded-xl bg-[#eef7f0] border border-[#a9d1b2] text-[#285233] font-bold text-center ${textScale.body}`}>
               ✓ 소중한 축하 말씀과 참석 의사가 전달되었습니다. 감사합니다!
             </div>
           )}
@@ -1608,7 +1739,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                           setGuestbookFilter(tab.id);
                           setVisibleGuestbookCount(5);
                         }}
-                        className={`px-3 py-1 rounded-full text-xs sm:text-sm font-bold border transition-colors ${
+                        className={`px-3.5 py-1.5 rounded-full ${textScale.label} font-bold border transition-colors ${
                           active
                             ? tab.id === 'bride'
                               ? 'bg-[#b35c66] text-white border-[#b35c66]'
@@ -1625,7 +1756,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
               <div className="space-y-3">
                 {visibleParentsGuestbook.length === 0 ? (
-                  <div className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-5 text-center text-sm text-[#69584f]">
+                  <div className={`bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-5 text-center ${textScale.sub} text-[#69584f]`}>
                     아직 등록된 축하 말씀이 없습니다. 첫 번째 축복의 말씀을 남겨주세요.
                   </div>
                 ) : (
@@ -1636,12 +1767,12 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                         key={item.id}
                         className="bg-[#faf5ec] border border-[#dfd2be] rounded-2xl p-4 space-y-1.5"
                       >
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex items-center gap-2 flex-wrap">
                             <strong className={`${textScale.body} text-[#2d221e]`}>
                               {item.name}
                             </strong>
-                            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#fffdf9] border border-[#dfd2be] text-[#69584f] font-semibold">
+                            <span className={`${textScale.caption} px-2.5 py-0.5 rounded-full bg-[#fffdf9] border border-[#dfd2be] text-[#69584f] font-semibold`}>
                               {item.side === 'bride'
                                 ? '신부측'
                                 : item.side === 'groom'
@@ -1650,13 +1781,13 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-[#7d6e65]">{item.createdAt}</span>
+                            <span className={`${textScale.caption} text-[#7d6e65]`}>{item.createdAt}</span>
                             {isMine && (
                               <button
                                 type="button"
                                 disabled={deletingId === item.id}
                                 onClick={() => handleDeleteEntry(item.id)}
-                                className="px-2 py-1 rounded-lg bg-[#fcf0f1] border border-[#e2a3a9] text-[#c04854] text-xs font-bold flex items-center gap-1"
+                                className={`px-2.5 py-1 rounded-lg bg-[#fcf0f1] border border-[#e2a3a9] text-[#c04854] ${textScale.caption} font-bold flex items-center gap-1`}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 <span>삭제</span>
@@ -1796,14 +1927,14 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-3.5 bg-[#2d221e] text-white flex items-center justify-between gap-2">
-              <span className="font-bold text-base truncate">
+              <span className={`font-bold ${textScale.sub} truncate`}>
                 {config.gallery[lightboxIdx].title} ({lightboxIdx + 1} /{' '}
                 {config.gallery.length})
               </span>
               <button
                 type="button"
                 onClick={() => setLightboxIdx(null)}
-                className="px-3 py-1 rounded-lg bg-white/15 text-white text-sm font-bold flex items-center gap-1 shrink-0"
+                className={`px-3.5 py-1.5 rounded-lg bg-white/15 text-white ${textScale.label} font-bold flex items-center gap-1 shrink-0`}
               >
                 <X className="w-4 h-4" /> 닫기
               </button>
@@ -1817,7 +1948,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               />
             </div>
 
-            <div className="px-4 pt-2.5 pb-1 bg-[#fffdf9] text-center text-xs text-[#7d6e65]">
+            <div className={`px-4 pt-2.5 pb-1 bg-[#fffdf9] text-center ${textScale.caption} text-[#7d6e65]`}>
               사진을 좌우로 밀거나 아래 버튼으로 넘겨 보실 수 있습니다
             </div>
 
@@ -1829,7 +1960,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                     (lightboxIdx - 1 + config.gallery.length) % config.gallery.length
                   )
                 }
-                className="px-4 py-2.5 rounded-xl bg-[#faf5ec] border border-[#d8c7b0] font-bold text-sm text-[#2d221e] flex items-center gap-1"
+                className={`px-4 py-3 rounded-xl bg-[#faf5ec] border border-[#d8c7b0] font-bold ${textScale.label} text-[#2d221e] flex items-center gap-1`}
               >
                 <ChevronLeft className="w-4 h-4" /> 이전 사진
               </button>
@@ -1838,10 +1969,100 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 onClick={() =>
                   setLightboxIdx((lightboxIdx + 1) % config.gallery.length)
                 }
-                className="px-4 py-2.5 rounded-xl bg-[#faf5ec] border border-[#d8c7b0] font-bold text-sm text-[#2d221e] flex items-center gap-1"
+                className={`px-4 py-3 rounded-xl bg-[#faf5ec] border border-[#d8c7b0] font-bold ${textScale.label} text-[#2d221e] flex items-center gap-1`}
               >
                 다음 사진 <ChevronRight className="w-4 h-4" />
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen High-Contrast Taxi Driver Destination Card for Elders */}
+      {showTaxiCard && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="택시 기사님 목적지 안내"
+          onClick={() => setShowTaxiCard(false)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm overscroll-contain flex items-center justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] font-sans"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white text-[#111111] rounded-3xl overflow-hidden shadow-2xl border-4 border-[#d97706] animate-fadeIn"
+          >
+            <div className="bg-[#2d221e] text-white px-5 py-4 flex items-center justify-between gap-2">
+              <div className="font-extrabold text-base sm:text-lg flex items-center gap-2">
+                <span aria-hidden="true">🚕</span>
+                <span>기사님께 이 화면을 보여주세요</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTaxiCard(false)}
+                aria-label="택시 안내 닫기"
+                className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-bold flex items-center gap-1 shrink-0"
+              >
+                <X className="w-4 h-4" /> 닫기
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-center">
+              <div className="space-y-1.5">
+                <div className="inline-block px-3.5 py-1 rounded-full bg-[#fef3c7] border border-[#f59e0b] text-[#92400e] text-sm font-extrabold">
+                  목적지 (예식장)
+                </div>
+                <h3 className="text-[32px] sm:text-[38px] font-extrabold text-[#111111] leading-tight tracking-tight break-keep">
+                  {config.wedding.venueName}
+                </h3>
+                <div className="text-[20px] sm:text-[24px] font-bold text-[#b35c66]">
+                  {config.wedding.hallName}
+                </div>
+              </div>
+
+              <div className="bg-[#f8f5ef] border-2 border-[#d4c4ac] rounded-2xl p-4 space-y-2 text-left">
+                <div className="text-xs font-bold text-[#69584f]">도로명 주소</div>
+                <div className="text-[22px] sm:text-[26px] font-extrabold text-[#111111] leading-snug break-keep">
+                  {config.wedding.addressRoad}
+                </div>
+                {config.wedding.addressJibun && (
+                  <div className="pt-2 border-t border-[#e5dac8] text-[16px] sm:text-[18px] font-semibold text-[#444444] break-keep">
+                    지번 : {config.wedding.addressJibun}
+                  </div>
+                )}
+              </div>
+
+              {(config.wedding.subwayGuide[0] || config.wedding.shuttleGuide) && (
+                <div className="bg-[#eef6f0] border-2 border-[#8cb596] rounded-2xl px-4 py-3 text-[17px] sm:text-[19px] font-bold text-[#1f472a] break-keep">
+                  📍 {config.wedding.shuttleGuide || config.wedding.subwayGuide[0]}
+                </div>
+              )}
+
+              {config.wedding.tel && (
+                <div className="text-[17px] font-bold text-[#333333] tabular-nums">
+                  예식장 전화 : {config.wedding.tel}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {config.wedding.tel && (
+                  <a
+                    href={`tel:${cleanPhoneForHref(config.wedding.tel)}`}
+                    className="py-4 px-4 rounded-2xl bg-[#faf5ec] hover:bg-[#f0e5d4] border-2 border-[#c9b69c] text-[#2d221e] text-lg font-extrabold flex items-center justify-center gap-2"
+                  >
+                    <Phone className="w-5 h-5 text-[#8c6747]" />
+                    <span>예식장 전화</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowTaxiCard(false)}
+                  className={`py-4 px-4 rounded-2xl bg-[#2d221e] hover:bg-[#1e1613] text-white text-lg font-extrabold ${
+                    config.wedding.tel ? '' : 'sm:col-span-2'
+                  }`}
+                >
+                  큰 화면 닫기
+                </button>
+              </div>
             </div>
           </div>
         </div>
