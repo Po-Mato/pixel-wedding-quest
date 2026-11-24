@@ -718,7 +718,7 @@ export function App() {
   return (
     <CoupleOrderProvider primary={defaultGuestSide}>
     <div
-      className={`min-h-screen w-full overflow-x-hidden bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center ${
+      className={`min-h-screen w-full overflow-x-clip bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center ${
         screenMode === 'title' ? 'justify-center' : 'justify-start'
       } ${
         screenMode === 'world'

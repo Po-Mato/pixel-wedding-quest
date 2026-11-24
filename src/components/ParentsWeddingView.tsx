@@ -25,6 +25,9 @@ import {
   Send,
   Lock,
   Hand,
+  Volume2,
+  Square,
+  ZoomIn,
 } from 'lucide-react';
 import {
   WeddingConfig,
@@ -129,11 +132,29 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [showTaxiCard, setShowTaxiCard] = useState(false);
   const [showAllPhotos, setShowAllPhotos] = useState(false);
   const [activeNavId, setActiveNavId] = useState<ParentsNavId | null>(null);
+  const [isCompactTopBar, setIsCompactTopBar] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [mapInteractive, setMapInteractive] = useState(false);
   const [showSideShareLinks, setShowSideShareLinks] = useState(false);
   const [imgLoadedMap, setImgLoadedMap] = useState<Record<string, boolean>>({});
   const guestNameInputRef = useRef<HTMLInputElement | null>(null);
+  const supportsSpeech =
+    typeof window !== 'undefined' &&
+    'speechSynthesis' in window &&
+    typeof SpeechSynthesisUtterance !== 'undefined';
+
+  useEffect(() => {
+    return () => {
+      if (supportsSpeech) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [supportsSpeech]);
 
   const jumpToParentsSection = (sectionId: QuestBuildingId) => {
     const idMap: Record<QuestBuildingId, string> = {
@@ -182,6 +203,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
+      setIsCompactTopBar(scrollY > 220);
       setShowScrollTop(scrollY > 420);
       if (scrollY < 260) {
         setActiveNavId(null);
@@ -275,6 +297,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       label: 'text-[13px] leading-[1.5]',
       chip: 'text-[13px] sm:text-[14px] py-2.5 px-2',
       caption: 'text-[13px] leading-[1.5]',
+      calHead: 'text-sm sm:text-base',
+      calDay: 'text-base sm:text-lg',
+      calCell: 'h-10',
+      calCircle: 'w-9 h-9',
     },
     large: {
       body: 'text-[18px] leading-[1.9]',
@@ -286,6 +312,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       label: 'text-[15px] leading-[1.5]',
       chip: 'text-[15px] py-3 px-2.5',
       caption: 'text-[15px] leading-[1.55]',
+      calHead: 'text-base sm:text-lg',
+      calDay: 'text-lg sm:text-xl',
+      calCell: 'h-10',
+      calCircle: 'w-10 h-10',
     },
     xlarge: {
       body: 'text-[20px] leading-[1.95]',
@@ -297,6 +327,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       label: 'text-[17px] leading-[1.55]',
       chip: 'text-[17px] py-3.5 px-3',
       caption: 'text-[17px] leading-[1.6]',
+      calHead: 'text-lg sm:text-xl',
+      calDay: 'text-xl sm:text-2xl',
+      calCell: 'h-11',
+      calCircle: 'w-11 h-11',
     },
   }[fontScale];
 
@@ -347,7 +381,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     setCopiedKey(key);
     setTimeout(() => {
       setCopiedKey((prev) => (prev === key ? null : prev));
-    }, 3500);
+    }, 6000);
   };
 
   const handleCopyAccount = async (acc: BankAccount, key: string) => {
@@ -366,7 +400,62 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     });
     setTimeout(() => {
       setCopiedKey((prev) => (prev === key ? null : prev));
-    }, 3500);
+    }, 6000);
+  };
+
+  const fontScaleLabelMap: Record<FontScaleMode, string> = {
+    normal: '보통',
+    large: '크게',
+    xlarge: '아주 크게',
+  };
+
+  const handleCycleFontScale = () => {
+    const order: FontScaleMode[] = ['normal', 'large', 'xlarge'];
+    const next = order[(order.indexOf(fontScale) + 1) % order.length];
+    setFontScale(next);
+    showToast(`글씨 크기: ${fontScaleLabelMap[next]}`, 'info');
+  };
+
+  const handleToggleSpeech = () => {
+    if (!supportsSpeech) return;
+    try {
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const coupleIntro =
+        primary === 'bride'
+          ? `신부측 혼주 ${config.bride.fatherName}, ${config.bride.motherName}님의 ${config.bride.relation} ${config.bride.fullName}, 신랑측 혼주 ${config.groom.fatherName}, ${config.groom.motherName}님의 ${config.groom.relation} ${config.groom.fullName} 결혼식에 초대합니다.`
+          : `신랑측 혼주 ${config.groom.fatherName}, ${config.groom.motherName}님의 ${config.groom.relation} ${config.groom.fullName}, 신부측 혼주 ${config.bride.fatherName}, ${config.bride.motherName}님의 ${config.bride.relation} ${config.bride.fullName} 결혼식에 초대합니다.`;
+      const dateVenueIntro = `예식 일시는 ${config.wedding.dateDisplay} ${config.wedding.timeDisplay}이며, 장소는 ${config.wedding.venueName} ${config.wedding.hallName}입니다.`;
+      const messageBody = [
+        config.invitationMessage.headline,
+        ...config.invitationMessage.paragraphs,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const addressTail = `오시는 길 주소는 ${config.wedding.addressRoad} 입니다.`;
+
+      const utterance = new SpeechSynthesisUtterance(
+        `${coupleIntro} ${dateVenueIntro} ${messageBody} ${addressTail}`
+      );
+      utterance.lang = 'ko-KR';
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      const voices = window.speechSynthesis.getVoices();
+      const koVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith('ko'));
+      if (koVoice) {
+        utterance.voice = koVoice;
+      }
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      setIsSpeaking(true);
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setIsSpeaking(false);
+    }
   };
 
   const buildShareUrl = (sideParam?: ParentsSideFilter) => {
@@ -529,40 +618,50 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
   return (
     <div className="w-full max-w-[540px] mx-auto space-y-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] font-serif text-[#2d221e]">
-      {/* 0. Sticky Top Accessibility Font-Size Bar & Quick Jump */}
-      <div className="sticky top-2 z-30 bg-[#fffdf9]/95 backdrop-blur-md border border-[#d8c7b0] rounded-2xl px-3.5 py-2.5 shadow-[0_8px_24px_-10px_rgba(45,34,30,0.16)] font-sans space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-[#4a3a33] font-bold text-sm">
-            <Type className="w-4 h-4 text-[#b35c66]" />
-            <span>글씨 크기 조절</span>
-          </div>
+      {/* 0. Sticky Top Accessibility Font-Size Bar & Quick Jump (Auto-slims on scroll) */}
+      <div
+        className={`sticky top-2 z-30 bg-[#fffdf9]/95 backdrop-blur-md border border-[#d8c7b0] rounded-2xl shadow-[0_8px_24px_-10px_rgba(45,34,30,0.16)] font-sans transition-all ${
+          isCompactTopBar ? 'px-2.5 py-2' : 'px-3.5 py-2.5 space-y-2'
+        }`}
+      >
+        {!isCompactTopBar && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-[#4a3a33] font-bold text-sm">
+              <Type className="w-4 h-4 text-[#b35c66]" />
+              <span>글씨 크기 조절</span>
+            </div>
 
-          <div className="inline-flex rounded-xl bg-[#f5efe6] p-1 border border-[#dfd2be]">
-            {(
-              [
-                { id: 'normal', label: '보통' },
-                { id: 'large', label: '크게(권장)' },
-                { id: 'xlarge', label: '아주 크게' },
-              ] as const
-            ).map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setFontScale(opt.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
-                  fontScale === opt.id
-                    ? 'bg-[#2d221e] text-[#fffdf9]'
-                    : 'text-[#69584f] hover:text-[#2d221e]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            <div className="inline-flex rounded-xl bg-[#f5efe6] p-1 border border-[#dfd2be]">
+              {(
+                [
+                  { id: 'normal', label: '보통' },
+                  { id: 'large', label: '크게(권장)' },
+                  { id: 'xlarge', label: '아주 크게' },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setFontScale(opt.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
+                    fontScale === opt.id
+                      ? 'bg-[#2d221e] text-[#fffdf9]'
+                      : 'text-[#69584f] hover:text-[#2d221e]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Big Quick-Jump Anchor Buttons with Active Scroll Spy (5 Sections) */}
-        <div className="grid grid-cols-5 gap-1 pt-1 border-t border-[#efe6d8] text-center">
+        <div
+          className={`grid grid-cols-5 gap-1 text-center ${
+            isCompactTopBar ? '' : 'pt-1 border-t border-[#efe6d8]'
+          }`}
+        >
           {(
             [
               { id: 'parents-greeting', label: '모시는 글' },
@@ -583,7 +682,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                     behavior: prefersReducedMotion() ? 'auto' : 'smooth',
                   });
                 }}
-                className={`py-2 px-0.5 rounded-xl border text-[11px] sm:text-sm font-bold whitespace-nowrap transition-colors ${
+                className={`py-2.5 px-0.5 rounded-xl border text-[12px] sm:text-sm font-bold whitespace-nowrap transition-colors ${
                   isActive
                     ? 'bg-[#2d221e] text-[#fffdf9] border-[#2d221e] shadow-sm'
                     : 'bg-[#faf5ec] hover:bg-[#f1e7d6] border-[#e2d4c0] text-[#3b2f2f]'
@@ -635,20 +734,46 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           </div>
         </div>
 
-        {/* Main Wedding Photograph */}
+        {/* Main Wedding Photograph (Tap to open Fullscreen Lightbox) */}
         <div className="p-5 sm:p-7 bg-[#fffdf9]">
-          <div className="relative mx-auto max-w-[420px] aspect-[4/4.6] rounded-2xl overflow-hidden border border-[#dfd2be] shadow-sm bg-[#faf5ec]">
+          <button
+            type="button"
+            onClick={() => config.gallery[0] && setLightboxIdx(0)}
+            aria-label="대표 웨딩 사진 크게 보기"
+            className="group relative block mx-auto w-full max-w-[420px] aspect-[4/4.6] rounded-2xl overflow-hidden border border-[#dfd2be] shadow-sm bg-[#faf5ec]"
+          >
             <img
               src={config.gallery[0]?.imageUrl}
               alt={`${joinCoupleNames(config, primary, 'fullName', ' · ')} 웨딩 사진`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
             />
-          </div>
+            {config.gallery[0] && (
+              <span className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-[#2d221e]/80 text-white text-xs sm:text-sm font-sans font-bold backdrop-blur-sm flex items-center gap-1.5 shadow-md">
+                <ZoomIn className="w-3.5 h-3.5" />
+                <span>크게 보기</span>
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Essential Date, Time & Venue Box */}
-        <div className="px-6 pb-8 pt-2">
+        {/* Essential Date, Time & Venue Box + D-Day Badge + Voice Read-Aloud */}
+        <div className="px-6 pb-8 pt-2 space-y-3">
           <div className="bg-[#faf5ec] border-2 border-[#d8c4a8] rounded-2xl p-5 space-y-2">
+            <div className="pb-1">
+              <span className={`inline-block px-3.5 py-1 rounded-full font-sans font-bold ${textScale.label} tabular-nums ${
+                weddingDayDiff === 0
+                  ? 'bg-[#b35c66] text-white'
+                  : weddingDayDiff < 0
+                  ? 'bg-[#e6ebe8] text-[#2f453c]'
+                  : 'bg-[#fcf0f1] border border-[#e5b8be] text-[#9e3f4a]'
+              }`}>
+                {weddingDayDiff === 0
+                  ? '오늘이 결혼식 날입니다 💍'
+                  : weddingDayDiff < 0
+                  ? `결혼 +${Math.abs(weddingDayDiff)}일째 💐`
+                  : `예식까지 D-${weddingDayDiff}일`}
+              </span>
+            </div>
             <div className={`${textScale.nameLarge} font-bold text-[#2d221e] tabular-nums`}>
               {config.wedding.dateDisplay}
             </div>
@@ -664,6 +789,31 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               </div>
             </div>
           </div>
+
+          {supportsSpeech && (
+            <button
+              type="button"
+              onClick={handleToggleSpeech}
+              aria-pressed={isSpeaking}
+              className={`w-full ${textScale.btn} rounded-2xl font-sans font-bold border-2 flex items-center justify-center gap-2 shadow-sm transition-colors ${
+                isSpeaking
+                  ? 'bg-[#b35c66] hover:bg-[#9f4c56] text-white border-[#9f4c56]'
+                  : 'bg-[#fffdf9] hover:bg-[#faf5ec] text-[#2d221e] border-[#c9b69c]'
+              }`}
+            >
+              {isSpeaking ? (
+                <>
+                  <Square className="w-4 h-4 fill-current shrink-0" />
+                  <span>음성 읽기 멈추기</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="w-5 h-5 text-[#b35c66] shrink-0" />
+                  <span>청첩장 음성으로 듣기</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </section>
 
@@ -860,7 +1010,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             {year}년 {month}월
           </div>
 
-          <div className="grid grid-cols-7 text-center text-sm sm:text-base font-bold mb-3">
+          <div className={`grid grid-cols-7 text-center ${textScale.calHead} font-bold mb-3`}>
             {['일', '월', '화', '수', '목', '금', '토'].map((d, idx) => (
               <div
                 key={d}
@@ -877,18 +1027,18 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-y-2.5 text-center text-base sm:text-lg font-bold tabular-nums">
+          <div className={`grid grid-cols-7 gap-y-2.5 text-center ${textScale.calDay} font-bold tabular-nums`}>
             {calendarCells.map((day, idx) => {
               if (day === null) {
-                return <div key={`empty-${idx}`} className="h-10" />;
+                return <div key={`empty-${idx}`} className={textScale.calCell} />;
               }
               const isWeddingDay = day === weddingDay;
               const dayOfWeekIdx = idx % 7;
 
               return (
-                <div key={day} className="h-10 flex items-center justify-center">
+                <div key={day} className={`${textScale.calCell} flex items-center justify-center`}>
                   <span
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    className={`${textScale.calCircle} rounded-full flex items-center justify-center ${
                       isWeddingDay
                         ? 'bg-[#b35c66] text-white font-extrabold ring-4 ring-[#f2cbd0]'
                         : dayOfWeekIdx === 0
@@ -1216,7 +1366,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span
-                    className={`px-3 py-1 rounded-full text-sm font-bold ${
+                    className={`px-3 py-1 rounded-full ${textScale.label} font-bold ${
                       activeAccountSide === 'groom'
                         ? 'bg-[#e6ebe8] text-[#2f453c]'
                         : 'bg-[#f9ebea] text-[#9e4751]'
@@ -1251,16 +1401,25 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                     >
                       {isCopied ? (
                         <>
-                          <Check className="w-5 h-5" />
+                          <Check className="w-5 h-5 shrink-0" />
                           <span>복사 완료 ({acc.bank} {acc.name})</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="w-5 h-5 text-[#e6d5b8]" />
+                          <Copy className="w-5 h-5 text-[#e6d5b8] shrink-0" />
                           <span>계좌번호 복사하기</span>
                         </>
                       )}
                     </button>
+
+                    {isCopied && (
+                      <div
+                        role="status"
+                        className={`rounded-xl bg-[#eef7f0] border border-[#9ac4a3] px-3.5 py-2.5 ${textScale.label} font-semibold text-[#22472f] break-keep animate-fadeIn`}
+                      >
+                        💡 쓰시는 은행 앱을 열고, 계좌번호 입력칸을 길게 눌러 <strong>[붙여넣기]</strong> 하세요.
+                      </div>
+                    )}
 
                     <div className={`grid ${acc.kakaoPayUrl ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
                       <button
@@ -2068,23 +2227,41 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
       )}
 
-      {/* Senior-Friendly Floating Scroll-To-Top Button */}
-      {showScrollTop && (
-        <button
-          type="button"
-          onClick={() => {
-            window.scrollTo({
-              top: 0,
-              behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-            });
-          }}
-          aria-label="맨 위로 이동"
+      {/* Senior-Friendly Floating Quick-Font & Scroll-To-Top Stack */}
+      {(isCompactTopBar || showScrollTop) && (
+        <div
           style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
-          className="fixed right-4 z-40 px-4 py-2.5 rounded-full bg-[#2d221e]/95 hover:bg-[#1e1613] text-[#fffdf9] border-2 border-[#d4b48c] shadow-lg text-sm font-sans font-bold flex items-center gap-1.5 backdrop-blur-sm transition-all active:scale-95"
+          className="fixed right-4 z-40 flex flex-col items-end gap-2 font-sans"
         >
-          <ArrowUp className="w-4 h-4 text-[#f0d29c]" />
-          <span>맨 위로</span>
-        </button>
+          {isCompactTopBar && (
+            <button
+              type="button"
+              onClick={handleCycleFontScale}
+              aria-label="글씨 크기 변경"
+              title="글씨 크기 바꾸기 (보통 → 크게 → 아주 크게)"
+              className="px-3.5 py-2 rounded-full bg-[#fffdf9]/95 hover:bg-[#faf5ec] text-[#2d221e] border-2 border-[#c9b69c] shadow-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 backdrop-blur-sm transition-all active:scale-95"
+            >
+              <Type className="w-3.5 h-3.5 text-[#b35c66]" />
+              <span>글씨: {fontScaleLabelMap[fontScale]}</span>
+            </button>
+          )}
+          {showScrollTop && (
+            <button
+              type="button"
+              onClick={() => {
+                window.scrollTo({
+                  top: 0,
+                  behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                });
+              }}
+              aria-label="맨 위로 이동"
+              className="px-4 py-2.5 rounded-full bg-[#2d221e]/95 hover:bg-[#1e1613] text-[#fffdf9] border-2 border-[#d4b48c] shadow-lg text-sm font-bold flex items-center gap-1.5 backdrop-blur-sm transition-all active:scale-95"
+            >
+              <ArrowUp className="w-4 h-4 text-[#f0d29c]" />
+              <span>맨 위로</span>
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
