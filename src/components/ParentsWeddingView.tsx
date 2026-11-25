@@ -189,6 +189,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedBanner, setSubmittedBanner] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [guestbookFilter, setGuestbookFilter] = useState<'all' | 'groom' | 'bride'>('all');
   const [visibleGuestbookCount, setVisibleGuestbookCount] = useState<number>(5);
@@ -578,10 +579,10 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
   };
 
   const handleDeleteEntry = async (entryId: string) => {
-    if (!window.confirm('작성하신 축하 글을 삭제하시겠습니까?')) return;
     setDeletingId(entryId);
     const ok = await deleteOwnGuestbookEntry(entryId);
     setDeletingId(null);
+    setConfirmDeleteId(null);
     if (ok && onDeleteGuestbook) {
       onDeleteGuestbook(entryId);
       showToast('작성하신 축하 글이 삭제되었습니다', 'info');
@@ -620,7 +621,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
     <div className="w-full max-w-[540px] mx-auto space-y-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] font-serif text-[#2d221e]">
       {/* 0. Sticky Top Accessibility Font-Size Bar & Quick Jump (Auto-slims on scroll) */}
       <div
-        className={`sticky top-2 z-30 bg-[#fffdf9]/95 backdrop-blur-md border border-[#d8c7b0] rounded-2xl shadow-[0_8px_24px_-10px_rgba(45,34,30,0.16)] font-sans transition-all ${
+        className={`sticky top-2 z-30 bg-[#fffdf9]/95 backdrop-blur-md border border-[#d8c7b0] rounded-2xl shadow-[0_8px_24px_-10px_rgba(45,34,30,0.16)] font-sans transition-all print:hidden ${
           isCompactTopBar ? 'px-2.5 py-2' : 'px-3.5 py-2.5 space-y-2'
         }`}
       >
@@ -707,7 +708,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       )}
 
       {/* 1. Dignified Formal Hero Cover */}
-      <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl overflow-hidden shadow-[0_12px_32px_-14px_rgba(45,34,30,0.12)] text-center">
+      <section className="parents-print-card bg-[#fffdf9] border border-[#dfd2be] rounded-3xl overflow-hidden shadow-[0_12px_32px_-14px_rgba(45,34,30,0.12)] text-center">
         <div className="pt-8 pb-5 px-6 bg-gradient-to-b from-[#faf4ea] to-[#fffdf9] border-b border-[#efe6d8]">
           <h1 className={`${textScale.heroTitle} font-bold text-[#2d221e] tracking-wide`}>
             {primary === 'bride' ? config.bride.fullName : config.groom.fullName}
@@ -748,7 +749,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
             />
             {config.gallery[0] && (
-              <span className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-[#2d221e]/80 text-white text-xs sm:text-sm font-sans font-bold backdrop-blur-sm flex items-center gap-1.5 shadow-md">
+              <span className="print:hidden absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-[#2d221e]/80 text-white text-xs sm:text-sm font-sans font-bold backdrop-blur-sm flex items-center gap-1.5 shadow-md">
                 <ZoomIn className="w-3.5 h-3.5" />
                 <span>크게 보기</span>
               </span>
@@ -795,7 +796,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
               type="button"
               onClick={handleToggleSpeech}
               aria-pressed={isSpeaking}
-              className={`w-full ${textScale.btn} rounded-2xl font-sans font-bold border-2 flex items-center justify-center gap-2 shadow-sm transition-colors ${
+              className={`print:hidden w-full ${textScale.btn} rounded-2xl font-sans font-bold border-2 flex items-center justify-center gap-2 shadow-sm transition-colors ${
                 isSpeaking
                   ? 'bg-[#b35c66] hover:bg-[#9f4c56] text-white border-[#9f4c56]'
                   : 'bg-[#fffdf9] hover:bg-[#faf5ec] text-[#2d221e] border-[#c9b69c]'
@@ -820,7 +821,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {/* 2. Formal Invitation Message & Family Introduction */}
       <section
         id="parents-greeting"
-        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6"
+        className="scroll-mt-20 parents-print-card bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6"
       >
         <div className="text-center border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-bold text-[#2d221e]`}>모시는 글</h2>
@@ -865,7 +866,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {/* 3. Large One-Touch Contact Buttons for Parents (혼주) & Couple (2-Tab Switcher) */}
       <section
         id="parents-contact"
-        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-5 font-sans"
+        className="scroll-mt-20 parents-print-card bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-5 font-sans"
       >
         <div className="text-center border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-serif font-bold text-[#2d221e]`}>
@@ -877,7 +878,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
 
         {/* Groom / Bride Contact Side Tabs */}
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5 print:hidden">
           <button
             type="button"
             onClick={() => setActiveContactSide('groom')}
@@ -940,7 +941,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
 
                   {dialHref && (
                     <div
-                      className={`grid gap-2 ${
+                      className={`print:hidden grid gap-2 ${
                         fontScale === 'xlarge'
                           ? 'grid-cols-2'
                           : 'grid-cols-3'
@@ -995,7 +996,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {/* 4. High-Contrast Wedding Date & Large Calendar */}
       <section
         id="parents-ceremony"
-        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 text-center"
+        className="scroll-mt-20 parents-print-card bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 text-center"
       >
         <div className="border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-bold text-[#2d221e]`}>예식 일시 안내</h2>
@@ -1076,7 +1077,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
 
         {/* Senior-Friendly Calendar Save Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-sans">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-sans print:hidden">
           <button
             type="button"
             onClick={() => openGoogleCalendar(config, primary)}
@@ -1099,7 +1100,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {/* 5. Location, Map & Large Navigation / Transport Guide */}
       <section
         id="parents-location"
-        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans"
+        className="scroll-mt-20 parents-print-card bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans"
       >
         <div className="text-center border-b border-[#efe6d8] pb-5">
           <h2 className={`${textScale.heading} font-serif font-bold text-[#2d221e]`}>
@@ -1125,7 +1126,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4 print:hidden">
             <button
               type="button"
               onClick={handleCopyAddress}
@@ -1156,7 +1157,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
           <button
             type="button"
             onClick={() => setShowTaxiCard(true)}
-            className={`w-full mt-2.5 ${textScale.btn} rounded-2xl bg-[#fef3c7] hover:bg-[#fde68a] border-2 border-[#d97706] text-[#2d221e] font-extrabold flex items-center justify-center gap-2 shadow-sm transition-colors`}
+            className={`print:hidden w-full mt-2.5 ${textScale.btn} rounded-2xl bg-[#fef3c7] hover:bg-[#fde68a] border-2 border-[#d97706] text-[#2d221e] font-extrabold flex items-center justify-center gap-2 shadow-sm transition-colors`}
           >
             <span aria-hidden="true">🚕</span>
             <span>택시 기사님께 보여드리기 (큰 화면)</span>
@@ -1164,7 +1165,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
 
         {/* Interactive Map Preview (Scroll-Safe Toggle) & Large 1-Tap Navigation Buttons */}
-        <div className="space-y-3">
+        <div className="space-y-3 print:hidden">
           {hasValidCoords && (
             <div
               className={`relative w-full aspect-[16/9] rounded-2xl overflow-hidden border-2 bg-[#e9f0e8] transition-colors ${
@@ -1310,7 +1311,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {/* 6. Large-Print Bank Accounts (마음 전하실 곳) */}
       <section
         id="parents-gift"
-        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans"
+        className="scroll-mt-20 parents-print-card bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans"
       >
         <div className="text-center border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-serif font-bold text-[#2d221e] flex items-center justify-center gap-2`}>
@@ -1325,7 +1326,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
         </div>
 
         {/* Groom / Bride Account Side Tabs */}
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5 print:hidden">
           <button
             type="button"
             onClick={() => setActiveAccountSide('groom')}
@@ -1389,7 +1390,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                 </div>
 
                 {hasNumber && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 print:hidden">
                     <button
                       type="button"
                       onClick={() => handleCopyAccount(acc, key)}
@@ -1454,7 +1455,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {/* 7. Easy-to-Browse Wedding Photo Album (Compact 2-Col Grid + Expand Toggle) */}
       <section
         id="parents-gallery"
-        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-5"
+        className="scroll-mt-20 print:hidden bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-5"
       >
         <div className="text-center border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-bold text-[#2d221e]`}>
@@ -1527,7 +1528,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {/* 8. Simple Senior-Friendly RSVP & Guestbook (D1 Synced) */}
       <section
         id="parents-rsvp"
-        className="scroll-mt-32 bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans"
+        className="scroll-mt-20 print:hidden bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 sm:p-8 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-6 font-sans"
       >
         <div className="text-center border-b border-[#efe6d8] pb-4">
           <h2 className={`${textScale.heading} font-serif font-bold text-[#2d221e]`}>
@@ -1587,7 +1588,11 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                   setGuestName(e.target.value);
                   if (e.target.value.trim()) setNameError(false);
                 }}
-                placeholder="예: 홍길동 (신랑 아버지 친구)"
+                placeholder={
+                  primary === 'bride'
+                    ? '예: 홍길동 (신부 아버지 친구)'
+                    : '예: 홍길동 (신랑 아버지 친구)'
+                }
                 aria-invalid={nameError}
                 className={`w-full bg-[#fffdf9] border-2 outline-none rounded-xl px-4 py-3 ${textScale.body} text-[#2d221e] ${
                   nameError
@@ -1939,19 +1944,39 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
                                 : '하객'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className={`${textScale.caption} text-[#7d6e65]`}>{item.createdAt}</span>
-                            {isMine && (
-                              <button
-                                type="button"
-                                disabled={deletingId === item.id}
-                                onClick={() => handleDeleteEntry(item.id)}
-                                className={`px-2.5 py-1 rounded-lg bg-[#fcf0f1] border border-[#e2a3a9] text-[#c04854] ${textScale.caption} font-bold flex items-center gap-1`}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>삭제</span>
-                              </button>
-                            )}
+                            {isMine &&
+                              (confirmDeleteId === item.id ? (
+                                <div className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    disabled={deletingId === item.id}
+                                    onClick={() => handleDeleteEntry(item.id)}
+                                    className={`px-3 py-1 rounded-lg bg-[#b35c66] hover:bg-[#9f4c56] text-white ${textScale.caption} font-bold`}
+                                  >
+                                    {deletingId === item.id ? '삭제 중...' : '정말 삭제'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={deletingId === item.id}
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    className={`px-2.5 py-1 rounded-lg bg-[#fffdf9] border border-[#c9b69c] text-[#56463f] ${textScale.caption} font-bold`}
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={deletingId === item.id}
+                                  onClick={() => setConfirmDeleteId(item.id)}
+                                  className={`px-2.5 py-1 rounded-lg bg-[#fcf0f1] border border-[#e2a3a9] text-[#c04854] ${textScale.caption} font-bold flex items-center gap-1`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>삭제</span>
+                                </button>
+                              ))}
                           </div>
                         </div>
                         <p className={`${textScale.body} text-[#2d221e] break-keep`}>
@@ -1990,7 +2015,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       </section>
 
       {/* 9. Share Parents Invitation Link Box */}
-      <section className="bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-3.5 font-sans text-center">
+      <section className="print:hidden bg-[#fffdf9] border border-[#dfd2be] rounded-3xl p-6 shadow-[0_12px_32px_-14px_rgba(45,34,30,0.1)] space-y-3.5 font-sans text-center">
         <div className={`${textScale.body} font-bold text-[#2d221e]`}>
           지인분들께 청첩장 전달하기
         </div>
@@ -2231,7 +2256,7 @@ export const ParentsWeddingView: React.FC<ParentsWeddingViewProps> = ({
       {(isCompactTopBar || showScrollTop) && (
         <div
           style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
-          className="fixed right-4 z-40 flex flex-col items-end gap-2 font-sans"
+          className="fixed right-4 z-40 flex flex-col items-end gap-2 font-sans print:hidden"
         >
           {isCompactTopBar && (
             <button

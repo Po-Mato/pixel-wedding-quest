@@ -718,11 +718,13 @@ export function App() {
   return (
     <CoupleOrderProvider primary={defaultGuestSide}>
     <div
-      className={`min-h-screen w-full overflow-x-clip bg-[#f3ede2] text-[#3b2f2f] flex flex-col items-center ${
+      className={`min-h-screen w-full overflow-x-clip bg-[#f3ede2] print:bg-white text-[#3b2f2f] flex flex-col items-center ${
         screenMode === 'title' ? 'justify-center' : 'justify-start'
       } ${
         screenMode === 'world'
           ? 'pt-1.5 sm:pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-3 px-1.5 sm:px-3'
+          : screenMode === 'parents'
+          ? 'pt-3 sm:pt-6 pb-[calc(7.5rem+env(safe-area-inset-bottom))] print:p-0 px-2.5 sm:px-4'
           : 'pt-3 sm:pt-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-6 px-2.5 sm:px-4'
       }`}
     >
@@ -968,7 +970,7 @@ export function App() {
 
         {/* Footer Share, Phase Preview Switcher & Couple Mark (Hidden on initial 4-button entry screen) */}
         {screenMode !== 'title' && (
-        <footer className="pixel-card p-3.5 bg-[#fffdf9] space-y-2.5 text-xs font-sans">
+        <footer className="pixel-card p-3.5 bg-[#fffdf9] space-y-2.5 text-xs font-sans print:hidden">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div
               onClick={handleSecretFooterTap}
