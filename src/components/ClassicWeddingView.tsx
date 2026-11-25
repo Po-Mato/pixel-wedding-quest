@@ -363,7 +363,7 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
       </RevealSection>
 
       {/* 7. Optional Collapsible Mini-Game & Couple Quiz Card */}
-      <RevealSection id="classic-minigame" className="scroll-mt-16 space-y-3 pb-12">
+      <RevealSection id="classic-minigame" className="scroll-mt-16 space-y-3">
         <button
           onClick={() => {
             soundEngine.playSelect();

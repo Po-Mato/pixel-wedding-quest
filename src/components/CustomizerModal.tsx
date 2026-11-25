@@ -1353,7 +1353,7 @@ export const CustomizerModal: React.FC<CustomizerModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-[#8c7a70]">셔틀버스/전세버스 안내</label>
+                  <label className="block text-[10px] text-[#8c7a70]">도보 / 셔틀버스 안내</label>
                   <input
                     type="text"
                     value={draft.wedding.shuttleGuide}

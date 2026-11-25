@@ -45,6 +45,20 @@ const QUICK_BLESSING_CHIPS = [
   '멀리서나마 두 분의 아름다운 출발을 진심으로 축복합니다 ✨',
 ];
 
+const STORAGE_GUEST_AVATAR_KEY = 'pixel_wedding_quest_guest_avatar_v1';
+
+function readInitialGuestAvatar(): AvatarClassId {
+  try {
+    const saved = localStorage.getItem(STORAGE_GUEST_AVATAR_KEY) as AvatarClassId | null;
+    if (saved && AVATAR_CLASSES.some((c) => c.id === saved)) {
+      return saved;
+    }
+  } catch {
+    // ignore
+  }
+  return 'knight';
+}
+
 export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   config,
   guestbook,
@@ -58,7 +72,8 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const [phone, setPhone] = useState('');
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [privacyError, setPrivacyError] = useState(false);
-  const [avatar, setAvatar] = useState<AvatarClassId>('knight');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [avatar, setAvatar] = useState<AvatarClassId>(readInitialGuestAvatar);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [side, setSide] = useState<'groom' | 'bride' | 'both'>(initialSide);
   const [attendance, setAttendance] = useState<'attend' | 'maybe' | 'unable'>('attend');
@@ -69,6 +84,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const [submittedToast, setSubmittedToast] = useState<'cloud' | 'local' | null>(null);
   const [listFilter, setListFilter] = useState<'all' | 'groom' | 'bride'>('all');
   const [visibleCount, setVisibleCount] = useState<number>(5);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const filteredGuestbook =
     listFilter === 'all'
@@ -91,11 +107,23 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    if (!name.trim() || !message.trim()) return;
-    if (phone.trim() && !privacyAgreed) {
-      setPrivacyError(true);
+    if (!name.trim()) {
+      setFormError('성함(또는 관계)을 입력해 주세요.');
+      soundEngine.playBlip(360);
       return;
     }
+    if (!message.trim()) {
+      setFormError('축하 메시지를 입력하거나 상단 문구 칩을 눌러 선택해 주세요.');
+      soundEngine.playBlip(360);
+      return;
+    }
+    if (phone.trim() && !privacyAgreed) {
+      setPrivacyError(true);
+      setFormError('연락처를 함께 전달하시려면 수집·이용 동의에 체크해 주세요.');
+      soundEngine.playBlip(360);
+      return;
+    }
+    setFormError(null);
     setPrivacyError(false);
     setIsSubmitting(true);
 
@@ -191,6 +219,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
 
       {/* Form */}
       <form
+        noValidate
         onSubmit={handleSubmit}
         className="bg-[#faf5ec] border border-[#e6d5b8] rounded-xl p-4 sm:p-5 space-y-4 font-sans"
       >
@@ -363,8 +392,17 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                 required
                 maxLength={20}
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="예: 이지훈 (대학동기) / 박수빈"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (formError) setFormError(null);
+                }}
+                placeholder={
+                  side === 'bride'
+                    ? '예: 박수빈 (신부 대학동기)'
+                    : side === 'both'
+                    ? '예: 현우 · 미소 (공통지인)'
+                    : '예: 이지훈 (신랑 대학동기)'
+                }
                 className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-base sm:text-xs text-[#3b2f2f]"
               />
             </div>
@@ -402,8 +440,12 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                   type="checkbox"
                   checked={privacyAgreed}
                   onChange={(e) => {
-                    setPrivacyAgreed(e.target.checked);
-                    if (e.target.checked) setPrivacyError(false);
+                    const checked = e.target.checked;
+                    setPrivacyAgreed(checked);
+                    if (checked) {
+                      setPrivacyError(false);
+                      if (formError) setFormError(null);
+                    }
                   }}
                   className="mt-0.5 accent-[#d97b84] rounded"
                 />
@@ -446,6 +488,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                   onClick={() => {
                     soundEngine.playBlip(700);
                     setMessage(chip);
+                    if (formError) setFormError(null);
                   }}
                   className={`px-2.5 py-1 rounded-full text-[11px] border transition-all text-left ${
                     message === chip
@@ -463,12 +506,24 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
               rows={2}
               maxLength={120}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                if (formError) setFormError(null);
+              }}
               placeholder={`${joinCoupleNames(config, initialSide, 'name')} 두 사람의 새로운 출발에 따뜻한 한마디를 남겨주세요.`}
               className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-base sm:text-xs text-[#3b2f2f] resize-none"
             />
           </div>
         </div>
+
+        {formError && (
+          <div
+            role="alert"
+            className="bg-[#fff2f3] border border-[#d97b84] rounded-lg px-3 py-2 text-xs font-bold text-[#9e3f49] animate-fadeIn"
+          >
+            ⚠️ {formError}
+          </div>
+        )}
 
         <button
           type="submit"
@@ -596,24 +651,45 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-[#9c897e]">{item.createdAt}</span>
-                        {isMine && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!window.confirm('작성하신 방명록 메시지를 삭제하시겠습니까?')) return;
-                              const ok = await deleteOwnGuestbookEntry(item.id);
-                              if (ok && onDeleteGuestbook) {
-                                onDeleteGuestbook(item.id);
-                                showToast('작성하신 방명록이 삭제되었습니다', 'info');
-                              }
-                            }}
-                            title="내 방명록 삭제"
-                            className="text-[10px] text-[#b85d67] hover:text-[#d97b84] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#fffdf9] border border-[#e2d4c0]"
-                          >
-                            <Trash2 className="w-2.5 h-2.5" />
-                            <span>삭제</span>
-                          </button>
-                        )}
+                        {isMine &&
+                          (confirmDeleteId === item.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const ok = await deleteOwnGuestbookEntry(item.id);
+                                  setConfirmDeleteId(null);
+                                  if (ok && onDeleteGuestbook) {
+                                    onDeleteGuestbook(item.id);
+                                    showToast('작성하신 방명록이 삭제되었습니다', 'info');
+                                  }
+                                }}
+                                className="text-[10px] font-bold text-white bg-[#b85d67] hover:bg-[#9e4751] px-2 py-0.5 rounded"
+                              >
+                                정말 삭제
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="text-[10px] font-semibold text-[#6e5d53] bg-[#fffdf9] border border-[#d4b48c] px-1.5 py-0.5 rounded"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                soundEngine.playBlip(460);
+                                setConfirmDeleteId(item.id);
+                              }}
+                              title="내 방명록 삭제"
+                              className="text-[10px] text-[#b85d67] hover:text-[#d97b84] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#fffdf9] border border-[#e2d4c0]"
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
+                              <span>삭제</span>
+                            </button>
+                          ))}
                       </div>
                     </div>
 

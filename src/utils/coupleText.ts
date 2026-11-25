@@ -12,6 +12,7 @@ import type { WeddingConfig } from '../data/weddingConfig';
  *   {groomFull}  신랑 전체 성함 (예: 이승재)
  *   {brideFull}  신부 전체 성함 (예: 이건희)
  *   {date}       예식 월/일 (예: 5월 1일)
+ *   {mmdd}       예식 4자리 월일 (예: 0501)
  *
  * 조사 자동 선택: {토큰|받침있을때/받침없을때}
  *   {bride|이/가}  → 건희가 / 서연이
@@ -38,9 +39,10 @@ export const getCoupleTokens = (config: WeddingConfig): Record<string, string> =
   groomFull: config.groom.fullName || config.groom.name,
   brideFull: config.bride.fullName || config.bride.name,
   date: `${config.wedding.month}월 ${config.wedding.day}일`,
+  mmdd: `${String(config.wedding.month).padStart(2, '0')}${String(config.wedding.day).padStart(2, '0')}`,
 });
 
-const TOKEN_PATTERN = /\{(groom|bride|groomFull|brideFull|date)(?:\|([^/{}]*)\/([^/{}]*))?\}/g;
+const TOKEN_PATTERN = /\{(groom|bride|groomFull|brideFull|date|mmdd)(?:\|([^/{}]*)\/([^/{}]*))?\}/g;
 
 export const fillCoupleText = (text: string | undefined | null, config: WeddingConfig): string => {
   if (!text) return '';

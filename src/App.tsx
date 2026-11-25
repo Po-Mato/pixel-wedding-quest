@@ -632,6 +632,7 @@ export function App() {
       const url = new URL(window.location.href);
       url.searchParams.delete('admin');
       url.searchParams.delete('quest');
+      url.searchParams.delete('phase');
       if (sideParam === 'groom' || sideParam === 'bride') {
         url.searchParams.set('side', sideParam);
       } else {
@@ -725,6 +726,8 @@ export function App() {
           ? 'pt-1.5 sm:pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-3 px-1.5 sm:px-3'
           : screenMode === 'parents'
           ? 'pt-3 sm:pt-6 pb-[calc(7.5rem+env(safe-area-inset-bottom))] print:p-0 px-2.5 sm:px-4'
+          : screenMode === 'classic'
+          ? 'pt-3 sm:pt-6 pb-[calc(4.75rem+env(safe-area-inset-bottom))] print:p-0 px-2.5 sm:px-4'
           : 'pt-3 sm:pt-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-6 px-2.5 sm:px-4'
       }`}
     >

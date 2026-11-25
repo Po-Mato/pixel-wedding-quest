@@ -1,10 +1,41 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Award, X, Sparkles } from 'lucide-react';
-import { WeddingConfig } from '../data/weddingConfig';
+import { GARDEN_MAP_ORDER, WeddingConfig } from '../data/weddingConfig';
+import { WORLD_SECRET_PROPS } from '../data/worldExtras';
 import { GroomSprite, BrideSprite, PixelRing } from './PixelSprites';
 import { useCoupleOrder } from '../utils/coupleOrder';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { useEscapeKey } from '../utils/useEscapeKey';
+
+const STORAGE_VISITED_MAPS_KEY = 'pixel_wedding_quest_visited_maps_v1';
+const STORAGE_SECRETS_KEY = 'pixel_wedding_quest_secrets_v2';
+
+function readWorldCollectionCounts(): { exploredMaps: number; discoveredSecrets: number } {
+  let exploredMaps = 1;
+  let discoveredSecrets = 0;
+  try {
+    const rawMaps = localStorage.getItem(STORAGE_VISITED_MAPS_KEY);
+    if (rawMaps) {
+      const parsed = JSON.parse(rawMaps) as Record<string, boolean>;
+      exploredMaps = Math.max(
+        1,
+        GARDEN_MAP_ORDER.filter((mId) => Boolean(parsed[mId])).length
+      );
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const rawSecrets = localStorage.getItem(STORAGE_SECRETS_KEY);
+    if (rawSecrets) {
+      const parsed = JSON.parse(rawSecrets) as Record<string, boolean>;
+      discoveredSecrets = WORLD_SECRET_PROPS.filter((p) => Boolean(parsed[p.id])).length;
+    }
+  } catch {
+    // ignore
+  }
+  return { exploredMaps, discoveredSecrets };
+}
 
 interface CertificateModalProps {
   config: WeddingConfig;
@@ -19,8 +50,9 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
   stampCount,
   onClose,
 }) => {
-  const { pair } = useCoupleOrder();
+  const { primary, pair } = useCoupleOrder();
   const [firstName, secondName] = pair(config.groom.fullName, config.bride.fullName);
+  const { exploredMaps, discoveredSecrets } = useMemo(readWorldCollectionCounts, []);
   useBodyScrollLock(true);
   useEscapeKey(true, onClose);
   return (
@@ -56,19 +88,37 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
         </p>
 
         <div className="my-5 py-4 px-3 bg-[#faf5ec] rounded-xl border border-[#e6d5b8] flex items-center justify-center gap-4">
-          <GroomSprite
-            size={52}
-            primaryColor={config.groom.suitColor}
-            hairColor={config.groom.hairColor}
-            bounce
-          />
-          <PixelRing size={22} />
-          <BrideSprite
-            size={52}
-            primaryColor={config.bride.dressColor}
-            hairColor={config.bride.hairColor}
-            bounce
-          />
+          <div style={{ order: primary === 'bride' ? 3 : 1 }}>
+            <GroomSprite size={52} bounce />
+          </div>
+          <div style={{ order: 2 }}>
+            <PixelRing size={22} />
+          </div>
+          <div style={{ order: primary === 'bride' ? 1 : 3 }}>
+            <BrideSprite size={52} bounce />
+          </div>
+        </div>
+
+        {/* Pixel World Progress Summary Pills */}
+        <div className="grid grid-cols-3 gap-1.5 mb-4 font-sans">
+          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-lg py-1.5 px-2">
+            <div className="text-[10px] text-[#8c7a70]">가든 스탬프</div>
+            <div className="text-xs font-bold text-[#3b2f2f] mt-0.5">
+              {stampCount} / 7
+            </div>
+          </div>
+          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-lg py-1.5 px-2">
+            <div className="text-[10px] text-[#8c7a70]">탐험 월드</div>
+            <div className="text-xs font-bold text-[#3b2f2f] mt-0.5">
+              {exploredMaps} / {GARDEN_MAP_ORDER.length}
+            </div>
+          </div>
+          <div className="bg-[#faf5ec] border border-[#e6d5b8] rounded-lg py-1.5 px-2">
+            <div className="text-[10px] text-[#8c7a70]">비밀 소품</div>
+            <div className="text-xs font-bold text-[#3b2f2f] mt-0.5">
+              {discoveredSecrets} / {WORLD_SECRET_PROPS.length}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-2.5 text-xs text-[#5c4d47] leading-relaxed">

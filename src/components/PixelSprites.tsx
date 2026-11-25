@@ -1,5 +1,6 @@
 import React from 'react';
-import { AvatarClassId } from '../data/weddingConfig';
+import { AvatarClassId, GardenMapId } from '../data/weddingConfig';
+import { useCoupleOrder } from '../utils/coupleOrder';
 
 const BASE_URL =
   (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ||
@@ -27,6 +28,22 @@ export const PIXEL_ASSETS = {
   weddingReceptionMap: `${PIXEL_ASSET_BASE}/wedding-reception-map.webp`,
   joystickBase: `${PIXEL_ASSET_BASE}/joystick-base.png`,
   joystickThumb: `${PIXEL_ASSET_BASE}/joystick-thumb.png`,
+};
+
+/**
+ * Single source of truth mapping all 9 GardenMapId values to their WebP map assets.
+ * Shared by VillageCanvas and PhotoBoothModal so no map can drift out of sync.
+ */
+export const MAP_ASSET_BY_ID: Record<GardenMapId, string> = {
+  home: PIXEL_ASSETS.mapHome,
+  neighborhood: PIXEL_ASSETS.mapNeighborhood,
+  station: PIXEL_ASSETS.mapStation,
+  train: PIXEL_ASSETS.mapTrain,
+  bridal: PIXEL_ASSETS.mapBridal,
+  garden: PIXEL_ASSETS.weddingGardenMap,
+  chapel: PIXEL_ASSETS.weddingChapelMap,
+  memory: PIXEL_ASSETS.weddingMemoryMap,
+  reception: PIXEL_ASSETS.weddingReceptionMap,
 };
 
 const guestAsset = (id: string) => ({
@@ -304,6 +321,7 @@ export const PixelSceneBanner: React.FC<{
     snow_village: PIXEL_ASSETS.weddingGardenMap,
   };
 
+  const { primary } = useCoupleOrder();
   const showCoupleOverlay = theme !== 'cherry_blossom';
 
   return (
@@ -320,10 +338,18 @@ export const PixelSceneBanner: React.FC<{
 
       {showCoupleOverlay && (
         <div className="relative z-10 flex items-end justify-center gap-1 pb-2">
-          <GroomSprite size={92} variant="full" bounce />
-          <PixelHeart size={16} color="#d97b84" className="mb-10" />
-          <BrideSprite size={92} variant="full" bounce />
-          <PetCatSprite size={46} className="mb-1 -ml-2" />
+          <div style={{ order: primary === 'bride' ? 3 : 1 }}>
+            <GroomSprite size={92} variant="full" bounce />
+          </div>
+          <div style={{ order: 2 }}>
+            <PixelHeart size={16} color="#d97b84" className="mb-10" />
+          </div>
+          <div style={{ order: primary === 'bride' ? 1 : 3 }}>
+            <BrideSprite size={92} variant="full" bounce />
+          </div>
+          <div style={{ order: 4 }}>
+            <PetCatSprite size={46} className="mb-1 -ml-2" />
+          </div>
         </div>
       )}
     </div>

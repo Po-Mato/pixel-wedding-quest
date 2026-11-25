@@ -26,7 +26,12 @@ import {
   ZONE_MINI_QUESTS,
   ZoneMiniQuestItem,
 } from '../data/worldExtras';
-import { PIXEL_ASSETS, PIXEL_SPRITE_SHEETS, GUEST_SPRITES } from './PixelSprites';
+import {
+  PIXEL_ASSETS,
+  PIXEL_SPRITE_SHEETS,
+  GUEST_SPRITES,
+  MAP_ASSET_BY_ID,
+} from './PixelSprites';
 import {
   SpriteFacing,
   CharacterActionKind,
@@ -525,19 +530,8 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
 
   const ensureMapAssetLoaded = useCallback((mapId: GardenMapId) => {
     if (assetsRef.current.maps[mapId]) return;
-    const mapSrcByKey: Record<GardenMapId, string> = {
-      home: PIXEL_ASSETS.mapHome,
-      neighborhood: PIXEL_ASSETS.mapNeighborhood,
-      station: PIXEL_ASSETS.mapStation,
-      train: PIXEL_ASSETS.mapTrain,
-      bridal: PIXEL_ASSETS.mapBridal,
-      garden: PIXEL_ASSETS.weddingGardenMap,
-      chapel: PIXEL_ASSETS.weddingChapelMap,
-      memory: PIXEL_ASSETS.weddingMemoryMap,
-      reception: PIXEL_ASSETS.weddingReceptionMap,
-    };
     const img = new Image();
-    img.src = mapSrcByKey[mapId];
+    img.src = MAP_ASSET_BY_ID[mapId];
     img.onload = () => {
       assetsRef.current.maps[mapId] = img;
     };
@@ -2213,7 +2207,7 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
           { x: 33, y: 63, avatar: 'bard', cheer: '두 사람의 앞날에 축복을! 🎶' },
           { x: 67, y: 63, avatar: 'healer', cheer: '늘 오늘처럼 행복하세요 ♥' },
           { x: 33, y: 76, avatar: 'archer', cheer: '버진로드 행진 너무 멋져요! 📸' },
-          { x: 67, y: 76, avatar: 'cat', cheer: '야옹~ 행복하게 잘 살아요! 🐾' },
+          { x: 67, y: 76, avatar: 'cat', cheer: '멍멍~ 행복하게 잘 살아요! 🐾' },
         ];
         const onVirginRoad =
           posRef.current.x > 36 && posRef.current.x < 64 && posRef.current.y < 82;
@@ -3591,6 +3585,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
         <Suspense fallback={null}>
           <PhotoBoothModal
             config={config}
+            initialMapId={currentMapId}
+            initialAvatar={guestAvatar}
+            initialGuestName={guestNickname}
             onClose={() => setShowPhotoBooth(false)}
             onUnlockTitle={onUnlockTitle}
           />

@@ -4,12 +4,14 @@ import { fireCelebrationConfetti } from '../../utils/motion';
 import {
   AVATAR_CLASSES,
   AvatarClassId,
+  COMMUTE_MAP_ORDER,
   GARDEN_MAPS,
   GARDEN_MAP_ORDER,
   GardenMapId,
+  VENUE_MAP_ORDER,
   WeddingConfig,
 } from '../../data/weddingConfig';
-import { PIXEL_ASSETS, GUEST_SPRITES } from '../PixelSprites';
+import { PIXEL_ASSETS, GUEST_SPRITES, MAP_ASSET_BY_ID } from '../PixelSprites';
 import { soundEngine } from '../../utils/soundEngine';
 import { useCoupleOrder } from '../../utils/coupleOrder';
 import { useBodyScrollLock } from '../../utils/useBodyScrollLock';
@@ -18,10 +20,55 @@ import { isInAppBrowser, isIOSDevice } from '../../utils/calendar';
 import { showToast } from '../../utils/toast';
 import { incrementReactionCounter } from '../../utils/weddingCloudSync';
 
+const STORAGE_GUEST_AVATAR_KEY = 'pixel_wedding_quest_guest_avatar_v1';
+const STORAGE_GUEST_NAME_KEY = 'pixel_wedding_quest_guest_name_v1';
+
 interface PhotoBoothModalProps {
   config: WeddingConfig;
+  initialMapId?: GardenMapId;
+  initialAvatar?: AvatarClassId;
+  initialGuestName?: string;
   onClose: () => void;
   onUnlockTitle?: (title: string) => void;
+}
+
+const PHOTOBOOTH_MAP_CROP: Record<
+  GardenMapId,
+  { sx: number; sy: number; sw: number; sh: number }
+> = {
+  home: { sx: 0.12, sy: 0.14, sw: 0.76, sh: 0.66 },
+  neighborhood: { sx: 0.12, sy: 0.1, sw: 0.76, sh: 0.66 },
+  station: { sx: 0.12, sy: 0.1, sw: 0.76, sh: 0.66 },
+  train: { sx: 0.12, sy: 0.12, sw: 0.76, sh: 0.66 },
+  bridal: { sx: 0.12, sy: 0.08, sw: 0.76, sh: 0.66 },
+  garden: { sx: 0.12, sy: 0.14, sw: 0.76, sh: 0.66 },
+  chapel: { sx: 0.12, sy: 0.06, sw: 0.76, sh: 0.66 },
+  memory: { sx: 0.12, sy: 0.14, sw: 0.76, sh: 0.66 },
+  reception: { sx: 0.12, sy: 0.08, sw: 0.76, sh: 0.66 },
+};
+
+function readSavedGuestAvatar(fallback: AvatarClassId): AvatarClassId {
+  try {
+    const saved = localStorage.getItem(STORAGE_GUEST_AVATAR_KEY) as AvatarClassId | null;
+    if (saved && AVATAR_CLASSES.some((a) => a.id === saved)) {
+      return saved;
+    }
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
+
+function readSavedGuestName(fallback: string): string {
+  try {
+    const saved = localStorage.getItem(STORAGE_GUEST_NAME_KEY);
+    if (saved && saved.trim()) {
+      return saved.trim().slice(0, 12);
+    }
+  } catch {
+    // ignore
+  }
+  return fallback;
 }
 
 type PoseEffectId = 'petal_shower' | 'love_hearts' | 'champagne' | 'starlight';
@@ -83,18 +130,31 @@ const FRAME_STYLES: {
 
 export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
   config,
+  initialMapId,
+  initialAvatar,
+  initialGuestName,
   onClose,
   onUnlockTitle,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { names } = useCoupleOrder();
+  const { primary, names } = useCoupleOrder();
   useBodyScrollLock(true);
 
-  const [selectedMap, setSelectedMap] = useState<GardenMapId>('garden');
-  const [selectedAvatar, setSelectedAvatar] = useState<AvatarClassId>('mage');
+  const [selectedMap, setSelectedMap] = useState<GardenMapId>(() =>
+    initialMapId && GARDEN_MAPS[initialMapId] ? initialMapId : 'garden'
+  );
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarClassId>(() =>
+    initialAvatar && AVATAR_CLASSES.some((a) => a.id === initialAvatar)
+      ? initialAvatar
+      : readSavedGuestAvatar('mage')
+  );
   const [selectedPose, setSelectedPose] = useState<PoseEffectId>('petal_shower');
   const [selectedFrame, setSelectedFrame] = useState<FrameStyleId>('ivory');
-  const [guestName, setGuestName] = useState<string>('소중한 하객');
+  const [guestName, setGuestName] = useState<string>(() =>
+    initialGuestName && initialGuestName.trim()
+      ? initialGuestName.trim().slice(0, 12)
+      : readSavedGuestName('소중한 하객')
+  );
   const [blessingText, setBlessingText] = useState<string>(
     `${names(config, 'name')} 두 사람의 찬란한 봄날을 축복합니다!`
   );
@@ -117,7 +177,6 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     bride: HTMLImageElement | null;
     dogCream: HTMLImageElement | null;
     dogKkomi: HTMLImageElement | null;
-    cat: HTMLImageElement | null;
     guests: Partial<Record<AvatarClassId, HTMLImageElement>>;
   }>({
     maps: {},
@@ -125,39 +184,49 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     bride: null,
     dogCream: null,
     dogKkomi: null,
-    cat: null,
     guests: {},
   });
 
   const [assetsReadyTick, setAssetsReadyTick] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     const load = (src: string, cb: (img: HTMLImageElement) => void) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.src = src;
       img.onload = () => {
+        if (cancelled) return;
         cb(img);
         setAssetsReadyTick((t) => t + 1);
       };
     };
 
-    load(PIXEL_ASSETS.weddingGardenMap, (i) => (loadedImagesRef.current.maps.garden = i));
-    load(PIXEL_ASSETS.weddingChapelMap, (i) => (loadedImagesRef.current.maps.chapel = i));
-    load(PIXEL_ASSETS.weddingMemoryMap, (i) => (loadedImagesRef.current.maps.memory = i));
-    load(
-      PIXEL_ASSETS.weddingReceptionMap,
-      (i) => (loadedImagesRef.current.maps.reception = i)
+    // Prioritize initial map first, then load all 9 maps from shared MAP_ASSET_BY_ID
+    const startMap: GardenMapId =
+      initialMapId && GARDEN_MAPS[initialMapId] ? initialMapId : 'garden';
+    const orderedMaps: GardenMapId[] = [
+      startMap,
+      ...GARDEN_MAP_ORDER.filter((mId) => mId !== startMap),
+    ];
+    orderedMaps.forEach((mId) =>
+      load(MAP_ASSET_BY_ID[mId], (i) => {
+        loadedImagesRef.current.maps[mId] = i;
+      })
     );
+
     load(PIXEL_ASSETS.groomSprite, (i) => (loadedImagesRef.current.groom = i));
     load(PIXEL_ASSETS.brideSprite, (i) => (loadedImagesRef.current.bride = i));
     load(PIXEL_ASSETS.dogCreamSprite, (i) => (loadedImagesRef.current.dogCream = i));
     load(PIXEL_ASSETS.dogKkomiSprite, (i) => (loadedImagesRef.current.dogKkomi = i));
-    load(PIXEL_ASSETS.catSprite, (i) => (loadedImagesRef.current.cat = i));
     (Object.keys(GUEST_SPRITES) as AvatarClassId[]).forEach((id) =>
       load(GUEST_SPRITES[id].sprite, (i) => (loadedImagesRef.current.guests[id] = i))
     );
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialMapId]);
 
   // Render Polaroid Canvas whenever options or loaded images update
   useEffect(() => {
@@ -199,24 +268,34 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     ctx.rect(photoX, photoY, photoW, photoH);
     ctx.clip();
 
-    const bgImg =
-      loadedImagesRef.current.maps[selectedMap] || loadedImagesRef.current.maps.garden;
+    const bgImg = loadedImagesRef.current.maps[selectedMap];
     if (bgImg) {
-      // Draw a scenic zoomed crop of the map so landmarks/archways frame the characters
-      const cropYRatio =
-        selectedMap === 'chapel'
-          ? 0.06
-          : selectedMap === 'reception'
-          ? 0.08
-          : 0.14;
-      const sx = bgImg.naturalWidth * 0.12;
-      const sy = bgImg.naturalHeight * cropYRatio;
-      const sw = bgImg.naturalWidth * 0.76;
-      const sh = bgImg.naturalHeight * 0.66;
+      // Draw a scenic zoomed crop tuned for each of the 9 wedding world maps
+      const crop = PHOTOBOOTH_MAP_CROP[selectedMap] || PHOTOBOOTH_MAP_CROP.garden;
+      const sx = bgImg.naturalWidth * crop.sx;
+      const sy = bgImg.naturalHeight * crop.sy;
+      const sw = bgImg.naturalWidth * crop.sw;
+      const sh = bgImg.naturalHeight * crop.sh;
       ctx.drawImage(bgImg, sx, sy, sw, sh, photoX, photoY, photoW, photoH);
     } else {
-      ctx.fillStyle = '#dce8d6';
+      const placeholderGrad = ctx.createLinearGradient(
+        photoX,
+        photoY,
+        photoX,
+        photoY + photoH
+      );
+      placeholderGrad.addColorStop(0, '#f4ede1');
+      placeholderGrad.addColorStop(1, '#e6dcc9');
+      ctx.fillStyle = placeholderGrad;
       ctx.fillRect(photoX, photoY, photoW, photoH);
+      ctx.fillStyle = '#7d6e65';
+      ctx.font = 'bold 15px "Pretendard", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        `${mapMeta.icon} ${mapMeta.tabLabel} 배경을 불러오는 중...`,
+        photoX + photoW / 2,
+        photoY + photoH * 0.34
+      );
     }
 
     // Soft romantic radial sunlight overlay inside photo
@@ -233,16 +312,18 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     ctx.fillStyle = grad;
     ctx.fillRect(photoX, photoY, photoW, photoH);
 
-    // Top-left Location Stamp Pill inside Photo
+    // Top-left Location Stamp Pill inside Photo (dynamically sized to map name)
+    const stampLabel = `${mapMeta.icon} ${mapMeta.tabLabel} 스냅`;
+    ctx.font = 'bold 14px "Pretendard", sans-serif';
+    const stampPillW = Math.min(260, Math.max(150, Math.ceil(ctx.measureText(stampLabel).width) + 28));
     ctx.fillStyle = 'rgba(255, 253, 249, 0.9)';
-    ctx.fillRect(photoX + 16, photoY + 16, 210, 30);
+    ctx.fillRect(photoX + 16, photoY + 16, stampPillW, 30);
     ctx.strokeStyle = frame.border;
     ctx.lineWidth = 2;
-    ctx.strokeRect(photoX + 16, photoY + 16, 210, 30);
+    ctx.strokeRect(photoX + 16, photoY + 16, stampPillW, 30);
     ctx.fillStyle = '#3b2f2f';
-    ctx.font = 'bold 14px "Pretendard", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`${mapMeta.icon} ${mapMeta.tabLabel} 스냅`, photoX + 28, photoY + 36);
+    ctx.fillText(stampLabel, photoX + 28, photoY + 36, stampPillW - 20);
 
     // Top-right Pose Tag Pill
     ctx.fillStyle = 'rgba(217, 123, 132, 0.92)';
@@ -252,14 +333,14 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     ctx.textAlign = 'center';
     ctx.fillText(pose.tag, photoX + photoW - 91, photoY + 36);
 
-    // 3. Draw Characters (Pet Dogs '크림' & '꼬미', Groom, Bride, and Guest Chibi Avatar!)
+    // 3. Draw Characters (Pet Dogs '크림' & '꼬미', Couple ordered by useCoupleOrder, and Guest Chibi Avatar!)
     const floorY = photoY + photoH - 64;
     const centerX = photoX + photoW / 2;
 
     const creamX = centerX - 196;
     const kkomiX = centerX - 134;
-    const groomX = centerX - 52;
-    const brideX = centerX + 42;
+    const groomX = primary === 'bride' ? centerX + 42 : centerX - 52;
+    const brideX = primary === 'bride' ? centerX - 52 : centerX + 42;
     const guestX = centerX + 158;
 
     // Ground shadows
@@ -285,9 +366,14 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     // Draw Pet Dogs '크림(엄마)' & '꼬미(딸)'
     drawSprite(loadedImagesRef.current.dogCream, creamX, floorY + 4, 102);
     drawSprite(loadedImagesRef.current.dogKkomi, kkomiX, floorY + 6, 88);
-    // Draw Groom & Bride (3-head-tall chibi)
-    drawSprite(loadedImagesRef.current.groom, groomX, floorY, 210);
-    drawSprite(loadedImagesRef.current.bride, brideX, floorY + 2, 206);
+    // Draw Groom & Bride (3-head-tall chibi) respecting couple order
+    if (primary === 'bride') {
+      drawSprite(loadedImagesRef.current.bride, brideX, floorY + 2, 206);
+      drawSprite(loadedImagesRef.current.groom, groomX, floorY, 210);
+    } else {
+      drawSprite(loadedImagesRef.current.groom, groomX, floorY, 210);
+      drawSprite(loadedImagesRef.current.bride, brideX, floorY + 2, 206);
+    }
     // Draw Selected Guest Avatar
     const guestImg = loadedImagesRef.current.guests[selectedAvatar];
     const guestH = selectedAvatar === 'cat' ? 128 : 192;
@@ -342,26 +428,33 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
 
     // 5. Polaroid Bottom Caption Area
     const capCenterY = photoY + photoH + 54;
+    const maxCaptionWidth = W - 84;
 
     ctx.fillStyle = frame.accent;
-    ctx.font = 'bold 14px "Cinzel", serif';
+    ctx.font = '600 15px "Cormorant Garamond", Georgia, serif';
     ctx.textAlign = 'center';
     const dateFormatted = `${config.wedding.year}. ${String(config.wedding.month).padStart(2, '0')}. ${String(config.wedding.day).padStart(2, '0')}`;
-    ctx.fillText(`OUR SPRING WEDDING MEMORIES · ${dateFormatted}`, W / 2, capCenterY);
+    ctx.fillText(
+      `OUR SPRING WEDDING MEMORIES · ${dateFormatted}`,
+      W / 2,
+      capCenterY,
+      maxCaptionWidth
+    );
 
     ctx.fillStyle = frame.textPrimary;
     ctx.font = 'bold 28px "Gowun Batang", serif';
     ctx.fillText(
       names(config, 'fullName', '  ♥  '),
       W / 2,
-      capCenterY + 42
+      capCenterY + 42,
+      maxCaptionWidth
     );
 
     // Guest Blessing Quote Box
     const msg = (blessingText || '결혼을 진심으로 축하합니다 ♥').trim().slice(0, 38);
     ctx.fillStyle = frame.textSecondary;
     ctx.font = 'italic 18px "Gowun Batang", serif';
-    ctx.fillText(`“${msg}”`, W / 2, capCenterY + 86);
+    ctx.fillText(`“${msg}”`, W / 2, capCenterY + 86, maxCaptionWidth);
 
     // Bottom Signature & Venue Line
     ctx.fillStyle = frame.textSecondary;
@@ -369,7 +462,8 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     ctx.fillText(
       `With ${cleanGuestName} · ${config.wedding.venueName} ${config.wedding.hallName}`,
       W / 2,
-      capCenterY + 132
+      capCenterY + 132,
+      maxCaptionWidth
     );
   }, [
     selectedMap,
@@ -379,6 +473,8 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
     guestName,
     blessingText,
     config,
+    primary,
+    names,
     assetsReadyTick,
   ]);
 
@@ -547,34 +643,70 @@ export const PhotoBoothModal: React.FC<PhotoBoothModalProps> = ({
 
           {/* Customization Controls */}
           <div className="bg-[#fffdf9] p-3.5 rounded-xl border border-[#e6d5b8] space-y-3.5 font-sans">
-            {/* 1. Background Map */}
-            <div>
-              <label className="block text-[11px] font-bold text-[#5c4d47] mb-1.5">
-                1. 촬영 배경 맵 선택 (4개 웨딩 월드)
+            {/* 1. Background Map (All 9 Maps Grouped by Stage) */}
+            <div className="space-y-2">
+              <label className="block text-[11px] font-bold text-[#5c4d47]">
+                1. 촬영 배경 맵 선택 ({GARDEN_MAP_ORDER.length}개 웨딩 월드)
               </label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {GARDEN_MAP_ORDER.map((mId) => {
-                  const m = GARDEN_MAPS[mId];
-                  const active = selectedMap === mId;
-                  return (
-                    <button
-                      key={mId}
-                      type="button"
-                      onClick={() => {
-                        soundEngine.playBlip(620);
-                        setSelectedMap(mId);
-                      }}
-                      className={`py-1.5 px-1 rounded-lg border text-[11px] font-semibold flex flex-col items-center gap-0.5 transition-all ${
-                        active
-                          ? 'bg-[#d97b84] text-white border-[#b85d67]'
-                          : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0]'
-                      }`}
-                    >
-                      <span>{m.icon}</span>
-                      <span className="truncate w-full text-center">{m.tabLabel}</span>
-                    </button>
-                  );
-                })}
+
+              <div>
+                <div className="text-[10px] font-bold text-[#8c7a70] mb-1">
+                  🏠 1막 · 출발·이동길 ({COMMUTE_MAP_ORDER.length}곳)
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {COMMUTE_MAP_ORDER.map((mId) => {
+                    const m = GARDEN_MAPS[mId];
+                    const active = selectedMap === mId;
+                    return (
+                      <button
+                        key={mId}
+                        type="button"
+                        onClick={() => {
+                          soundEngine.playBlip(620);
+                          setSelectedMap(mId);
+                        }}
+                        className={`py-1.5 px-1 rounded-lg border text-[11px] font-semibold flex flex-col items-center gap-0.5 transition-all ${
+                          active
+                            ? 'bg-[#d97b84] text-white border-[#b85d67] shadow-sm'
+                            : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0] hover:bg-[#f3e9d8]'
+                        }`}
+                      >
+                        <span>{m.icon}</span>
+                        <span className="truncate w-full text-center">{m.tabLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-bold text-[#8c7a70] mb-1">
+                  🌿 2막 · 보타닉 웨딩 가든 ({VENUE_MAP_ORDER.length}곳)
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                  {VENUE_MAP_ORDER.map((mId) => {
+                    const m = GARDEN_MAPS[mId];
+                    const active = selectedMap === mId;
+                    return (
+                      <button
+                        key={mId}
+                        type="button"
+                        onClick={() => {
+                          soundEngine.playBlip(620);
+                          setSelectedMap(mId);
+                        }}
+                        className={`py-1.5 px-1 rounded-lg border text-[11px] font-semibold flex flex-col items-center gap-0.5 transition-all ${
+                          active
+                            ? 'bg-[#d97b84] text-white border-[#b85d67] shadow-sm'
+                            : 'bg-[#faf5ec] text-[#5c4d47] border-[#e2d4c0] hover:bg-[#f3e9d8]'
+                        }`}
+                      >
+                        <span>{m.icon}</span>
+                        <span className="truncate w-full text-center">{m.tabLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
