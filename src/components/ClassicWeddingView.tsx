@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import {
   Sparkles,
   ChevronDown,
@@ -8,6 +8,9 @@ import {
   MapPin,
   Heart,
   PenLine,
+  Calendar,
+  Maximize2,
+  X,
 } from 'lucide-react';
 import {
   WeddingConfig,
@@ -31,11 +34,13 @@ import { LocationSection } from './sections/LocationSection';
 import { GiftSection } from './sections/GiftSection';
 import { RsvpGuestbookSection } from './sections/RsvpGuestbookSection';
 import { WeddingPhaseBanner } from './WeddingPhaseBanner';
-import { WeddingPhase } from '../utils/weddingPhase';
+import { WeddingPhase, getWeddingDayDiff } from '../utils/weddingPhase';
 import { CloudSyncStatus } from '../utils/weddingCloudSync';
 import { prefersReducedMotion } from '../utils/motion';
 import { soundEngine } from '../utils/soundEngine';
 import { useCoupleOrder } from '../utils/coupleOrder';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { useEscapeKey } from '../utils/useEscapeKey';
 
 const MiniGameSection = React.lazy(() =>
   import('./sections/MiniGameSection').then((m) => ({ default: m.MiniGameSection }))
@@ -89,11 +94,67 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
 }) => {
   const [showBonusEvent, setShowBonusEvent] = useState(false);
   const [heroStyle, setHeroStyle] = useState<'pixel' | 'photo'>('pixel');
+  const [heroLightboxOpen, setHeroLightboxOpen] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState<QuestBuildingId | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const navScrollRef = useRef<HTMLDivElement | null>(null);
+  const navBtnRefs = useRef<Partial<Record<QuestBuildingId, HTMLButtonElement | null>>>({});
+
   const { primary, pair } = useCoupleOrder();
   const [firstName, secondName] = pair(config.groom.fullName, config.bride.fullName);
+
+  useBodyScrollLock(heroLightboxOpen);
+  useEscapeKey(heroLightboxOpen, () => setHeroLightboxOpen(false));
+
+  const dayDiff = getWeddingDayDiff(config.wedding.dateISO);
+  const dDayLabel =
+    dayDiff === null
+      ? null
+      : dayDiff === 0
+      ? 'D-DAY · 오늘 결혼합니다 💍'
+      : dayDiff > 0
+      ? `예식까지 D-${dayDiff}`
+      : `결혼 +${Math.abs(dayDiff)}일째 💐`;
+
+  const heroImageSrc =
+    heroStyle === 'photo' && config.gallery[0]?.imageUrl
+      ? config.gallery[0].imageUrl
+      : PIXEL_ASSETS.weddingCover;
+
+  const updateNavFadeHints = useCallback(() => {
+    const el = navScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    updateNavFadeHints();
+    window.addEventListener('resize', updateNavFadeHints, { passive: true });
+    return () => window.removeEventListener('resize', updateNavFadeHints);
+  }, [updateNavFadeHints]);
+
+  // Smoothly center the active section tab inside the sticky horizontal nav bar
+  useEffect(() => {
+    if (!activeSectionId) return;
+    const container = navScrollRef.current;
+    const btn = navBtnRefs.current[activeSectionId];
+    if (!container || !btn) return;
+
+    const targetLeft =
+      btn.offsetLeft - container.clientWidth / 2 + btn.offsetWidth / 2;
+    const clampedLeft = Math.max(
+      0,
+      Math.min(targetLeft, Math.max(0, container.scrollWidth - container.clientWidth))
+    );
+    container.scrollTo({
+      left: clampedLeft,
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+  }, [activeSectionId]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -166,6 +227,20 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
             {config.wedding.timeDisplay}
           </p>
 
+          {dDayLabel && (
+            <div className="mt-2.5 flex justify-center font-sans">
+              <span
+                className={`inline-flex items-center px-3 py-0.5 rounded-full text-[11px] font-bold border ${
+                  dayDiff === 0
+                    ? 'bg-[#d97b84] text-white border-[#c56871] shadow-sm'
+                    : 'bg-[#fcf0f1] text-[#b85d67] border-[#e8b8be]'
+                }`}
+              >
+                {dDayLabel}
+              </span>
+            </div>
+          )}
+
           {/* Cover Illustration / Photo Switch */}
           <div className="flex justify-center mt-3 font-sans">
             <div className="inline-flex rounded-full bg-[#faf5ec] p-0.5 border border-[#e6d5b8]">
@@ -203,18 +278,22 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           </div>
         </div>
 
-        {/* Full-bleed Arch Photo / Pixel Illustration inside Classic Cover */}
+        {/* Full-bleed Arch Photo / Pixel Illustration inside Classic Cover (Tap to Zoom) */}
         <div className="px-6">
           <div className="relative mx-auto max-w-[340px]">
-            <div className="relative aspect-[3/3.7] rounded-t-full rounded-b-xl overflow-hidden border border-[#e2d4c0] shadow-sm">
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                setHeroLightboxOpen(true);
+              }}
+              aria-label="표지 사진 크게 보기"
+              className="group block w-full relative aspect-[3/3.7] rounded-t-full rounded-b-xl overflow-hidden border border-[#e2d4c0] shadow-sm cursor-zoom-in text-left"
+            >
               <img
-                src={
-                  heroStyle === 'pixel'
-                    ? PIXEL_ASSETS.weddingCover
-                    : config.gallery[0]?.imageUrl
-                }
-                alt="Wedding Main"
-                className="w-full h-full object-cover"
+                src={heroImageSrc}
+                alt={`${firstName} ♥ ${secondName} 웨딩 표지`}
+                className="w-full h-full object-cover object-[50%_25%] transition-transform duration-500 group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
               {/* Subtle Ambient Spring Petals */}
@@ -235,10 +314,16 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
                   />
                 ))}
               </div>
-              <div className="absolute bottom-8 inset-x-4 text-white text-xs tracking-widest font-engSerif">
+              <span
+                aria-hidden="true"
+                className="absolute bottom-2.5 right-2.5 w-7 h-7 rounded-full bg-[#3b2f2f]/65 text-white flex items-center justify-center backdrop-blur-sm shadow"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </span>
+              <div className="absolute bottom-8 inset-x-4 text-center text-white text-xs tracking-widest font-engSerif">
                 WE INVITE YOU TO OUR SPRING GARDEN
               </div>
-            </div>
+            </button>
 
             {/* Couple Portrait Badge overlapping bottom of arch */}
             <div className="relative -mt-6 mx-auto w-fit bg-[#fffdf9] border border-[#e2d4c0] rounded-full px-5 py-2 shadow-sm flex items-center gap-3 z-10">
@@ -259,13 +344,49 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
           </div>
         </div>
 
-        {/* Date & Venue Footer in Hero */}
-        <div className="pt-4 pb-6 px-6 space-y-1">
+        {/* Date, Venue & 1-Tap Quick Actions in Hero */}
+        <div className="pt-4 pb-5 px-5 space-y-1">
           <div className="text-sm sm:text-base font-bold text-[#3b2f2f]">
             {config.wedding.dateDisplay} {config.wedding.timeDisplay}
           </div>
           <div className="text-xs sm:text-sm text-[#5c4d47]">
             {config.wedding.venueName} {config.wedding.hallName}
+          </div>
+
+          <div className="pt-3 grid grid-cols-3 gap-1.5 font-sans">
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                scrollToClassicSection('ceremony');
+              }}
+              className="py-2 px-2 rounded-xl bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#e2d4c0] text-[#3b2f2f] text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+            >
+              <Calendar className="w-3.5 h-3.5 text-[#c59b6d] shrink-0" />
+              <span>예식·일정</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                scrollToClassicSection('location');
+              }}
+              className="py-2 px-2 rounded-xl bg-[#faf5ec] hover:bg-[#f3e9d8] border border-[#e2d4c0] text-[#3b2f2f] text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+            >
+              <MapPin className="w-3.5 h-3.5 text-[#6b9071] shrink-0" />
+              <span>오시는 길</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSelect();
+                scrollToClassicSection('rsvp');
+              }}
+              className="py-2 px-2 rounded-xl bg-[#fcf0f1] hover:bg-[#f9e1e4] border border-[#e8b8be] text-[#b85d67] text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+            >
+              <PenLine className="w-3.5 h-3.5 shrink-0" />
+              <span>참석 전달</span>
+            </button>
           </div>
         </div>
 
@@ -286,32 +407,53 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
         </div>
       </div>
 
-      {/* Sticky Quick-Jump Navigation Bar with Active Section Scroll Spy & Reading Progress */}
+      {/* Sticky Quick-Jump Navigation Bar with Auto-Centering Active Tab, Edge Fades & Reading Progress */}
       <nav
         aria-label="청첩장 섹션 바로가기"
         className="sticky top-1 z-30 bg-[#fffdf9]/95 backdrop-blur-sm border border-[#d4b48c] rounded-full px-2.5 py-1.5 shadow-sm overflow-hidden font-sans"
       >
-        <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
-          {QUEST_BUILDINGS.filter((b) => b.id !== 'minigame').map((b) => {
-            const isActive = activeSectionId === b.id;
-            return (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => {
-                  soundEngine.playBlip();
-                  scrollToClassicSection(b.id);
-                }}
-                className={`px-2.5 py-1 rounded-full text-xs shrink-0 transition-all ${
-                  isActive
-                    ? 'bg-[#3b2f2f] text-[#fffdf9] font-bold shadow-sm'
-                    : 'hover:bg-[#faf5ec] text-[#5c4d47] hover:text-[#3b2f2f] font-medium'
-                }`}
-              >
-                {b.shortName}
-              </button>
-            );
-          })}
+        <div className="relative">
+          <div
+            ref={navScrollRef}
+            onScroll={updateNavFadeHints}
+            className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar"
+          >
+            {QUEST_BUILDINGS.filter((b) => b.id !== 'minigame').map((b) => {
+              const isActive = activeSectionId === b.id;
+              return (
+                <button
+                  key={b.id}
+                  ref={(el) => {
+                    navBtnRefs.current[b.id] = el;
+                  }}
+                  type="button"
+                  onClick={() => {
+                    soundEngine.playBlip();
+                    scrollToClassicSection(b.id);
+                  }}
+                  className={`px-2.5 py-1 rounded-full text-xs shrink-0 transition-all ${
+                    isActive
+                      ? 'bg-[#3b2f2f] text-[#fffdf9] font-bold shadow-sm'
+                      : 'hover:bg-[#faf5ec] text-[#5c4d47] hover:text-[#3b2f2f] font-medium'
+                  }`}
+                >
+                  {b.shortName}
+                </button>
+              );
+            })}
+          </div>
+          {canScrollLeft && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#fffdf9] to-transparent"
+            />
+          )}
+          {canScrollRight && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-[#fffdf9] to-transparent"
+            />
+          )}
         </div>
         <div
           aria-hidden="true"
@@ -456,6 +598,47 @@ export const ClassicWeddingView: React.FC<ClassicWeddingViewProps> = ({
             >
               <ArrowUp className="w-3.5 h-3.5" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Hero Cover Photo Lightbox */}
+      {heroLightboxOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="표지 사진 확대 보기"
+          onClick={() => setHeroLightboxOpen(false)}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm overscroll-contain flex flex-col items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] animate-fadeIn font-sans"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md space-y-3"
+          >
+            <div className="flex items-center justify-between text-white text-xs">
+              <span className="font-semibold text-[#f4acb7]">
+                {heroStyle === 'pixel' ? '픽셀 웨딩 일러스트' : '웨딩 표지 포토'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setHeroLightboxOpen(false)}
+                className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white font-bold flex items-center gap-1"
+              >
+                <X className="w-4 h-4" />
+                <span>닫기</span>
+              </button>
+            </div>
+            <div className="rounded-2xl overflow-hidden border border-white/20 bg-[#1f1917]">
+              <img
+                src={heroImageSrc}
+                alt={`${firstName} ♥ ${secondName} 웨딩 표지 확대`}
+                className="w-full max-h-[75vh] object-contain mx-auto block"
+              />
+            </div>
+            <div className="text-center text-xs text-white/85 font-serif">
+              {firstName} ♥ {secondName} · {config.wedding.dateDisplay}{' '}
+              {config.wedding.timeDisplay}
+            </div>
           </div>
         </div>
       )}

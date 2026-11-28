@@ -82,7 +82,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedToast, setSubmittedToast] = useState<'cloud' | 'local' | null>(null);
-  const [listFilter, setListFilter] = useState<'all' | 'groom' | 'bride'>('all');
+  const [listFilter, setListFilter] = useState<'all' | 'groom' | 'bride' | 'both'>('all');
   const [visibleCount, setVisibleCount] = useState<number>(5);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -94,6 +94,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
   const remainingCount = Math.max(0, filteredGuestbook.length - visibleCount);
   const groomCount = guestbook.filter((item) => item.side === 'groom').length;
   const brideCount = guestbook.filter((item) => item.side === 'bride').length;
+  const bothCount = guestbook.filter((item) => item.side === 'both').length;
 
   useEffect(() => {
     setSide(initialSide);
@@ -112,11 +113,6 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
       soundEngine.playBlip(360);
       return;
     }
-    if (!message.trim()) {
-      setFormError('축하 메시지를 입력하거나 상단 문구 칩을 눌러 선택해 주세요.');
-      soundEngine.playBlip(360);
-      return;
-    }
     if (phone.trim() && !privacyAgreed) {
       setPrivacyError(true);
       setFormError('연락처를 함께 전달하시려면 수집·이용 동의에 체크해 주세요.');
@@ -126,6 +122,13 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
     setFormError(null);
     setPrivacyError(false);
     setIsSubmitting(true);
+
+    const fallbackMessage =
+      attendance === 'unable'
+        ? '결혼을 진심으로 축하합니다! 멀리서나마 따뜻한 마음으로 축복합니다 ✨'
+        : attendance === 'maybe'
+        ? '결혼을 진심으로 축하합니다! 두 분의 앞날에 행복만 가득하길 바랍니다 🌸'
+        : '결혼을 진심으로 축하합니다! 예식날 기쁜 마음으로 참석하겠습니다 💕';
 
     soundEngine.playFanfare();
     fireCelebrationConfetti({
@@ -140,7 +143,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
       avatar,
       side,
       titleBadge: earnedTitle || `🌷 ${selectedClassInfo.name}`,
-      message: message.trim(),
+      message: message.trim() || fallbackMessage,
       createdAt: '방금 전',
       attendance,
       companions: attendance === 'unable' ? 0 : companions,
@@ -283,101 +286,148 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
         </div>
 
         {/* RSVP Details */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
-              하객 구분
-            </label>
-            <div className="grid grid-cols-3 gap-1">
-              {(initialSide === 'bride'
-                ? [
-                    { id: 'bride', label: '신부측' },
-                    { id: 'groom', label: '신랑측' },
-                    { id: 'both', label: '공통지인' },
-                  ]
-                : [
-                    { id: 'groom', label: '신랑측' },
-                    { id: 'bride', label: '신부측' },
-                    { id: 'both', label: '공통지인' },
-                  ]
-              ).map((s) => (
-                <button
-                  type="button"
-                  key={s.id}
-                  onClick={() => {
-                    soundEngine.playBlip();
-                    setSide(s.id as 'groom' | 'bride' | 'both');
-                  }}
-                  className={`py-1.5 rounded text-xs font-medium border ${
-                    side === s.id
-                      ? 'bg-[#3b2f2f] text-white border-[#3b2f2f]'
-                      : 'bg-[#fffdf9] text-[#7d6e65] border-[#e2d4c0]'
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
-              참석 여부
-            </label>
-            <div className="grid grid-cols-3 gap-1">
-              {[
-                { id: 'attend', label: '참석가능' },
-                { id: 'maybe', label: '미정' },
-                { id: 'unable', label: '마음전달' },
-              ].map((a) => (
-                <button
-                  type="button"
-                  key={a.id}
-                  onClick={() => {
-                    soundEngine.playBlip();
-                    setAttendance(a.id as 'attend' | 'maybe' | 'unable');
-                  }}
-                  className={`py-1.5 rounded text-[11px] font-medium border ${
-                    attendance === a.id
-                      ? 'bg-[#d97b84] text-white border-[#d97b84]'
-                      : 'bg-[#fffdf9] text-[#7d6e65] border-[#e2d4c0]'
-                  }`}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
-              식사 여부 및 인원
-            </label>
-            <div className="flex gap-1.5">
-              <select
-                value={attendance === 'unable' ? 'no' : meal}
-                disabled={attendance === 'unable'}
-                onChange={(e) => setMeal(e.target.value as 'yes' | 'no' | 'undecided')}
-                className="flex-1 bg-[#fffdf9] disabled:opacity-60 border border-[#e2d4c0] rounded text-base sm:text-xs text-[#3b2f2f] px-2 py-2 sm:py-1.5"
-              >
-                <option value="yes">식사 예정</option>
-                <option value="no">식사 안함</option>
-                <option value="undecided">미정</option>
-              </select>
-              <select
-                value={companions}
-                disabled={attendance === 'unable'}
-                onChange={(e) => setCompanions(Number(e.target.value))}
-                className="w-24 sm:w-20 bg-[#fffdf9] disabled:opacity-60 border border-[#e2d4c0] rounded text-base sm:text-xs text-[#3b2f2f] px-2 py-2 sm:py-1.5"
-              >
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    외 {n - 1}명
-                  </option>
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+                하객 구분
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(initialSide === 'bride'
+                  ? [
+                      { id: 'bride', label: '신부측' },
+                      { id: 'groom', label: '신랑측' },
+                      { id: 'both', label: '공통지인' },
+                    ]
+                  : [
+                      { id: 'groom', label: '신랑측' },
+                      { id: 'bride', label: '신부측' },
+                      { id: 'both', label: '공통지인' },
+                    ]
+                ).map((s) => (
+                  <button
+                    type="button"
+                    key={s.id}
+                    aria-pressed={side === s.id}
+                    onClick={() => {
+                      soundEngine.playBlip();
+                      setSide(s.id as 'groom' | 'bride' | 'both');
+                    }}
+                    className={`min-h-[38px] py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                      side === s.id
+                        ? 'bg-[#3b2f2f] text-white border-[#3b2f2f]'
+                        : 'bg-[#fffdf9] text-[#7d6e65] border-[#e2d4c0] hover:bg-[#f5efe6]'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
                 ))}
-              </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+                참석 여부
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { id: 'attend', label: '참석가능' },
+                  { id: 'maybe', label: '미정' },
+                  { id: 'unable', label: '마음전달' },
+                ].map((a) => (
+                  <button
+                    type="button"
+                    key={a.id}
+                    aria-pressed={attendance === a.id}
+                    onClick={() => {
+                      soundEngine.playBlip();
+                      setAttendance(a.id as 'attend' | 'maybe' | 'unable');
+                    }}
+                    className={`min-h-[38px] py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                      attendance === a.id
+                        ? 'bg-[#d97b84] text-white border-[#d97b84]'
+                        : 'bg-[#fffdf9] text-[#7d6e65] border-[#e2d4c0] hover:bg-[#f5efe6]'
+                    }`}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+
+          {attendance === 'unable' ? (
+            <div className="bg-[#fffdf9] border border-[#e2d4c0] rounded-lg px-3 py-2 text-[11px] text-[#7d6e65] break-keep">
+              💌 마음만 전해주셔도 감사히 간직하겠습니다. 아래 성함을 남겨주시면 확인에 큰 도움이 됩니다.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+                  식사 여부
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { id: 'yes' as const, label: '식사 예정' },
+                    { id: 'no' as const, label: '식사 안함' },
+                    { id: 'undecided' as const, label: '미정' },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={meal === m.id}
+                      onClick={() => {
+                        soundEngine.playBlip(640);
+                        setMeal(m.id);
+                      }}
+                      className={`min-h-[38px] py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
+                        meal === m.id
+                          ? 'bg-[#4d6b53] text-white border-[#4d6b53]'
+                          : 'bg-[#fffdf9] text-[#5c4d47] border-[#e2d4c0] hover:bg-[#f5efe6]'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#7d6e65] mb-1">
+                  참석 인원 (본인 포함)
+                </label>
+                <div className="flex items-center justify-between gap-2 bg-[#fffdf9] border border-[#e2d4c0] rounded-lg p-1 min-h-[38px]">
+                  <button
+                    type="button"
+                    disabled={companions <= 1}
+                    aria-label="참석 인원 1명 줄이기"
+                    onClick={() => {
+                      soundEngine.playBlip(520);
+                      setCompanions((prev) => Math.max(1, prev - 1));
+                    }}
+                    className="w-8 h-7 rounded-md bg-[#faf5ec] hover:bg-[#efe6d8] disabled:opacity-40 border border-[#e2d4c0] text-sm font-bold text-[#3b2f2f] flex items-center justify-center"
+                  >
+                    −
+                  </button>
+                  <span className="text-xs font-bold text-[#3b2f2f] tabular-nums">
+                    {companions === 1 ? '본인만 (1명)' : `본인 포함 ${companions}명`}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={companions >= 10}
+                    aria-label="참석 인원 1명 늘리기"
+                    onClick={() => {
+                      soundEngine.playBlip(700);
+                      setCompanions((prev) => Math.min(10, prev + 1));
+                    }}
+                    className="w-8 h-7 rounded-md bg-[#faf5ec] hover:bg-[#efe6d8] disabled:opacity-40 border border-[#e2d4c0] text-sm font-bold text-[#3b2f2f] flex items-center justify-center"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Name, Phone & Message */}
@@ -469,13 +519,13 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           <div>
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <label className="block text-[11px] font-semibold text-[#7d6e65]">
-                축하 메시지 *{' '}
+                축하 메시지 (선택){' '}
                 <span className="text-[10px] font-normal text-[#9c897e] tabular-nums">
                   ({message.length} / 120)
                 </span>
               </label>
               <span className="text-[10px] text-[#9c897e]">
-                문구 칩을 누르면 바로 입력됩니다
+                비워두셔도 기본 축하 문구로 전달됩니다
               </span>
             </div>
 
@@ -502,7 +552,6 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
             </div>
 
             <textarea
-              required
               rows={2}
               maxLength={120}
               value={message}
@@ -510,7 +559,7 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                 setMessage(e.target.value);
                 if (formError) setFormError(null);
               }}
-              placeholder={`${joinCoupleNames(config, initialSide, 'name')} 두 사람의 새로운 출발에 따뜻한 한마디를 남겨주세요.`}
+              placeholder={`${joinCoupleNames(config, initialSide, 'name')} 두 사람의 새로운 출발에 따뜻한 한마디를 남겨주세요. (선택)`}
               className="w-full bg-[#fffdf9] border border-[#d4b48c] focus:border-[#d97b84] rounded-lg outline-none px-3 py-2 text-base sm:text-xs text-[#3b2f2f] resize-none"
             />
           </div>
@@ -580,20 +629,24 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
           )}
         </div>
 
-        {/* Groom / Bride Filter Chips */}
-        <div className="flex items-center gap-1.5 font-sans">
+        {/* Groom / Bride / Both Filter Chips */}
+        <div className="flex items-center gap-1.5 flex-wrap font-sans">
           {(
-            initialSide === 'bride'
-              ? [
-                  { id: 'all' as const, label: `전체 (${guestbook.length})` },
-                  { id: 'bride' as const, label: `신부측 (${brideCount})` },
-                  { id: 'groom' as const, label: `신랑측 (${groomCount})` },
-                ]
-              : [
-                  { id: 'all' as const, label: `전체 (${guestbook.length})` },
-                  { id: 'groom' as const, label: `신랑측 (${groomCount})` },
-                  { id: 'bride' as const, label: `신부측 (${brideCount})` },
-                ]
+            [
+              { id: 'all' as const, label: `전체 (${guestbook.length})` },
+              ...(initialSide === 'bride'
+                ? [
+                    { id: 'bride' as const, label: `신부측 (${brideCount})` },
+                    { id: 'groom' as const, label: `신랑측 (${groomCount})` },
+                  ]
+                : [
+                    { id: 'groom' as const, label: `신랑측 (${groomCount})` },
+                    { id: 'bride' as const, label: `신부측 (${brideCount})` },
+                  ]),
+              ...(bothCount > 0
+                ? [{ id: 'both' as const, label: `공통지인 (${bothCount})` }]
+                : []),
+            ]
           ).map((tab) => {
             const active = listFilter === tab.id;
             return (
@@ -609,6 +662,8 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                   active
                     ? tab.id === 'bride'
                       ? 'bg-[#d97b84] text-white border-[#d97b84]'
+                      : tab.id === 'both'
+                      ? 'bg-[#6b9071] text-white border-[#6b9071]'
                       : 'bg-[#3b2f2f] text-white border-[#3b2f2f]'
                     : 'bg-[#faf5ec] text-[#6e5d53] border-[#e2d4c0] hover:bg-[#f3e9d8]'
                 }`}
@@ -639,6 +694,21 @@ export const RsvpGuestbookSection: React.FC<RsvpGuestbookSectionProps> = ({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-bold text-[#3b2f2f]">
                           {item.name}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                            item.side === 'bride'
+                              ? 'bg-[#fcf0f1] text-[#b85d67] border-[#ebd2d4]'
+                              : item.side === 'both'
+                              ? 'bg-[#edf3ee] text-[#4d6b53] border-[#c4dac8]'
+                              : 'bg-[#f4efe8] text-[#5c4d47] border-[#dfd2be]'
+                          }`}
+                        >
+                          {item.side === 'bride'
+                            ? '신부측'
+                            : item.side === 'both'
+                            ? '공통지인'
+                            : '신랑측'}
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#fffdf9] text-[#8c7a70] border border-[#e2d4c0]">
                           {item.titleBadge}

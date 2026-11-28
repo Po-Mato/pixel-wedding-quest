@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Copy, Check, Heart, Sparkles, ExternalLink, Send } from 'lucide-react';
 import { WeddingConfig, BankAccount } from '../../data/weddingConfig';
 import { soundEngine } from '../../utils/soundEngine';
@@ -19,10 +19,24 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
   const [activeSide, setActiveSide] = useState<'groom' | 'bride'>(initialSide);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [copiedSummary, setCopiedSummary] = useState<string | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setActiveSide(initialSide);
   }, [initialSide]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
+  const scheduleClearCopied = (key: string) => {
+    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = window.setTimeout(() => {
+      setCopiedKey((prev) => (prev === key ? null : prev));
+    }, 6000);
+  };
 
   const handleCopyAccount = async (acc: BankAccount, key: string) => {
     const cleanAccountNumber =
@@ -41,9 +55,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
       origin: { y: 0.75 },
     });
 
-    setTimeout(() => {
-      setCopiedKey((prev) => (prev === key ? null : prev));
-    }, 3500);
+    scheduleClearCopied(key);
   };
 
   const handleOpenToss = async (acc: BankAccount, key: string) => {
@@ -52,9 +64,7 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
     if (!res) return;
     setCopiedKey(key);
     setCopiedSummary(`${acc.bank} ${res.cleanAccountNumber} (예금주: ${acc.name})`);
-    setTimeout(() => {
-      setCopiedKey((prev) => (prev === key ? null : prev));
-    }, 3500);
+    scheduleClearCopied(key);
   };
 
   const accounts =
@@ -147,16 +157,20 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
               </div>
 
               {hasNumber && (
-                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                <div
+                  className={`grid gap-1.5 w-full sm:w-auto sm:shrink-0 ${
+                    acc.kakaoPayUrl ? 'grid-cols-3' : 'grid-cols-2'
+                  }`}
+                >
                   {acc.kakaoPayUrl && (
                     <a
                       href={acc.kakaoPayUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => soundEngine.playCoin()}
-                      className="px-3 py-2 rounded-lg text-xs font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-1 transition-all"
+                      className="min-h-[40px] px-2.5 py-2 rounded-lg text-xs font-bold border bg-[#fee500] hover:bg-[#f5dc00] text-[#191919] border-[#dfca00] flex items-center justify-center gap-1 whitespace-nowrap transition-all"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                       <span>카카오페이</span>
                     </a>
                   )}
@@ -165,16 +179,16 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
                     type="button"
                     onClick={() => handleOpenToss(acc, key)}
                     title="계좌번호 복사 후 토스 앱 송금 화면 열기"
-                    className="px-3 py-2 rounded-lg text-xs font-bold border bg-[#eef4ff] hover:bg-[#dfeaff] text-[#1b64da] border-[#bdd4ff] flex items-center justify-center gap-1 transition-all"
+                    className="min-h-[40px] px-2.5 py-2 rounded-lg text-xs font-bold border bg-[#eef4ff] hover:bg-[#dfeaff] text-[#1b64da] border-[#bdd4ff] flex items-center justify-center gap-1 whitespace-nowrap transition-all"
                   >
-                    <Send className="w-3 h-3" />
+                    <Send className="w-3 h-3 shrink-0" />
                     <span>토스 송금</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleCopyAccount(acc, key)}
-                    className={`px-3.5 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-all flex-1 sm:flex-initial ${
+                    className={`min-h-[40px] px-2.5 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1 whitespace-nowrap transition-all ${
                       isCopied
                         ? 'bg-[#6b9071] text-white border-[#587a5e]'
                         : 'bg-[#fffdf9] hover:bg-[#f3e9d8] text-[#5c4d47] border-[#d4b48c]'
@@ -182,13 +196,13 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
                   >
                     {isCopied ? (
                       <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>번호 복사됨</span>
+                        <Check className="w-3.5 h-3.5 shrink-0" />
+                        <span>복사됨</span>
                       </>
                     ) : (
                       <>
-                        <Copy className="w-3.5 h-3.5 text-[#c59b6d]" />
-                        <span>계좌번호 복사</span>
+                        <Copy className="w-3.5 h-3.5 text-[#c59b6d] shrink-0" />
+                        <span>계좌 복사</span>
                       </>
                     )}
                   </button>
@@ -200,13 +214,13 @@ export const GiftSection: React.FC<GiftSectionProps> = ({
       </div>
 
       {copiedKey && (
-        <div className="bg-[#edf3ee] border border-[#a3bfa8] rounded-lg p-3 text-center text-xs font-sans font-medium text-[#3b5249] flex flex-col items-center justify-center gap-1 animate-fadeIn">
+        <div className="bg-[#edf3ee] border border-[#a3bfa8] rounded-lg p-3.5 text-center text-xs font-sans font-medium text-[#3b5249] flex flex-col items-center justify-center gap-1 animate-fadeIn">
           <div className="flex items-center gap-1.5 font-bold">
-            <Sparkles className="w-3.5 h-3.5 text-[#6b9071]" />
-            <span>은행 앱에 바로 붙여넣을 수 있도록 계좌번호만 복사되었습니다.</span>
+            <Sparkles className="w-3.5 h-3.5 text-[#6b9071] shrink-0" />
+            <span>계좌번호 복사 완료! 은행 앱에서 바로 붙여넣기 하세요.</span>
           </div>
           {copiedSummary && (
-            <span className="text-[11px] text-[#4d6b53]">{copiedSummary}</span>
+            <span className="text-[11px] font-semibold text-[#4d6b53]">{copiedSummary}</span>
           )}
         </div>
       )}

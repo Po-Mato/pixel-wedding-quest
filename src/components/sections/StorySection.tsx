@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Phone, MessageSquare, Heart, Sparkles, Copy, Check } from 'lucide-react';
 import { WeddingConfig } from '../../data/weddingConfig';
 import { GroomSprite, BrideSprite, PetCatSprite, PixelHeart } from '../PixelSprites';
@@ -19,15 +19,23 @@ export const StorySection: React.FC<StorySectionProps> = ({
 }) => {
   const [showContacts, setShowContacts] = useState(false);
   const [copiedPhoneKey, setCopiedPhoneKey] = useState<string | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const handleCopyPhone = async (label: string, phone: string, key: string) => {
     soundEngine.playCoin();
     await copyTextToClipboard(phone.trim());
     setCopiedPhoneKey(key);
     showToast(`${label} 연락처가 복사되었습니다`);
-    window.setTimeout(() => {
+    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = window.setTimeout(() => {
       setCopiedPhoneKey((prev) => (prev === key ? null : prev));
-    }, 2200);
+    }, 3000);
   };
 
   const orderedContactGroups =
@@ -121,29 +129,36 @@ export const StorySection: React.FC<StorySectionProps> = ({
                     return (
                       <div
                         key={i}
-                        className="flex items-center justify-between gap-2 text-xs bg-[#fffdf9] px-3 py-2 rounded border border-[#efe6d8]"
+                        className="flex flex-col gap-2 text-xs bg-[#fffdf9] px-3 py-2.5 rounded-lg border border-[#efe6d8]"
                       >
-                        <span className="text-[#3b2f2f] font-medium truncate">
-                          {c.label}
-                        </span>
-                        {cleanHref ? (
-                          <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[#3b2f2f] font-bold">
+                            {c.label}
+                          </span>
+                          {!cleanHref && (
+                            <span className="text-[10px] text-[#9c897e] shrink-0">
+                              연락처 확인 중
+                            </span>
+                          )}
+                        </div>
+                        {cleanHref && (
+                          <div className="grid grid-cols-3 gap-1.5">
                             <a
                               href={`tel:${cleanHref}`}
                               onClick={() => soundEngine.playBlip()}
-                              className="px-2 py-1 rounded-full bg-[#edf3ee] text-[#4d6b53] hover:opacity-85 flex items-center gap-1 text-[11px] font-bold"
+                              className="min-h-[36px] px-2 py-1.5 rounded-lg bg-[#edf3ee] text-[#4d6b53] hover:opacity-85 flex items-center justify-center gap-1 text-[11px] font-bold"
                               title="전화 걸기"
                             >
-                              <Phone className="w-3 h-3" />
+                              <Phone className="w-3 h-3 shrink-0" />
                               <span>전화</span>
                             </a>
                             <a
                               href={`sms:${cleanHref}`}
                               onClick={() => soundEngine.playBlip()}
-                              className="px-2 py-1 rounded-full bg-[#f9ebea] text-[#b85d67] hover:opacity-85 flex items-center gap-1 text-[11px] font-bold"
+                              className="min-h-[36px] px-2 py-1.5 rounded-lg bg-[#f9ebea] text-[#b85d67] hover:opacity-85 flex items-center justify-center gap-1 text-[11px] font-bold"
                               title="문자 보내기"
                             >
-                              <MessageSquare className="w-3 h-3" />
+                              <MessageSquare className="w-3 h-3 shrink-0" />
                               <span>문자</span>
                             </a>
                             <button
@@ -151,22 +166,18 @@ export const StorySection: React.FC<StorySectionProps> = ({
                               onClick={() =>
                                 handleCopyPhone(c.label, c.phone, `${group}-${i}`)
                               }
-                              className="px-2 py-1 rounded-full bg-[#faf5ec] text-[#5c4d47] border border-[#e2d4c0] hover:bg-[#f3e9d8] flex items-center gap-0.5 text-[11px] font-bold"
+                              className="min-h-[36px] px-2 py-1.5 rounded-lg bg-[#faf5ec] text-[#5c4d47] border border-[#e2d4c0] hover:bg-[#f3e9d8] flex items-center justify-center gap-1 text-[11px] font-bold"
                               title="번호 복사"
                               aria-label={`${c.label} 번호 복사`}
                             >
                               {copiedPhoneKey === `${group}-${i}` ? (
-                                <Check className="w-3 h-3 text-[#4d6b53]" />
+                                <Check className="w-3 h-3 text-[#4d6b53] shrink-0" />
                               ) : (
-                                <Copy className="w-3 h-3 text-[#8c7a70]" />
+                                <Copy className="w-3 h-3 text-[#8c7a70] shrink-0" />
                               )}
                               <span>{copiedPhoneKey === `${group}-${i}` ? '복사됨' : '복사'}</span>
                             </button>
                           </div>
-                        ) : (
-                          <span className="text-[10px] text-[#9c897e] shrink-0">
-                            연락처 확인 중
-                          </span>
                         )}
                       </div>
                     );
